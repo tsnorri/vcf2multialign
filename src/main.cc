@@ -15,6 +15,7 @@
 #include <iostream>
 #include <map>
 #include <Variant.h>
+#include <vcf2multialign/cxx14compat.hh>
 #include <vcf2multialign/fasta_reader.hh>
 #include <set>
 #include <stack>
@@ -387,6 +388,7 @@ namespace {
 
 		variant_file.reset();
 		vl::Variant var(variant_file);
+		size_t i(0);
 		while (variant_file.getNextVariant(var))
 		{
 			if (0 != skipped_variants.count(var.id))
@@ -473,6 +475,9 @@ namespace {
 				swap(overlap_stack.top(), overlap);
 			}
 
+			++i;
+			if (0 == i % 100000)
+				std::cerr << "Handled " << i << " variants…" << std::endl;
 		}
 		
 		// Fill the remaining part with reference.
@@ -516,12 +521,11 @@ int main(int argc, char **argv)
 	
 	{
 		// Read the reference file and place its contents into reference.
-		std::cerr << "Reading reference FASTA into memory…" << std::endl;
-
 		typedef v2m::vector_source <vector_type> vector_source;
 
 		struct callback {
 			vector_type *reference;
+			size_t i{0};
 
 			callback(vector_type &ref):
 				reference(&ref)
@@ -535,8 +539,11 @@ int main(int argc, char **argv)
 				vector_source &vs
 			)
 			{
+				std::cerr << "Read sequence of length " << seq_length << std::endl;
+
 				// Use ADL.
 				using std::swap;
+				seq->resize(seq_length);
 				swap(*reference, *seq);
 				vs.put_vector(seq);
 			}
@@ -547,56 +554,120 @@ int main(int argc, char **argv)
 		typedef v2m::fasta_reader <vector_source, callback> fasta_reader;
 
 		vector_source vs(1, false);
+
+		{
+			// Approximate the size of the reference from the size of the FASTA file.
+			int const fd(ref_fasta_stream->handle());
+			struct stat sb;
+			auto const st(fstat(fd, &sb));
+			if (0 != st)
+			{
+				auto const err_str(strerror(errno));
+				auto const msg(boost::str(boost::format("Unable to stat the reference file: %s") % err_str));
+				throw(std::runtime_error(msg));
+			}
+
+			// Preallocate space for the reference.
+			std::cerr << "Preallocating a vector of size " << sb.st_size << "…";
+			std::unique_ptr <vector_type> vec_ptr;
+			vs.get_vector(vec_ptr);
+			vec_ptr->reserve(sb.st_size);
+			vs.put_vector(vec_ptr);
+			std::cerr << " done." << std::endl;
+		}
+
 		callback cb(reference);
 		fasta_reader reader;
+
+		std::cerr << "Reading reference FASTA into memory…" << std::endl;
 		reader.read_from_stream(ref_fasta_stream, vs, cb);
-		// FIXME: remember to resize the target vector.
 	}
 
 	{
 		vl::Variant var(variant_file);
 
-		std::cerr << "Checking that the variant file is phased…" << std::endl;
-		variant_file.reset();
-		while (variant_file.getNextVariant(var))
+		if (!args_info.no_phasing_check_flag)
 		{
-			if (!var.isPhased())
+			std::cerr << "Checking that the variant file is phased…" << std::endl;
+			size_t i(0);
+			variant_file.reset();
+			while (variant_file.getNextVariant(var))
 			{
-				std::cerr << "Variant " << var.id << " is not phased, cannot convert to FASTA." << std::endl;
-				exit(EXIT_FAILURE);
+				if (!var.isPhased())
+				{
+					std::cerr << "Variant " << var.id << " is not phased, cannot convert to FASTA." << std::endl;
+					exit(EXIT_FAILURE);
+				}
+
+				++i;
+				if (0 == i % 100000)
+					std::cerr << "Handled " << i << " variants…" << std::endl;
 			}
 		}
-		
-		ploidy_map ploidy;
-		std::cerr << "Checking ploidy…" << std::endl;
-		variant_file.reset();
-		while (variant_file.getNextVariant(var))
+
+		if (!args_info.no_unique_id_check_flag)
 		{
-			ploidy_map current_ploidy;
-			current_ploidy.clear();
-			for (std::string const &sample : var.sampleNames)
+			std::cerr << "Checking that the variant identifiers are unique…" << std::endl;
+			size_t i(0);
+			bool can_continue(true);
+			std::set <std::string> identifiers;
+			variant_file.reset();
+			while (variant_file.getNextVariant(var))
 			{
-				auto const gt(var.getGenotype(sample));
-				auto const decomposed(vl::decomposeGenotype(gt));
-				for (auto const &kv : decomposed)
+				auto const res(identifiers.insert(var.id));
+				if (!res.second)
 				{
-					// first: allele, second: count
-					current_ploidy[sample] += kv.second;
+					can_continue = false;
+					std::cerr << "Found duplicate identifier '" << var.id << '\'' << std::endl;
 				}
+
+				++i;
+				if (0 == i % 100000)
+					std::cerr << "Handled " << i << " variants…" << std::endl;
 			}
-			
-			if (! (
-				ploidy.empty() ||
-				std::equal(current_ploidy.cbegin(), current_ploidy.cend(), ploidy.cbegin(), ploidy.cend())
-			))
+		}
+
+		ploidy_map ploidy;
+		if (!args_info.no_ploidy_check_flag)
+			std::cerr << "Checking ploidy…" << std::endl;
+		{
+			size_t i(0);
+			variant_file.reset();
+			while (variant_file.getNextVariant(var))
 			{
-				std::cerr << "Ploidy changes in " << var.id << ", unable to continue." << std::endl;
-				exit(EXIT_FAILURE);
+				ploidy_map current_ploidy;
+				current_ploidy.clear();
+				for (std::string const &sample : var.sampleNames)
+				{
+					auto const gt(var.getGenotype(sample));
+					auto const decomposed(vl::decomposeGenotype(gt));
+					for (auto const &kv : decomposed)
+					{
+						// first: allele, second: count
+						current_ploidy[sample] += kv.second;
+					}
+				}
+				
+				if (! (
+					ploidy.empty() ||
+					std::equal(current_ploidy.cbegin(), current_ploidy.cend(), ploidy.cbegin(), ploidy.cend())
+				))
+				{
+					std::cerr << "Ploidy changes in " << var.id << ", unable to continue." << std::endl;
+					exit(EXIT_FAILURE);
+				}
+				
+				// Use ADL.
+				using std::swap;
+				swap(ploidy, current_ploidy);
+
+				if (args_info.no_ploidy_check_flag)
+					break;
+
+				++i;
+				if (0 == i % 100000)
+					std::cerr << "Handled " << i << " variants…" << std::endl;
 			}
-			
-			// Use ADL.
-			using std::swap;
-			swap(ploidy, current_ploidy);
 		}
 		
 		variant_set skipped_variants;
@@ -616,6 +687,8 @@ int main(int argc, char **argv)
 			std::map <size_t, std::string> end_positions;
 			conflict_count_map conflict_counts;
 			overlap_map bad_overlaps;
+			size_t i(0);
+			size_t conflict_count(0);
 			while (variant_file.getNextVariant(var))
 			{
 				auto const pos(zero_based_position_safe(var));
@@ -629,7 +702,7 @@ int main(int argc, char **argv)
 				{
 					auto const var_id(var.id);
 					end_positions.emplace(end, var_id);
-					continue;
+					goto loop_end;
 				}
 				
 				// Found one or more possible bad overlaps. List all of them.
@@ -639,6 +712,7 @@ int main(int argc, char **argv)
 					if (end <= it->first)
 						break;
 					
+					++conflict_count;
 					std::cerr << "Variant " << var.id << " conflicts with " << it->second << "." << std::endl;
 					
 					auto const res(bad_overlaps.insert(overlap_map::value_type(it->second, var.id)));
@@ -651,8 +725,15 @@ int main(int argc, char **argv)
 				} while (end_it != it);
 				
 				// Add the end position.
-				auto const var_id(var.id);
-				end_positions.emplace(end, var_id);
+				{
+					auto const var_id(var.id);
+					end_positions.emplace(end, var_id);
+				}
+
+			loop_end:
+				++i;
+				if (0 == i % 100000)
+					std::cerr << "Handled " << i << " variants…" << std::endl;
 			}
 			
 			
@@ -679,9 +760,12 @@ int main(int argc, char **argv)
 				std::cerr << "Found no conflicting variants." << std::endl;
 			else
 			{
-				std::cerr << "Skipping the following " << skipped_count << " conflicting variants:" << std::endl;
+				std::cerr << "Found " << conflict_count << " conflicts in total." << std::endl;
+				std::cerr << "Skipping the following conflicting variants:" << std::endl;
 				for (auto const &id : skipped_variants)
 					std::cerr << '\t' << id << std::endl;
+
+				std::cerr << "Number of variants to be skipped: " << skipped_variants.size() << std::endl;
 			}
 		}
 
