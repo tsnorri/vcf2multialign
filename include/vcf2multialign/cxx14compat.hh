@@ -9,7 +9,7 @@
 #if __cplusplus < 201402L
 namespace std {
 	template <typename t_input_it_1, typename t_input_it_2>
-	bool equal(t_input_it it_1, t_input_it const end_1, t_input_it it_2, t_input_it const end_2)
+	bool equal(t_input_it_1 it_1, t_input_it_1 const end_1, t_input_it_2 it_2, t_input_it_2 const end_2)
 	{
 		while (it_1 != end_1 && it_2 != end_2)
 		{
