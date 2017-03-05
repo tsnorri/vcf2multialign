@@ -109,7 +109,7 @@ namespace vcf2multialign {
 							// std::vector may reserve more than 2 * capacity (using reserve),
 							// sdsl::int_vector reserves the exact amount.
 							// Make sure that at least some space is reserved.
-							auto new_size(capacity);
+							auto new_size(2 * capacity);
 							if (new_size < 64)
 								new_size = 64;
 							seq->resize(new_size);
@@ -119,6 +119,9 @@ namespace vcf2multialign {
 					auto const it(buffer.begin());
 					std::copy(it, it + count, seq->begin() + seq_length);
 					seq_length += count;
+
+					if (0 == i % 100000)
+						std::cerr << "Handled " << i << " lines…" << std::endl;
 				}
 				
 				if (seq_length)
