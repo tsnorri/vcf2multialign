@@ -35,7 +35,6 @@ namespace vcf2multialign {
 		m_format = "";
 		m_format_fields.clear();
 		m_format_max = 0;
-		m_current_sample_no = 0;
 	}
 	
 	
@@ -80,37 +79,37 @@ namespace vcf2multialign {
 			++sep_pos;
 		}
 		
-		m_sample_fields.resize(i);
 		m_format.assign(format.cbegin(), format.cend());
 	}
 	
 	
-	void variant::parse_sample(size_t const sample_no)
-	{
-		auto const idx(detail::to_underlying(vcf_field::ALL) + sample_no - 1);
-		auto const &val(m_var_fields[idx]);
-		detail::read_fields <false>(val, ":", 1 + m_format_max, m_sample_fields);
-		m_current_sample_no = sample_no;
-	}
-
-	
-	// FIXME: change this like so in order to enable threading:
-	// prepare_samples() checks format and calls map_format_fields if needed.
-	// parse_sample() takes a vector to which it places the sample fields. (Use vector_source?)
-	// get_genotype() takes the vector as well as the out-parameters listed below and fills them.
-	void variant::get_genotype(size_t const sample_no, std::vector <uint8_t> &res, bool &phased)
+	void variant::prepare_samples()
 	{
 		auto const &format(m_var_fields[detail::to_underlying(vcf_field::FORMAT)]);
 		if (m_format != format)
 			map_format_fields(format);
-		
-		if (sample_no != m_current_sample_no)
-			parse_sample(sample_no);
-		
+	}
+
+	
+	void variant::parse_sample(size_t const sample_no, std::vector <std::string_view> /* out */ &sample_fields) const
+	{
+		auto const idx(detail::to_underlying(vcf_field::ALL) + sample_no - 1);
+		auto const &val(m_var_fields[idx]);
+		detail::read_fields <false>(val, ":", 1 + m_format_max, sample_fields);
+	}
+
+	
+	void variant::get_genotype(std::vector <std::string_view> const &sample_fields, std::vector <uint8_t> /* out */ &res, bool /* out */ &phased) const
+	{
 		res.clear();
 		uint8_t alt_num(0);
 		phased = true;
-		for (auto c : m_sample_fields[m_format_fields["GT"]])
+		
+		auto const gt_idx_it(m_format_fields.find("GT"));
+		if (m_format_fields.cend() == gt_idx_it)
+			throw std::runtime_error("GT not present in format");
+			
+		for (auto c : sample_fields[gt_idx_it->second])
 		{
 			if ('0' <= c && c <= '9')
 			{

@@ -143,13 +143,11 @@ namespace vcf2multialign {
 	protected:
 		std::vector <std::string_view> m_var_fields;
 		std::vector <std::string_view> m_alt;
-		std::vector <std::string_view> m_sample_fields;
 		std::string m_format;
 		std::map <std::string, uint8_t> m_format_fields;
 		std::set <std::string> m_requested_format_fields;
 		std::size_t m_pos{0};
 		std::size_t m_sample_count{0};
-		std::size_t m_current_sample_no{0};
 		uint8_t m_format_max{0};
 		bool m_parsed_alt{false};
 		
@@ -168,7 +166,15 @@ namespace vcf2multialign {
 		size_t pos();
 		std::vector <std::string_view> const &alt();
 		void reset();
-		void get_genotype(size_t const sample_no, std::vector <uint8_t> &res, bool &phased);
+		
+		// Check the format of the current sample.
+		void prepare_samples();
+		
+		// Split the sample into fields up to the last one in requested_format_fields, thread-safe.
+		void parse_sample(size_t const sample_no, std::vector <std::string_view> /* out */ &sample_fields) const;
+		
+		// Get the genotype from a parsed sample.
+		void get_genotype(std::vector <std::string_view> const &sample_fields, std::vector <uint8_t> /* out */ &res, bool /* out */ &phased) const;
 		
 	protected:
 		void map_format_fields(std::string_view const &format);
