@@ -1,7 +1,7 @@
 /*
- Copyright (c) 2017 Tuukka Norri
- This code is licensed under MIT license (see LICENSE for details).
-*/
+ * Copyright (c) 2017 Tuukka Norri
+ * This code is licensed under MIT license (see LICENSE for details).
+ */
 
 #ifndef VCF2MULTIALIGN_CXX14COMPAT_HH
 #define VCF2MULTIALIGN_CXX14COMPAT_HH

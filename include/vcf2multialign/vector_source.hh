@@ -1,7 +1,7 @@
 /*
- Copyright (c) 2016-2017 Tuukka Norri
- This code is licensed under MIT license (see LICENSE for details).
-*/
+ * Copyright (c) 2016-2017 Tuukka Norri
+ * This code is licensed under MIT license (see LICENSE for details).
+ */
 
 #ifndef VCF2MULTIALIGN_VECTOR_SOURCE_HH
 #define VCF2MULTIALIGN_VECTOR_SOURCE_HH
@@ -31,12 +31,24 @@ namespace vcf2multialign {
 		void resize(std::size_t const size);
 		
 	public:
-		vector_source(std::size_t size = 1, bool allow_resize = true):
+		vector_source(std::size_t size = 0, bool allow_resize = true):
 			m_store(size)
 		{
-			assert(0 < size);
 			resize(size);
 			m_allow_resize = allow_resize;
+		}
+		
+		vector_source(vector_source &&other):
+			m_store(std::move(other.m_store)),
+			m_allow_resize(other.m_allow_resize)
+		{
+		}
+		
+		vector_source &operator=(vector_source &&other) &
+		{
+			m_store = std::move(other.m_store);
+			m_allow_resize = other.m_allow_resize;
+			return *this;
 		}
 		
 		void get_vector(std::unique_ptr <vector_type> &target_ptr);
@@ -64,14 +76,17 @@ namespace vcf2multialign {
 		
 		std::lock_guard <std::mutex> lock_guard(m_mutex);
 		auto total(m_store.size());
-		assert(total);
 		
 		// Check if there are any vectors left.
 		if (m_in_use == total)
 		{
-			auto const new_size(2 * total);
+			auto new_size(2 * total);
+			if (!new_size)
+				new_size = 1;
+				
 			resize(new_size);
-			assert(m_store[m_in_use - 1].get());
+			if (m_in_use)
+				assert(m_store[m_in_use - 1].get());
 			total = new_size;
 		}
 		

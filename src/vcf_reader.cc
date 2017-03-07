@@ -3,18 +3,31 @@
  This code is licensed under MIT license (see LICENSE for details).
  */
 
+#include <fcntl.h>
 #include <iostream>
+#include <sys/stat.h>
+#include <vcf2multialign/types.hh>
 #include <vcf2multialign/vcf_reader.hh>
 
 
 namespace vcf2multialign {
-	
+
 	size_t variant::pos()
 	{
 		if (0 == m_pos)
 			detail::parse_int(m_var_fields[detail::to_underlying(vcf_field::POS)], m_pos);
 		
 		return m_pos;
+	}
+	
+	
+	size_t variant::zero_based_pos()
+	{
+		auto const p(pos());
+		if (0 == p)
+			throw std::runtime_error("Unexpected position");
+		
+		return p - 1;
 	}
 	
 	
@@ -35,6 +48,7 @@ namespace vcf2multialign {
 		m_format = "";
 		m_format_fields.clear();
 		m_format_max = 0;
+		m_lineno = 0;
 	}
 	
 	
@@ -83,6 +97,7 @@ namespace vcf2multialign {
 	}
 	
 	
+	// Parse the format field if needed.
 	void variant::prepare_samples()
 	{
 		auto const &format(m_var_fields[detail::to_underlying(vcf_field::FORMAT)]);
@@ -91,6 +106,7 @@ namespace vcf2multialign {
 	}
 
 	
+	// Parse a sample according to the previously read format.
 	void variant::parse_sample(size_t const sample_no, std::vector <std::string_view> /* out */ &sample_fields) const
 	{
 		auto const idx(detail::to_underlying(vcf_field::ALL) + sample_no - 1);
@@ -99,6 +115,7 @@ namespace vcf2multialign {
 	}
 
 	
+	// Read the genotype field from a parsed sample.
 	void variant::get_genotype(std::vector <std::string_view> const &sample_fields, std::vector <uint8_t> /* out */ &res, bool /* out */ &phased) const
 	{
 		res.clear();
@@ -108,21 +125,37 @@ namespace vcf2multialign {
 		auto const gt_idx_it(m_format_fields.find("GT"));
 		if (m_format_fields.cend() == gt_idx_it)
 			throw std::runtime_error("GT not present in format");
-			
+		
+		bool expect_separator(false);
 		for (auto c : sample_fields[gt_idx_it->second])
 		{
-			if ('0' <= c && c <= '9')
+			if ('.' == c)
+			{
+				alt_num = NULL_ALLELE;
+
+				if (expect_separator)
+					throw std::runtime_error("Expected separator");
+				
+				expect_separator = true;
+			}
+			else if ('0' <= c && c <= '9')
 			{
 				alt_num *= 10;
 				alt_num += c - '0';
+
+				if (expect_separator)
+					throw std::runtime_error("Expected separator");
 			}
 			else
 			{
 				if ('/' == c)
 					phased = false;
+				else if ('|' != c)
+					throw std::runtime_error("Unexpected character");
 				
 				res.emplace_back(alt_num);
 				alt_num = 0;
+				expect_separator = false;
 			}
 		}
 		
@@ -130,6 +163,7 @@ namespace vcf2multialign {
 	}
 	
 	
+	// Parse the VCF header.
 	void vcf_reader::read_header()
 	{
 		std::vector <std::string_view> fields(m_parsed_field_count);
@@ -174,13 +208,16 @@ namespace vcf2multialign {
 	}
 	
 	
+	// Seek to the beginning of the records.
 	void vcf_reader::reset()
 	{
+		m_stream->clear();
 		m_stream->seekg(m_first_variant_offset);
 		m_lineno = m_last_header_lineno;
 	}
 	
 	
+	// Fill var with the first m_parsed_field_count fields.
 	bool vcf_reader::get_next_variant(variant &var)
 	{
 		if (!std::getline(*m_stream, m_line))
@@ -189,10 +226,12 @@ namespace vcf2multialign {
 		++m_lineno;
 		var.reset();
 		detail::read_fields <false>(m_line, "\t", m_parsed_field_count, var.m_var_fields);
+		var.m_lineno = m_lineno;
 		return true;
 	}
 	
 	
+	// Return the 1-based number of the given sample.
 	size_t vcf_reader::sample_no(std::string const &sample_name) const
 	{
 		auto const it(m_sample_names.find(sample_name));
@@ -202,12 +241,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	size_t vcf_reader::sample_count() const
-	{
-		return m_sample_names.size();
-	}
-	
-	
+	// Set the last field to be parsed on a line.
 	void vcf_reader::set_parsed_fields(vcf_field const last_field)
 	{
 		if (last_field == vcf_field::ALL)

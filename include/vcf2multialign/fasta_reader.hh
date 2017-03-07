@@ -1,7 +1,7 @@
 /*
- Copyright (c) 2016-2017 Tuukka Norri
- This code is licensed under MIT license (see LICENSE for details).
-*/
+ * Copyright (c) 2016-2017 Tuukka Norri
+ * This code is licensed under MIT license (see LICENSE for details).
+ */
 
 #ifndef VCF2MULTIALIGN_FASTA_READER_HH
 #define VCF2MULTIALIGN_FASTA_READER_HH
@@ -132,7 +132,7 @@ namespace vcf2multialign {
 			}
 			catch (std::ios_base::failure &exc)
 			{
-				if (std::cin.eof())
+				if (stream.eof())
 				{
 					if (seq_length)
 					{

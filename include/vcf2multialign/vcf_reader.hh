@@ -1,6 +1,6 @@
 /*
- Copyright (c) 2017 Tuukka Norri
- This code is licensed under MIT license (see LICENSE for details).
+ * Copyright (c) 2017 Tuukka Norri
+ * This code is licensed under MIT license (see LICENSE for details).
  */
 
 #ifndef VCF2MULTIALIGN_VCF_READER_HH
@@ -133,12 +133,19 @@ namespace vcf2multialign {
 	};
 	
 	
+	enum { NULL_ALLELE = std::numeric_limits <uint8_t>::max() };
+	
+	
 	class vcf_reader;
 	
 	
 	class variant
 	{
 		friend class vcf_reader;
+		
+	public:
+		typedef std::vector <std::string_view>	sample_field_vector;
+		typedef std::vector <uint8_t>			genotype_vector;
 		
 	protected:
 		std::vector <std::string_view> m_var_fields;
@@ -148,6 +155,7 @@ namespace vcf2multialign {
 		std::set <std::string> m_requested_format_fields;
 		std::size_t m_pos{0};
 		std::size_t m_sample_count{0};
+		std::size_t m_lineno{0};
 		uint8_t m_format_max{0};
 		bool m_parsed_alt{false};
 		
@@ -159,11 +167,21 @@ namespace vcf2multialign {
 		{
 		}
 		
+		variant(std::size_t const sample_count = 0):
+			m_var_fields(sample_count),
+			m_sample_count(sample_count)
+		{
+		}
+		
+		void add_format_field(std::string const &name) { m_requested_format_fields.emplace(name); }
+		
+		std::size_t const lineno() const		{ return m_lineno; }
 		std::string_view const &chrom() const	{ return m_var_fields[detail::to_underlying(vcf_field::CHROM)]; }
 		std::string_view const &id() const		{ return m_var_fields[detail::to_underlying(vcf_field::ID)]; }
 		std::string_view const &ref() const		{ return m_var_fields[detail::to_underlying(vcf_field::REF)]; }
 		
 		size_t pos();
+		size_t zero_based_pos();
 		std::vector <std::string_view> const &alt();
 		void reset();
 		
@@ -171,22 +189,24 @@ namespace vcf2multialign {
 		void prepare_samples();
 		
 		// Split the sample into fields up to the last one in requested_format_fields, thread-safe.
-		void parse_sample(size_t const sample_no, std::vector <std::string_view> /* out */ &sample_fields) const;
+		void parse_sample(size_t const sample_no, sample_field_vector /* out */ &sample_fields) const;
 		
 		// Get the genotype from a parsed sample.
-		void get_genotype(std::vector <std::string_view> const &sample_fields, std::vector <uint8_t> /* out */ &res, bool /* out */ &phased) const;
+		void get_genotype(sample_field_vector const &sample_fields, genotype_vector /* out */ &res, bool /* out */ &phased) const;
 		
 	protected:
 		void map_format_fields(std::string_view const &format);
-		void parse_sample(size_t const sample_no);
 	};
 	
 	
 	class vcf_reader
 	{
+	public:
+		typedef std::map <std::string, std::size_t> sample_name_map;
+		
 	protected:
-		std::istream *m_stream;
-		std::map <std::string, std::size_t> m_sample_names;
+		std::istream *m_stream{nullptr};
+		sample_name_map m_sample_names;
 		std::string m_line;
 		std::size_t m_lineno{0};
 		size_t m_parsed_field_count{0};
@@ -200,14 +220,17 @@ namespace vcf2multialign {
 		{
 		}
 		
+		vcf_reader() {}
+		
+		void set_stream(std::istream &stream) { m_stream = &stream; }
 		std::size_t lineno() const { return m_lineno; }
 		void read_header();
 		void reset();
 		bool get_next_variant(variant &var);
 		size_t sample_no(std::string const &sample_name) const;
-		size_t sample_count() const;
+		size_t sample_count() const { return m_sample_names.size(); }
 		void set_parsed_fields(vcf_field const last_field);
-		std::map <std::string, std::size_t> const &sample_names() { return m_sample_names; }
+		sample_name_map const &sample_names() { return m_sample_names; }
 	};
 }
 
