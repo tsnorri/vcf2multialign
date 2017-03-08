@@ -9,6 +9,7 @@
 #include <dispatch/dispatch.h>
 #include <map>
 #include <stack>
+#include <vcf2multialign/error_logger.hh>
 #include <vcf2multialign/types.hh>
 #include <vcf2multialign/vcf_reader.hh>
 #include <vcf2multialign/vector_source.hh>
@@ -80,6 +81,8 @@ namespace vcf2multialign {
 		dispatch_queue_t								m_parsing_queue;
 		std::function <void(void)>						m_finish_callback;
 		
+		error_logger									*m_error_logger{};
+		
 		vector_type	const								*m_reference{};
 		
 		vcf_reader										*m_vcf_reader{};
@@ -88,8 +91,9 @@ namespace vcf2multialign {
 		
 		variant_set const								*m_skipped_variants{};
 		variant_set										m_overlapping_alts{};
-		haplotype_ptr_map								m_ref_haplotype_ptrs;	// Haplotypes to which the reference sequence is to be output.
+		haplotype_ptr_map								m_ref_haplotype_ptrs;			// Haplotypes to which the reference sequence is to be output.
 		std::set <size_t>								m_valid_alts;
+		std::vector <std::pair <size_t, uint8_t>>		m_skipped_samples;				// In current variant.
 		
 		vector_source <variant::sample_field_vector>	m_sample_vs;
 		vector_source <variant::genotype_vector>		m_gt_vs;
@@ -98,6 +102,7 @@ namespace vcf2multialign {
 		alt_map											m_alt_haplotypes;
 		
 		std::string const								*m_null_allele_seq{};
+		std::size_t										m_handled_non_ref_samples{0};	// In current variant.
 		std::size_t										m_i{0};
 		
 	public:
@@ -108,11 +113,13 @@ namespace vcf2multialign {
 			vector_type const &reference,
 			variant_set const &skipped_variants,
 			std::string const &null_allele,
+			error_logger &error_logger,
 			std::function <void(void)> finish_callback
 		):
 			m_main_queue(main_queue),
 			m_parsing_queue(parsing_queue),
 			m_finish_callback(finish_callback),
+			m_error_logger(&error_logger),
 			m_reference(&reference),
 			m_vcf_reader(&vcf_reader_),
 			m_var(vcf_reader_.sample_count()),

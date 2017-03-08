@@ -169,6 +169,9 @@ namespace vcf2multialign {
 		
 	void variant_handler::process_next_variant()
 	{
+		m_handled_non_ref_samples = 0;
+		m_skipped_samples.clear();
+		
 		// Check if there is a next variant to be processed.
 		if (!m_vcf_reader->get_next_variant(m_var))
 		{
@@ -277,7 +280,7 @@ namespace vcf2multialign {
 					throw std::runtime_error("Variant file not phased");
 				
 				// Make the main queue handle the alts in order to avoid locking.
-				size_t chr_idx(0);
+				uint8_t chr_idx(0);
 				for (auto const alt_idx : *gt_vec_ptr)
 				{
 					if (0 != alt_idx && 0 != m_valid_alts.count(alt_idx))
@@ -314,6 +317,7 @@ namespace vcf2multialign {
 								// Use ADL.
 								using std::swap;
 								swap(alt_ptrs[chr_idx], ref_ptrs[chr_idx]);
+								++m_handled_non_ref_samples;
 							}
 							else
 							{
@@ -323,6 +327,9 @@ namespace vcf2multialign {
 									<< " for sample " << sample_no << ':' << chr_idx
 									<< " (and possibly others); skipping when needed." << std::endl;
 								}
+								
+								if (m_error_logger->is_logging_errors())
+									m_skipped_samples.emplace_back(sample_no, chr_idx);
 							}
 							
 						};
@@ -343,8 +350,19 @@ namespace vcf2multialign {
 		// the samples have been parsed before enqueuing in the main queue.
 		auto const var_end(var_pos + m_var.ref().size());
 		auto const previous_end_pos(previous_variant.end_pos);
-		auto fn = [this, var_pos, var_end, previous_end_pos](){
-			auto fn = [this, var_pos, var_end, previous_end_pos](){
+		auto fn = [this, var_pos, var_end, previous_end_pos, lineno](){
+			auto fn = [this, var_pos, var_end, previous_end_pos, lineno](){
+				// Report errors if needed.
+				if (m_error_logger->is_logging_errors())
+				{
+					for (auto const &p : m_skipped_samples)
+					{
+						auto const sample_no(p.first);
+						auto const chr_idx(p.second);
+						m_error_logger->log_overlapping_alternative(lineno, sample_no, chr_idx, m_handled_non_ref_samples);
+					}
+				}
+				
 				// Create a new variant_overlap.
 				variant_overlap overlap(var_pos, var_pos, var_end, 0, m_alt_haplotypes);
 				if (var_pos < previous_end_pos)

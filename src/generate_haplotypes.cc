@@ -67,18 +67,20 @@ namespace {
 		v2m::variant_handler								m_variant_handler;
 		dispatch_queue_t									m_main_queue{};
 		dispatch_queue_t									m_parsing_queue{};
-		v2m::vector_type									m_reference{};
-		v2m::file_istream									m_vcf_stream{};
-		v2m::vcf_reader										m_vcf_reader{};
+		v2m::vector_type									m_reference;
+		v2m::file_istream									m_vcf_stream;
+		v2m::vcf_reader										m_vcf_reader;
 		
-		ploidy_map											m_ploidy{};
-		v2m::haplotype_map									m_haplotypes{};
-		v2m::variant_set									m_skipped_variants{};
+		v2m::error_logger									m_error_logger;
+		
+		ploidy_map											m_ploidy;
+		v2m::haplotype_map									m_haplotypes;
+		v2m::variant_set									m_skipped_variants;
 
 		std::string											m_null_allele_seq;
-		v2m::vcf_reader::sample_name_map::const_iterator	m_sample_names_it;
-		v2m::vcf_reader::sample_name_map::const_iterator	m_sample_names_end;
-		std::size_t											m_chunk_size{};
+		v2m::vcf_reader::sample_name_map::const_iterator	m_sample_names_it{};
+		v2m::vcf_reader::sample_name_map::const_iterator	m_sample_names_end{};
+		std::size_t											m_chunk_size{0};
 		std::size_t											m_current_round{0};
 		std::size_t											m_total_rounds{0};
 		bool												m_should_overwrite_files{false};
@@ -205,7 +207,8 @@ namespace {
 		
 		void load_and_generate(
 			char const *reference_fname,
-			char const *variants_fname
+			char const *variants_fname,
+			char const *report_fname
 		)
 		{
 			// Open the files.
@@ -214,6 +217,12 @@ namespace {
 				
 				open_file_for_reading(reference_fname, ref_fasta_stream);
 				open_file_for_reading(variants_fname, m_vcf_stream);
+				
+				if (report_fname)
+				{
+					open_file_for_writing(report_fname, m_error_logger.output_stream(), m_should_overwrite_files);
+					m_error_logger.write_header();
+				}
 				
 				m_vcf_reader.set_stream(m_vcf_stream);
 				m_vcf_reader.read_header();
@@ -244,7 +253,7 @@ namespace {
 					std::cerr << "Skipping the following conflicting variants:" << std::endl;
 					for (auto const &id : m_skipped_variants)
 						std::cerr << '\t' << id << std::endl;
-
+					
 					std::cerr << "Number of variants to be skipped: " << m_skipped_variants.size() << std::endl;
 				}
 			}
@@ -258,6 +267,7 @@ namespace {
 					m_reference,
 					m_skipped_variants,
 					m_null_allele_seq,
+					m_error_logger,
 					[this](){ generate_sequences(); }
 				);
 				
@@ -276,6 +286,7 @@ namespace vcf2multialign {
 	void generate_haplotypes(
 		char const *reference_fname,
 		char const *variants_fname,
+		char const *report_fname,
 		char const *null_allele_seq,
 		std::size_t const chunk_size,
 		bool const should_overwrite_files
@@ -296,7 +307,8 @@ namespace vcf2multialign {
 		
 		ctx->load_and_generate(
 			reference_fname,
-			variants_fname
+			variants_fname,
+			report_fname
 		);
 		
 		// Calls pthread_exit.
