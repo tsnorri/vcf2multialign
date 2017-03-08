@@ -27,3 +27,7 @@
 *.exe
 *.out
 *.app
+
+src/cmdline.c
+src/cmdline.h
+src/vcf2multialign
