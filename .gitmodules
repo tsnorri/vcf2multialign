@@ -1,3 +1,6 @@
-[submodule "lib/vcflib"]
-	path = lib/vcflib
-	url = https://github.com/tsnorri/vcflib.git
+[submodule "lib/libdispatch"]
+	path = lib/libdispatch
+	url = https://github.com/nickhutchinson/libdispatch
+[submodule "lib/libpwq"]
+	path = lib/libpwq
+	url = https://github.com/mheily/libpwq.git
