@@ -92,9 +92,24 @@ namespace vcf2multialign {
 			auto const count(kv.first);
 			auto const var_lineno(kv.second);
 			
-			skipped_variants.insert(var_lineno);
-			bad_overlaps.left.erase(var_lineno);
-			bad_overlaps.right.erase(var_lineno);
+			// Check if the candidate variant is still listed.
+			{
+				auto const left_range(bad_overlaps.left.equal_range(var_lineno));
+				if (! (bad_overlaps.left.end() == left_range.first || left_range.first == left_range.second))
+				{
+					skipped_variants.insert(var_lineno);
+					bad_overlaps.left.erase(left_range.first, left_range.second);
+				}
+			}
+			
+			{
+				auto const right_range(bad_overlaps.right.equal_range(var_lineno));
+				if (! (bad_overlaps.right.end() == right_range.first || right_range.first == right_range.second))
+				{
+					skipped_variants.insert(var_lineno); // May be done b.c. skipped_variants is a set.
+					bad_overlaps.right.erase(right_range.first, right_range.second);
+				}
+			}
 			
 			if (bad_overlaps.size() == 0)
 				break;
