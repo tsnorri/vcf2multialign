@@ -39,6 +39,21 @@ namespace vcf2multialign {
 	> alt_map;
 	
 	
+	struct skipped_sample
+	{
+		std::size_t	sample_no{0};
+		uint8_t		alt_idx{0};
+		uint8_t		chr_idx{0};
+		
+		skipped_sample(std::size_t const sample_no_, uint8_t const alt_idx_, uint8_t const chr_idx_):
+			sample_no(sample_no_),
+			alt_idx(alt_idx_),
+			chr_idx(chr_idx_)
+		{
+		}
+	};
+	
+	
 	struct variant_overlap
 	{
 		size_t	start_pos{0};
@@ -93,7 +108,9 @@ namespace vcf2multialign {
 		variant_set										m_overlapping_alts{};
 		haplotype_ptr_map								m_ref_haplotype_ptrs;			// Haplotypes to which the reference sequence is to be output.
 		std::set <size_t>								m_valid_alts;
-		std::vector <std::pair <size_t, uint8_t>>		m_skipped_samples;				// In current variant.
+		std::vector <skipped_sample>					m_skipped_samples;				// In current variant.
+		std::map <uint8_t, sample_count>				m_counts_by_alt;				// In current variant.
+		sample_count									m_non_ref_totals;				// In current variant.
 		
 		vector_source <variant::sample_field_vector>	m_sample_vs;
 		vector_source <variant::genotype_vector>		m_gt_vs;
@@ -102,7 +119,6 @@ namespace vcf2multialign {
 		alt_map											m_alt_haplotypes;
 		
 		std::string const								*m_null_allele_seq{};
-		std::size_t										m_handled_non_ref_samples{0};	// In current variant.
 		std::size_t										m_i{0};
 		
 	public:

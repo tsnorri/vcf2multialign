@@ -169,8 +169,9 @@ namespace vcf2multialign {
 		
 	void variant_handler::process_next_variant()
 	{
-		m_handled_non_ref_samples = 0;
 		m_skipped_samples.clear();
+		m_counts_by_alt.clear();
+		m_non_ref_totals.reset();
 		
 		// Check if there is a next variant to be processed.
 		if (!m_vcf_reader->get_next_variant(m_var))
@@ -318,7 +319,8 @@ namespace vcf2multialign {
 								// Use ADL.
 								using std::swap;
 								swap(alt_ptrs[chr_idx], ref_ptrs[chr_idx]);
-								++m_handled_non_ref_samples;
+								++m_non_ref_totals.handled_count;
+								++m_counts_by_alt[alt_idx].handled_count;
 							}
 							else
 							{
@@ -330,9 +332,11 @@ namespace vcf2multialign {
 								}
 								
 								if (m_error_logger->is_logging_errors())
-									m_skipped_samples.emplace_back(sample_no, chr_idx);
+									m_skipped_samples.emplace_back(sample_no, alt_idx, chr_idx);
 							}
 							
+							++m_non_ref_totals.total_count;
+							++m_counts_by_alt[alt_idx].total_count;
 						};
 						
 						dispatch_async_fn(m_main_queue, fn);
@@ -356,12 +360,8 @@ namespace vcf2multialign {
 				// Report errors if needed.
 				if (m_error_logger->is_logging_errors())
 				{
-					for (auto const &p : m_skipped_samples)
-					{
-						auto const sample_no(p.first);
-						auto const chr_idx(p.second);
-						m_error_logger->log_overlapping_alternative(lineno, sample_no, chr_idx, m_handled_non_ref_samples);
-					}
+					for (auto const &s : m_skipped_samples)
+						m_error_logger->log_overlapping_alternative(lineno, s.sample_no, s.chr_idx, m_counts_by_alt[s.alt_idx], m_non_ref_totals);
 				}
 				
 				// Create a new variant_overlap.
