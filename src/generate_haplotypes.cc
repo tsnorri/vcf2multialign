@@ -243,17 +243,13 @@ namespace {
 			
 			// List variants that conflict, i.e. overlap but are not nested.
 			{
-				auto const conflict_count(v2m::check_overlapping_non_nested_variants(m_vcf_reader, m_skipped_variants));
+				auto const conflict_count(v2m::check_overlapping_non_nested_variants(m_vcf_reader, m_skipped_variants, m_error_logger));
 				auto const skipped_count(m_skipped_variants.size());
 				if (0 == skipped_count)
 					std::cerr << "Found no conflicting variants." << std::endl;
 				else
 				{
 					std::cerr << "Found " << conflict_count << " conflicts in total." << std::endl;
-					std::cerr << "Skipping the following conflicting variants:" << std::endl;
-					for (auto const &id : m_skipped_variants)
-						std::cerr << '\t' << id << std::endl;
-					
 					std::cerr << "Number of variants to be skipped: " << m_skipped_variants.size() << std::endl;
 				}
 			}

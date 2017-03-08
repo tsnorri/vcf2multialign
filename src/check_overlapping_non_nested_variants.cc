@@ -11,18 +11,73 @@
 #include <vcf2multialign/check_overlapping_non_nested_variants.hh>
 
 
+namespace v2m = vcf2multialign;
+
+
+typedef boost::bimap <
+	boost::bimaps::multiset_of <size_t>,
+	boost::bimaps::multiset_of <size_t>
+> overlap_map;
+
+
+typedef boost::bimap <
+	boost::bimaps::set_of <size_t>,
+	boost::bimaps::list_of <size_t>
+> conflict_count_map;
+
+
+namespace {
+	
+	template <typename t_map>
+	void check_overlap(
+		t_map &bad_overlap_side,
+		conflict_count_map &conflict_counts,
+		v2m::variant_set &skipped_variants,
+		size_t const var_lineno,
+		v2m::error_logger &error_logger
+	)
+	{
+		auto const range(bad_overlap_side.equal_range(var_lineno));
+		if (! (bad_overlap_side.end() == range.first || range.first == range.second))
+		{
+			if (error_logger.is_logging_errors())
+			{
+				for (auto it(range.first); it != range.second; ++it)
+					error_logger.log_conflicting_variants(var_lineno, it->second);
+			}
+			
+			// Update conflict counts.
+			for (auto it(range.first); it != range.second; ++it)
+			{
+				auto c_it(conflict_counts.left.find(it->second));
+				if (conflict_counts.left.end() == c_it)
+					throw std::runtime_error("Unable to find conflict count for variant");
+				
+				auto &val(c_it->second);
+				--val;
+				
+				if (0 == val)
+					conflict_counts.left.erase(c_it);
+				
+				// In case 0 == val, bad_overlaps need not be updated b.c. the entries have
+				// already been erased as part of handling previous overlapping variants.
+			}
+			
+			skipped_variants.insert(var_lineno); // May be done without checking b.c. skipped_variants is a set.
+			bad_overlap_side.erase(range.first, range.second);
+		}
+	}
+}
+
+
 namespace vcf2multialign {
 	
-	size_t check_overlapping_non_nested_variants(vcf_reader &reader, variant_set /* out */ &skipped_variants)
+	size_t check_overlapping_non_nested_variants(vcf_reader &reader, variant_set /* out */ &skipped_variants, error_logger &error_logger)
 	{
 		typedef boost::bimap <
 			boost::bimaps::multiset_of <size_t>,
 			boost::bimaps::multiset_of <size_t>
 		> overlap_map;
-		typedef boost::bimap <
-			boost::bimaps::set_of <size_t>,
-			boost::bimaps::list_of <size_t>
-		> conflict_count_map;
 		
 		std::cerr << "Checking overlapping variants…" << std::endl;
 		size_t last_position(0);
@@ -83,36 +138,19 @@ namespace vcf2multialign {
 				std::cerr << "Handled " << i << " variants…" << std::endl;
 		}
 		
-		
 		// Remove conflicting variants starting from the one with the highest score.
-		// FIXME: currently too many variants are removed.
-		conflict_counts.right.sort();
-		for (auto const &kv : boost::adaptors::reverse(conflict_counts.right))
+		while (!conflict_counts.empty())
 		{
-			auto const count(kv.first);
-			auto const var_lineno(kv.second);
+			conflict_counts.right.sort();
+
+			auto const it(conflict_counts.right.rbegin());
+			auto const count(it->first);
+			auto const var_lineno(it->second);
 			
 			// Check if the candidate variant is still listed.
-			{
-				auto const left_range(bad_overlaps.left.equal_range(var_lineno));
-				if (! (bad_overlaps.left.end() == left_range.first || left_range.first == left_range.second))
-				{
-					skipped_variants.insert(var_lineno);
-					bad_overlaps.left.erase(left_range.first, left_range.second);
-				}
-			}
-			
-			{
-				auto const right_range(bad_overlaps.right.equal_range(var_lineno));
-				if (! (bad_overlaps.right.end() == right_range.first || right_range.first == right_range.second))
-				{
-					skipped_variants.insert(var_lineno); // May be done b.c. skipped_variants is a set.
-					bad_overlaps.right.erase(right_range.first, right_range.second);
-				}
-			}
-			
-			if (bad_overlaps.size() == 0)
-				break;
+			check_overlap(bad_overlaps.left, conflict_counts, skipped_variants, var_lineno, error_logger);
+			check_overlap(bad_overlaps.right, conflict_counts, skipped_variants, var_lineno, error_logger);
+			conflict_counts.left.erase(var_lineno);
 		}
 		
 		if (bad_overlaps.size() != 0)

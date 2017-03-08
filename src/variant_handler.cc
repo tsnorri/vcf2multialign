@@ -176,6 +176,7 @@ namespace vcf2multialign {
 		if (!m_vcf_reader->get_next_variant(m_var))
 		{
 			// Fill the remaining part with reference.
+			m_error_logger->flush();
 			std::cerr << "Filling with the reference…" << std::endl;
 			auto const ref_size(m_reference->size());
 			process_overlap_stack(ref_size);

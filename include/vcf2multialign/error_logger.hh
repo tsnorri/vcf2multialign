@@ -18,9 +18,11 @@ namespace vcf2multialign {
 		
 	public:
 		file_ostream &output_stream() { return m_output_stream; }
+		void flush() { m_output_stream.flush(); }
 		bool is_logging_errors() const { return m_output_stream.is_open(); }
 		
 		void write_header();
+		void log_conflicting_variants(std::size_t const line_1, std::size_t const line_2);
 		void log_overlapping_alternative(std::size_t const lineno, std::size_t const sample_no, uint8_t const chd_idx, std::size_t const handled_non_ref_samples);
 	};
 }
