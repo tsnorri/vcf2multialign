@@ -58,6 +58,32 @@ namespace {
 	}
 	
 	
+	bool compare_references(v2m::vector_type const &ref, std::string_view const &var_ref, std::size_t const var_pos, std::size_t /* out */ &idx)
+	{
+		char const *var_ref_data(var_ref.data());
+		auto const var_ref_len(var_ref.size());
+		
+		char const *ref_data(ref.data());
+		auto const ref_len(ref.size());
+		
+		if (! (var_pos + var_ref_len <= ref_len))
+		{
+			idx = 0;
+			return false;
+		}
+		
+		auto const var_ref_end(var_ref_data + var_ref_len);
+		auto const p(std::mismatch(var_ref_data, var_ref_end, ref_data + var_pos));
+		if (var_ref_end != p.first)
+		{
+			idx = p.first - var_ref_data;
+			return false;
+		}
+		
+		return true;
+	}
+	
+	
 	class generate_context
 	{
 	protected:
@@ -144,6 +170,34 @@ namespace {
 		}
 		
 		
+		void check_ref()
+		{
+			m_vcf_reader.reset();
+			m_vcf_reader.set_parsed_fields(v2m::vcf_field::REF);
+			v2m::variant var;
+			bool found_mismatch(false);
+			
+			while (m_vcf_reader.get_next_variant(var))
+			{
+				auto const var_ref(var.ref());
+				auto const var_pos(var.zero_based_pos());
+				auto const lineno(var.lineno());
+				std::size_t diff_pos{0};
+				
+				if (!compare_references(m_reference, var_ref, var_pos, diff_pos))
+				{
+					if (!found_mismatch)
+					{
+						found_mismatch = true;
+						std::cerr << "Reference differs from the variant file on line " << lineno << " (and possibly others)." << std::endl;
+					}
+					
+					m_error_logger.log_ref_mismatch(lineno, diff_pos);
+				}
+			}
+		}
+		
+		
 		void update_haplotypes(char const *out_reference_fname)
 		{
 			m_haplotypes.clear();
@@ -225,7 +279,8 @@ namespace {
 			char const *reference_fname,
 			char const *variants_fname,
 			char const *out_reference_fname,
-			char const *report_fname
+			char const *report_fname,
+			bool const should_check_ref
 		)
 		{
 			// Open the files.
@@ -257,6 +312,10 @@ namespace {
 			
 			// Check ploidy from the first record.
 			check_ploidy();
+			
+			// Compare REF to the reference vector.
+			if (should_check_ref)
+				check_ref();
 			
 			// List variants that conflict, i.e. overlap but are not nested.
 			{
@@ -303,7 +362,8 @@ namespace vcf2multialign {
 		char const *report_fname,
 		char const *null_allele_seq,
 		std::size_t const chunk_size,
-		bool const should_overwrite_files
+		bool const should_overwrite_files,
+		bool const should_check_ref
 	)
 	{
 		dispatch_queue_t main_queue(dispatch_get_main_queue());
@@ -323,7 +383,8 @@ namespace vcf2multialign {
 			reference_fname,
 			variants_fname,
 			out_reference_fname,
-			report_fname
+			report_fname,
+			should_check_ref
 		);
 		
 		// Calls pthread_exit.

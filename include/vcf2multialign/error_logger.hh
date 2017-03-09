@@ -22,8 +22,10 @@ namespace vcf2multialign {
 		bool is_logging_errors() const { return m_output_stream.is_open(); }
 		
 		void write_header();
-
+		
 		void log_conflicting_variants(std::size_t const line_1, std::size_t const line_2);
+
+		void log_ref_mismatch(std::size_t const lineno, std::size_t const diff_pos);
 
 		void log_overlapping_alternative(
 			std::size_t const lineno,

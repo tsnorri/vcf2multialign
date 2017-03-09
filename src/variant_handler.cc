@@ -235,6 +235,9 @@ namespace vcf2multialign {
 		
 		size_t const var_pos(m_var.zero_based_pos());
 		
+		auto const var_ref(m_var.ref());
+		auto const var_ref_size(var_ref.size());
+		
 		// If var is beyond previous_variant.end_pos, handle the variants on the stack
 		// until a containing variant is found or the bottom of the stack is reached.
 		process_overlap_stack(var_pos);
@@ -243,7 +246,7 @@ namespace vcf2multialign {
 		auto &previous_variant(m_overlap_stack.top());
 		
 		// Check that if var is before previous_variant.end_pos, it is also completely inside it.
-		if (var_pos < previous_variant.end_pos && !(var_pos + m_var.ref().size() <= previous_variant.end_pos))
+		if (var_pos < previous_variant.end_pos && !(var_pos + var_ref_size <= previous_variant.end_pos))
 			throw std::runtime_error("Invalid variant inclusion");
 		
 		// Output reference from 5' direction up to var_pos.
@@ -354,7 +357,7 @@ namespace vcf2multialign {
 		
 		// Make a barrier in the parsing queue in order to make sure that all
 		// the samples have been parsed before enqueuing in the main queue.
-		auto const var_end(var_pos + m_var.ref().size());
+		auto const var_end(var_pos + var_ref_size);
 		auto const previous_end_pos(previous_variant.end_pos);
 		auto fn = [this, var_pos, var_end, previous_end_pos, lineno](){
 			auto fn = [this, var_pos, var_end, previous_end_pos, lineno](){
