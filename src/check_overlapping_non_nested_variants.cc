@@ -72,7 +72,12 @@ namespace {
 
 namespace vcf2multialign {
 	
-	size_t check_overlapping_non_nested_variants(vcf_reader &reader, variant_set /* out */ &skipped_variants, error_logger &error_logger)
+	size_t check_overlapping_non_nested_variants(
+		vcf_reader &reader,
+		variant_set /* out */ &skipped_variants,
+		variant_set /* out */ &non_nested_variants,
+		error_logger &error_logger
+	)
 	{
 		typedef boost::bimap <
 			boost::bimaps::multiset_of <size_t>,
@@ -81,6 +86,7 @@ namespace vcf2multialign {
 		
 		size_t last_position(0);
 		std::map <size_t, size_t> end_positions;
+		std::map <size_t, size_t, std::greater <size_t>> current_end_positions; // End positions for variants that have the same POS.
 		conflict_count_map conflict_counts;
 		overlap_map bad_overlaps;
 		size_t i(0);
@@ -93,14 +99,31 @@ namespace vcf2multialign {
 		{
 			// Verify that the positions are in increasing order.
 			auto const pos(var.zero_based_pos());
+
 			if (! (last_position <= pos))
 				throw std::runtime_error("Positions not in increasing order");
-			
-			// Try to find an end position that is greater than var's position.
+
 			auto const end(pos + var.ref().size());
+			auto const var_lineno(var.lineno());
+
+			if (last_position != pos)
+				current_end_positions.clear();
+
+			// Check end position order.
+			if (last_position == pos)
+			{
+				auto const it(current_end_positions.upper_bound(end));
+				if (current_end_positions.cend() != it)
+				{
+					non_nested_variants.emplace(var_lineno);
+					non_nested_variants.emplace(it->second);
+				}
+				current_end_positions.emplace(end, var_lineno);
+			}
+
+			// Try to find an end position that is greater than var's position.
 			auto it(end_positions.upper_bound(pos));
 			auto const end_it(end_positions.cend());
-			auto const var_lineno(var.lineno());
 
 			if (end_it == it)
 			{
@@ -132,6 +155,8 @@ namespace vcf2multialign {
 			end_positions.emplace(end, var_lineno);
 
 		loop_end:
+			last_position = pos;
+			
 			++i;
 			if (0 == i % 100000)
 				std::cerr << "Handled " << i << " variants…" << std::endl;

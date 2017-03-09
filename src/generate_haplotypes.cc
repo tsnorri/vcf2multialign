@@ -285,7 +285,8 @@ namespace {
 			char const *variants_fname,
 			char const *out_reference_fname,
 			char const *report_fname,
-			bool const should_check_ref
+			bool const should_check_ref,
+			bool const should_skip_unsorted_vars
 		)
 		{
 			// Open the files.
@@ -330,7 +331,23 @@ namespace {
 			// List variants that conflict, i.e. overlap but are not nested.
 			{
 				std::cerr << "Checking overlapping variants…" << std::endl;
-				auto const conflict_count(v2m::check_overlapping_non_nested_variants(m_vcf_reader, m_skipped_variants, m_error_logger));
+				v2m::variant_set non_nested_variants;
+				auto const conflict_count(v2m::check_overlapping_non_nested_variants(
+					m_vcf_reader,
+					m_skipped_variants,
+					non_nested_variants,
+					m_error_logger
+				));
+
+				if (should_skip_unsorted_vars)
+				{
+					// Not implemented yet?
+					//m_skipped_variants.merge(non_nested_variants);
+					for (auto const k : non_nested_variants)
+						m_skipped_variants.emplace(k);
+					non_nested_variants.clear();
+				}
+
 				auto const skipped_count(m_skipped_variants.size());
 				if (0 == skipped_count)
 					std::cerr << "Found no conflicting variants." << std::endl;
@@ -338,6 +355,16 @@ namespace {
 				{
 					std::cerr << "Found " << conflict_count << " conflicts in total." << std::endl;
 					std::cerr << "Number of variants to be skipped: " << m_skipped_variants.size() << std::endl;
+				}
+
+				auto const non_nested_count(non_nested_variants.size());
+				if (0 != non_nested_count)
+				{
+					std::cerr << "The following variants are not in nested order:" << std::endl;
+					for (auto const lineno : non_nested_variants)
+						std::cerr << '\t' << lineno << std::endl;
+					std::cerr << non_nested_count << " lines in total; reorder before running." << std::endl;
+					exit(EXIT_FAILURE);
 				}
 			}
 			
@@ -374,7 +401,8 @@ namespace vcf2multialign {
 		char const *null_allele_seq,
 		std::size_t const chunk_size,
 		bool const should_overwrite_files,
-		bool const should_check_ref
+		bool const should_check_ref,
+		bool const should_skip_unsorted_vars
 	)
 	{
 		dispatch_queue_t main_queue(dispatch_get_main_queue());
@@ -395,7 +423,8 @@ namespace vcf2multialign {
 			variants_fname,
 			out_reference_fname,
 			report_fname,
-			should_check_ref
+			should_check_ref,
+			should_skip_unsorted_vars
 		);
 		
 		// Calls pthread_exit.

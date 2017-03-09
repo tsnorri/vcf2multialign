@@ -254,6 +254,7 @@ namespace vcf2multialign {
 			<< "\n\tprevious_variant.lineno:\t" << previous_variant.lineno
 			<< "\n\tvar_pos:\t" << var_pos
 			<< "\n\tvar_ref_size:\t" << var_ref_size
+			<< "\n\tprevious_variant.start_pos:\t" << previous_variant.start_pos
 			<< "\n\tprevious_variant.end_pos:\t" << previous_variant.end_pos
 			<< std::endl;
 			throw std::runtime_error("Invalid variant inclusion");
