@@ -21,8 +21,8 @@ typedef boost::bimap <
 
 
 typedef boost::bimap <
-	boost::bimaps::set_of <size_t>,
-	boost::bimaps::list_of <size_t>
+	boost::bimaps::set_of <size_t>,		// lineno
+	boost::bimaps::list_of <size_t>		// count
 > conflict_count_map;
 
 
