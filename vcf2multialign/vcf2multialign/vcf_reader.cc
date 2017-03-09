@@ -215,18 +215,33 @@ namespace vcf2multialign {
 		m_stream->seekg(m_first_variant_offset);
 		m_lineno = m_last_header_lineno;
 	}
+
+
+	bool vcf_reader::get_line(std::string &line)
+	{
+		if (!std::getline(*m_stream, line))
+			return false;
+
+		++m_lineno;
+		return true;
+	}
+
+
+	void vcf_reader::get_next_variant(variant &var, std::string &line) const
+	{
+		var.reset();
+		detail::read_fields <false>(line, "\t", m_parsed_field_count, var.m_var_fields);
+		var.m_lineno = m_lineno;
+	}
 	
 	
 	// Fill var with the first m_parsed_field_count fields.
 	bool vcf_reader::get_next_variant(variant &var)
 	{
-		if (!std::getline(*m_stream, m_line))
+		if (!get_line(m_line))
 			return false;
-		
-		++m_lineno;
-		var.reset();
-		detail::read_fields <false>(m_line, "\t", m_parsed_field_count, var.m_var_fields);
-		var.m_lineno = m_lineno;
+
+		get_next_variant(var, m_line);
 		return true;
 	}
 	

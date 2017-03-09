@@ -167,48 +167,22 @@ namespace vcf2multialign {
 	}
 
 		
-	void variant_handler::process_next_variant()
+	void variant_handler::process_variant(variant &var)
 	{
 		m_skipped_samples.clear();
 		m_counts_by_alt.clear();
 		m_non_ref_totals.reset();
 		
-		// Check if there is a next variant to be processed.
-		if (!m_vcf_reader->get_next_variant(m_var))
-		{
-			// Fill the remaining part with reference.
-			m_error_logger->flush();
-			std::cerr << "Filling with the reference…" << std::endl;
-			auto const ref_size(m_reference->size());
-			process_overlap_stack(ref_size);
-			
-			char const *ref_begin(m_reference->data());
-			for (auto &kv : *m_all_haplotypes)
-			{
-				for (auto &h : kv.second)
-				{
-					auto const output_len(ref_size - h.current_pos);
-					h.output_stream.write(ref_begin + h.current_pos, output_len);
-				}
-			}
-			
-			dispatch_async_fn(m_main_queue, m_finish_callback);
-			return;
-		}
-		
-		auto const lineno(m_var.lineno());
+		auto const lineno(var.lineno());
 		if (0 != m_skipped_variants->count(lineno))
-		{
-			dispatch_async_f <variant_handler, &variant_handler::process_next_variant>(m_main_queue, this);
 			return;
-		}
 		
 		// Preprocess the ALT field to check that it can be handled.
 		{
 			// Check that the alt sequence is something that can be handled.
 			m_valid_alts.clear();
 			std::size_t i(0);
-			for (auto const &alt : m_var.alt())
+			for (auto const &alt : var.alt())
 			{
 				++i;
 				for (auto const c : alt)
@@ -227,15 +201,12 @@ namespace vcf2multialign {
 			}
 			
 			if (m_valid_alts.empty())
-			{
-				dispatch_async_f <variant_handler, &variant_handler::process_next_variant>(m_main_queue, this);
 				return;
-			}
 		}
 		
-		size_t const var_pos(m_var.zero_based_pos());
+		size_t const var_pos(var.zero_based_pos());
 		
-		auto const var_ref(m_var.ref());
+		auto const var_ref(var.ref());
 		auto const var_ref_size(var_ref.size());
 		
 		// If var is beyond previous_variant.end_pos, handle the variants on the stack
@@ -272,22 +243,22 @@ namespace vcf2multialign {
 		previous_variant.heaviest_path_length += var_pos - previous_variant.current_pos;
 		
 		// Find haplotypes that have the variant.
-		m_var.prepare_samples();
+		var.prepare_samples();
 		for (auto const &kv : *m_all_haplotypes)
 		{
 			// Handle the samples in parallel.
 			auto const sample_no(kv.first);
-			auto fn = [this, sample_no, lineno](){
+			auto fn = [this, sample_no, lineno, &var](){
 				// Parse the sample fields.
 				std::unique_ptr <variant::sample_field_vector> sample_sv_vec_ptr;
 				m_sample_vs.get_vector(sample_sv_vec_ptr);
-				m_var.parse_sample(sample_no, *sample_sv_vec_ptr);
+				var.parse_sample(sample_no, *sample_sv_vec_ptr);
 				
 				// Parse the genotype.
 				std::unique_ptr <variant::genotype_vector> gt_vec_ptr;
 				m_gt_vs.get_vector(gt_vec_ptr);
 				bool phased{false};
-				m_var.get_genotype(*sample_sv_vec_ptr, *gt_vec_ptr, phased);
+				var.get_genotype(*sample_sv_vec_ptr, *gt_vec_ptr, phased);
 				
 				// Return the sample vector.
 				m_sample_vs.put_vector(sample_sv_vec_ptr);
@@ -301,7 +272,7 @@ namespace vcf2multialign {
 				{
 					if (0 != alt_idx && 0 != m_valid_alts.count(alt_idx))
 					{
-						auto fn = [this, alt_idx, sample_no, chr_idx, lineno](){
+						auto fn = [this, alt_idx, sample_no, chr_idx, lineno, &var](){
 							auto &ref_ptrs(m_ref_haplotype_ptrs.find(sample_no)->second); // Has nodes for every sample_no.
 							
 							// Read the alt sequence into a buffer.
@@ -309,7 +280,7 @@ namespace vcf2multialign {
 							std::string const *alt_ptr(m_null_allele_seq);
 							if (NULL_ALLELE != alt_idx)
 							{
-								auto const &alt_sv(m_var.alt()[alt_idx - 1]);
+								auto const &alt_sv(var.alt()[alt_idx - 1]);
 								std::string temp(alt_sv.cbegin(), alt_sv.cend());
 								alt = std::move(temp);
 								alt_ptr = &alt;
@@ -397,14 +368,57 @@ namespace vcf2multialign {
 				++m_i;
 				if (0 == m_i % 50000)
 					std::cerr << "Handled " << m_i << " variants…" << std::endl;
-				
-				dispatch_async_f <variant_handler, &variant_handler::process_next_variant>(m_main_queue, this);
 			};
 			
 			dispatch_async_fn(m_main_queue, fn);
 		};
 		
 		dispatch_barrier_async_fn(m_parsing_queue, fn);
+	}
+
+
+	void variant_handler::process_next_variants_mt()
+	{
+		m_variant_buffer.fill_buffer();
+		auto p(m_variant_buffer.variant_range());
+		
+		// Check if there is a next variant to be processed.
+		if (p.first == p.second)
+		{
+			// Fill the remaining part with reference.
+			m_error_logger->flush();
+			std::cerr << "Filling with the reference…" << std::endl;
+			auto const ref_size(m_reference->size());
+			process_overlap_stack(ref_size);
+			
+			char const *ref_begin(m_reference->data());
+			for (auto &kv : *m_all_haplotypes)
+			{
+				for (auto &h : kv.second)
+				{
+					auto const output_len(ref_size - h.current_pos);
+					h.output_stream.write(ref_begin + h.current_pos, output_len);
+				}
+			}
+			
+			dispatch_async_fn(m_main_queue, m_finish_callback);
+			return;
+		}
+
+		while (p.first != p.second)
+		{
+			process_variant(p.first->var);
+			++p.first;
+		}
+
+		// Use a barrier to make sure that all parsing has been completed.
+		dispatch_barrier_async_f <variant_handler, &variant_handler::process_next_variants_wt>(m_parsing_queue, this);
+	}
+
+
+	void variant_handler::process_next_variants_wt()
+	{
+		dispatch_async_f <variant_handler, &variant_handler::process_next_variants_mt>(m_main_queue, this);
 	}
 	
 	
@@ -433,6 +447,6 @@ namespace vcf2multialign {
 
 		m_vcf_reader->reset();
 		m_vcf_reader->set_parsed_fields(vcf_field::ALL);
-		process_next_variant();
+		process_next_variants_mt();
 	}
 }

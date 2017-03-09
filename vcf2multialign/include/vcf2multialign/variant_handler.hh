@@ -11,6 +11,7 @@
 #include <stack>
 #include <vcf2multialign/error_logger.hh>
 #include <vcf2multialign/types.hh>
+#include <vcf2multialign/variant_buffer.hh>
 #include <vcf2multialign/vcf_reader.hh>
 #include <vcf2multialign/vector_source.hh>
 
@@ -119,7 +120,7 @@ namespace vcf2multialign {
 		vector_type	const								*m_reference{};
 		
 		vcf_reader										*m_vcf_reader{};
-		variant											m_var;
+		variant_buffer									m_variant_buffer;
 		overlap_stack_type								m_overlap_stack;
 		
 		variant_set const								*m_skipped_variants{};
@@ -156,13 +157,13 @@ namespace vcf2multialign {
 			m_error_logger(&error_logger),
 			m_reference(&reference),
 			m_vcf_reader(&vcf_reader_),
-			m_var(vcf_reader_.sample_count()),
+			m_variant_buffer(vcf_reader_.sample_count()),
 			m_skipped_variants(&skipped_variants),
 			m_null_allele_seq(&null_allele)
 		{
 			dispatch_retain(m_main_queue);
 			dispatch_retain(m_parsing_queue);
-			m_var.add_format_field("GT");
+			m_variant_buffer.add_format_field("GT");
 		}
 		
 		~variant_handler()
@@ -181,7 +182,10 @@ namespace vcf2multialign {
 		void process_variants(haplotype_map &haplotypes);
 
 	protected:
-		void process_next_variant();
+		void process_variant(variant &var);
+		void process_next_variants_mt();
+		void process_next_variants_wt();
+
 		void fill_streams(haplotype_ptr_map &haplotypes, size_t const fill_amt) const;
 		void output_reference(std::size_t const output_start_pos, std::size_t const output_end_pos);
 		void process_overlap_stack(size_t const var_pos);

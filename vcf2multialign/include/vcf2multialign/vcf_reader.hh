@@ -226,6 +226,8 @@ namespace vcf2multialign {
 		std::size_t lineno() const { return m_lineno; }
 		void read_header();
 		void reset();
+		bool get_line(std::string &line);
+		void get_next_variant(variant &var, std::string &line) const;
 		bool get_next_variant(variant &var);
 		size_t sample_no(std::string const &sample_name) const;
 		size_t sample_count() const { return m_sample_names.size(); }
