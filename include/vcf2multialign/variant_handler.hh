@@ -62,23 +62,39 @@ namespace vcf2multialign {
 		size_t	current_pos{0};
 		size_t	end_pos{0};
 		size_t	heaviest_path_length{0};
+		size_t	lineno{0};
 		alt_map	alt_haplotypes;
 		
-		variant_overlap(size_t const s, size_t const c, size_t const e, size_t const h):
-			start_pos(s),
-			current_pos(c),
-			end_pos(e),
-			heaviest_path_length(h)
+		variant_overlap(
+			size_t const start_pos_,
+			size_t const current_pos_,
+			size_t const end_pos_,
+			size_t const heaviest_path_length_,
+			size_t const lineno_
+		):
+			start_pos(start_pos_),
+			current_pos(current_pos_),
+			end_pos(end_pos_),
+			heaviest_path_length(heaviest_path_length_),
+			lineno(lineno_)
 		{
 			if (! (start_pos <= end_pos))
 				throw std::runtime_error("Bad offset order");
 		}
 		
-		variant_overlap(size_t const s, size_t const c, size_t const e, size_t const h, alt_map &alts):
-			start_pos(s),
-			current_pos(c),
-			end_pos(e),
-			heaviest_path_length(h),
+		variant_overlap(
+			size_t const start_pos_,
+			size_t const current_pos_,
+			size_t const end_pos_,
+			size_t const heaviest_path_length_,
+			size_t const lineno_,
+			alt_map &alts
+		):
+			start_pos(start_pos_),
+			current_pos(current_pos_),
+			end_pos(end_pos_),
+			heaviest_path_length(heaviest_path_length_),
+			lineno(lineno_),
 			alt_haplotypes(std::move(alts))
 		{
 			if (! (start_pos <= end_pos))

@@ -247,7 +247,17 @@ namespace vcf2multialign {
 		
 		// Check that if var is before previous_variant.end_pos, it is also completely inside it.
 		if (var_pos < previous_variant.end_pos && !(var_pos + var_ref_size <= previous_variant.end_pos))
+		{
+			std::cerr
+			<< "Invalid variant inclusion."
+			<< "\n\tlineno:\t" << lineno
+			<< "\n\tprevious_variant.lineno:\t" << previous_variant.lineno
+			<< "\n\tvar_pos:\t" << var_pos
+			<< "\n\tvar_ref_size:\t" << var_ref_size
+			<< "\n\tprevious_variant.end_pos:\t" << previous_variant.end_pos
+			<< std::endl;
 			throw std::runtime_error("Invalid variant inclusion");
+		}
 		
 		// Output reference from 5' direction up to var_pos.
 		output_reference(previous_variant.current_pos, var_pos);
@@ -369,7 +379,7 @@ namespace vcf2multialign {
 				}
 				
 				// Create a new variant_overlap.
-				variant_overlap overlap(var_pos, var_pos, var_end, 0, m_alt_haplotypes);
+				variant_overlap overlap(var_pos, var_pos, var_end, 0, lineno, m_alt_haplotypes);
 				if (var_pos < previous_end_pos)
 				{
 					// Add the current variant to the stack.
@@ -403,7 +413,7 @@ namespace vcf2multialign {
 			m_overlap_stack.pop();
 		
 		m_ref_haplotype_ptrs.clear();
-		m_overlap_stack.emplace(0, 0, 0, 0);
+		m_overlap_stack.emplace(0, 0, 0, 0, 0);
 		m_all_haplotypes = &all_haplotypes;
 		m_i = 0;
 		
