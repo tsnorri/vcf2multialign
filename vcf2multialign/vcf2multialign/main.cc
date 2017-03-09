@@ -7,6 +7,11 @@
 #include <iostream>
 #include <unistd.h>
 #include <vcf2multialign/generate_haplotypes.hh>
+
+#ifdef __linux__
+#include <pthread_workqueue.h>
+#endif
+
 #include "cmdline.h"
 
 
@@ -24,6 +29,11 @@ int main(int argc, char **argv)
 		std::cerr << "Chunk size must be positive." << std::endl;
 		exit(EXIT_FAILURE);
 	}
+
+	// libdispatch on macOS does not need pthread_workqueue.
+#ifdef __linux__
+	pthread_workqueue_init_np();
+#endif
 
 	v2m::generate_haplotypes(
 		args_info.reference_arg,
