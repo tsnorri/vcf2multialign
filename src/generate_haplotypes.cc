@@ -10,11 +10,11 @@
 #include <fcntl.h>
 #include <iostream>
 #include <map>
+#include <vcf2multialign/check_overlapping_non_nested_variants.hh>
 #include <vcf2multialign/generate_haplotypes.hh>
 #include <vcf2multialign/read_single_fasta_seq.hh>
 #include <vcf2multialign/types.hh>
 #include <vcf2multialign/variant_handler.hh>
-#include <vcf2multialign/check_overlapping_non_nested_variants.hh>
 
 namespace ios	= boost::iostreams;
 namespace v2m	= vcf2multialign;
@@ -144,7 +144,7 @@ namespace {
 		}
 		
 		
-		void update_haplotypes()
+		void update_haplotypes(char const *out_reference_fname)
 		{
 			m_haplotypes.clear();
 			
@@ -181,14 +181,30 @@ namespace {
 				if (i == m_chunk_size)
 					break;
 			}
+			
+			// Check if reference output was requested.
+			if (out_reference_fname)
+			{
+				if (m_haplotypes.cend() != m_haplotypes.find(v2m::REF_SAMPLE_NUMBER))
+					throw std::runtime_error("REF_SAMPLE_NUMBER already in use");
+				
+				auto it(m_haplotypes.emplace(
+					std::piecewise_construct,
+					std::forward_as_tuple(0),
+					std::forward_as_tuple(1)
+				).first);
+				
+				auto &haplotype_vec(it->second);
+				open_file_for_writing(out_reference_fname, haplotype_vec[0].output_stream, m_should_overwrite_files);
+			}
 		}
 
 		
 		// Handle m_chunk_size samples.
-		void generate_sequences()
+		void generate_sequences(char const *out_reference_fname = nullptr)
 		{
 			// Open files for the samples. If no files were opened, exit.
-			update_haplotypes();
+			update_haplotypes(out_reference_fname);
 			if (0 == m_haplotypes.size())
 			{
 				// After calling cleanup *this is no longer valid.
@@ -208,6 +224,7 @@ namespace {
 		void load_and_generate(
 			char const *reference_fname,
 			char const *variants_fname,
+			char const *out_reference_fname,
 			char const *report_fname
 		)
 		{
@@ -271,7 +288,7 @@ namespace {
 			}
 			
 			std::cerr << "Generating haplotype sequences…" << std::endl;
-			generate_sequences();
+			generate_sequences(out_reference_fname);
 		}
 	};
 }
@@ -282,6 +299,7 @@ namespace vcf2multialign {
 	void generate_haplotypes(
 		char const *reference_fname,
 		char const *variants_fname,
+		char const *out_reference_fname,
 		char const *report_fname,
 		char const *null_allele_seq,
 		std::size_t const chunk_size,
@@ -304,6 +322,7 @@ namespace vcf2multialign {
 		ctx->load_and_generate(
 			reference_fname,
 			variants_fname,
+			out_reference_fname,
 			report_fname
 		);
 		

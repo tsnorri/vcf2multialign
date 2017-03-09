@@ -348,7 +348,8 @@ namespace vcf2multialign {
 				m_gt_vs.put_vector(gt_vec_ptr);
 			};
 			
-			dispatch_async_fn(m_parsing_queue, fn);
+			if (REF_SAMPLE_NUMBER != sample_no)
+				dispatch_async_fn(m_parsing_queue, fn);
 		}
 		
 		// Make a barrier in the parsing queue in order to make sure that all

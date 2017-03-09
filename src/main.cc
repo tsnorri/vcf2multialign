@@ -28,6 +28,7 @@ int main(int argc, char **argv)
 	v2m::generate_haplotypes(
 		args_info.reference_arg,
 		args_info.variants_arg,
+		args_info.output_reference_arg,
 		args_info.report_file_arg,
 		args_info.null_allele_seq_arg,
 		args_info.chunk_size_arg,

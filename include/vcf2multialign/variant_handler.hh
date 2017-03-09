@@ -17,6 +17,8 @@
 
 namespace vcf2multialign {
 
+	enum { REF_SAMPLE_NUMBER = 0 };
+	
 	struct haplotype
 	{
 		size_t current_pos{0};

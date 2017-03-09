@@ -8,6 +8,7 @@ usage	"vcf2multialign --reference=filename.fa --variants=filename.vcf [...]"
 
 option	"reference"				r	"Reference FASTA file path"							string	typestr = "filename"				required
 option	"variants"				a	"Variant call file path"							string	typestr = "filename"				required
+option	"output-reference"		-	"Output multiply-aligned reference"					string	typestr = "filename"				optional
 option	"overwrite"				-	"Overwrite output files"							flag	off
 option	"chunk-size"			-	"Number of samples to be processed simultaneously"	long	typestr = "size" default = "200"	optional
 option	"null-allele-seq"		-	"Sequence to be used for null alleles"				string	typestr = "seq"	default = "N"		optional
