@@ -85,8 +85,8 @@ namespace vcf2multialign {
 		> overlap_map;
 		
 		size_t last_position(0);
-		std::map <size_t, size_t> end_positions;
-		std::map <size_t, size_t, std::greater <size_t>> current_end_positions; // End positions for variants that have the same POS.
+		std::multimap <size_t, size_t> end_positions;
+		std::multimap <size_t, size_t, std::greater <size_t>> current_end_positions; // End positions for variants that have the same POS.
 		conflict_count_map conflict_counts;
 		overlap_map bad_overlaps;
 		size_t i(0);
