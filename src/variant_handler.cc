@@ -394,7 +394,7 @@ namespace vcf2multialign {
 				}
 				
 				++m_i;
-				if (0 == m_i % 10000)
+				if (0 == m_i % 50000)
 					std::cerr << "Handled " << m_i << " variants…" << std::endl;
 				
 				dispatch_async_f <variant_handler, &variant_handler::process_next_variant>(m_main_queue, this);

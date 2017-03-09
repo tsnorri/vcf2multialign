@@ -176,6 +176,7 @@ namespace {
 			m_vcf_reader.set_parsed_fields(v2m::vcf_field::REF);
 			v2m::variant var;
 			bool found_mismatch(false);
+			std::size_t i(0);
 			
 			while (m_vcf_reader.get_next_variant(var))
 			{
@@ -194,6 +195,10 @@ namespace {
 					
 					m_error_logger.log_ref_mismatch(lineno, diff_pos);
 				}
+
+				++i;
+				if (0 == i % 100000)
+					std::cerr << "Handled " << i << " variants…" << std::endl;
 			}
 		}
 		
@@ -284,6 +289,7 @@ namespace {
 		)
 		{
 			// Open the files.
+			std::cerr << "Opening files…" << std::endl;
 			{
 				v2m::file_istream ref_fasta_stream;
 				
@@ -311,14 +317,19 @@ namespace {
 			}
 			
 			// Check ploidy from the first record.
+			std::cerr << "Checking ploidy…" << std::endl;
 			check_ploidy();
 			
 			// Compare REF to the reference vector.
 			if (should_check_ref)
+			{
+				std::cerr << "Comparing the REF column to the reference…" << std::endl;
 				check_ref();
+			}
 			
 			// List variants that conflict, i.e. overlap but are not nested.
 			{
+				std::cerr << "Checking overlapping variants…" << std::endl;
 				auto const conflict_count(v2m::check_overlapping_non_nested_variants(m_vcf_reader, m_skipped_variants, m_error_logger));
 				auto const skipped_count(m_skipped_variants.size());
 				if (0 == skipped_count)

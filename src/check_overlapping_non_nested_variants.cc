@@ -79,7 +79,6 @@ namespace vcf2multialign {
 			boost::bimaps::multiset_of <size_t>
 		> overlap_map;
 		
-		std::cerr << "Checking overlapping variants…" << std::endl;
 		size_t last_position(0);
 		std::map <size_t, size_t> end_positions;
 		conflict_count_map conflict_counts;
