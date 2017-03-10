@@ -11,12 +11,12 @@ endif
 .PHONY: all clean-all clean clean-dependencies dependencies
 
 all: dependencies
-	$(MAKE) -C vcf2multialign
+	$(MAKE) -C src
 
 clean-all: clean clean-dependencies
 
 clean:
-	$(MAKE) -C vcf2multialign clean
+	$(MAKE) -C src clean
 
 clean-dependencies:
 	$(RM) -r lib/libdispatch/libdispatch-build

@@ -1,5 +1,5 @@
-include ../../local.mk
-include ../../common.mk
+include ../local.mk
+include ../common.mk
 
 OBJECTS		=	cmdline.o \
 				check_overlapping_non_nested_variants.o \
