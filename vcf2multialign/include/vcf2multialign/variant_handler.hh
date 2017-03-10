@@ -157,7 +157,7 @@ namespace vcf2multialign {
 			m_error_logger(&error_logger),
 			m_reference(&reference),
 			m_vcf_reader(&vcf_reader_),
-			m_variant_buffer(vcf_reader_.sample_count()),
+			m_variant_buffer(vcf_reader_, vcf_reader_.sample_count()),
 			m_skipped_variants(&skipped_variants),
 			m_null_allele_seq(&null_allele)
 		{
