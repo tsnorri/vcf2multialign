@@ -43,8 +43,7 @@ int main(int argc, char **argv)
 		args_info.null_allele_seq_arg,
 		args_info.chunk_size_arg,
 		args_info.overwrite_flag,
-		!args_info.no_check_ref_flag,
-		args_info.skip_unsorted_vars_flag
+		!args_info.no_check_ref_flag
 	);
 	
 	// Not reached b.c. pthread_exit() is eventually called in generate_haplotypes().

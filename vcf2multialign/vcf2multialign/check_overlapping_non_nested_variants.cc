@@ -88,7 +88,6 @@ namespace vcf2multialign {
 	size_t check_overlapping_non_nested_variants(
 		vcf_reader &reader,
 		variant_set /* out */ &skipped_variants,
-		variant_set /* out */ &non_nested_variants,
 		error_logger &error_logger
 	)
 	{
@@ -99,7 +98,6 @@ namespace vcf2multialign {
 		
 		size_t last_position(0);
 		std::multimap <size_t, var_info> end_positions; // end -> pos & lineno
-		std::multimap <size_t, size_t, std::greater <size_t>> current_end_positions; // End positions for variants that have the same POS.
 		conflict_count_map conflict_counts;
 		overlap_map bad_overlaps;
 		size_t i(0);
@@ -118,21 +116,6 @@ namespace vcf2multialign {
 
 			auto const end(pos + var.ref().size());
 			auto const var_lineno(var.lineno());
-
-			if (last_position != pos)
-				current_end_positions.clear();
-
-			// Check end position order.
-			if (last_position == pos)
-			{
-				auto const it(current_end_positions.upper_bound(end));
-				if (current_end_positions.cend() != it)
-				{
-					non_nested_variants.emplace(var_lineno);
-					non_nested_variants.emplace(it->second);
-				}
-				current_end_positions.emplace(end, var_lineno);
-			}
 
 			// Try to find an end position that is greater than var's position.
 			auto it(end_positions.upper_bound(pos));
