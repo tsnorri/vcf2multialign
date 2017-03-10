@@ -36,18 +36,26 @@ namespace vcf2multialign {
 		typedef std::vector <buffered_variant> variant_list;
 
 	protected:
-		vcf_reader			*m_reader;
+		vcf_reader			*m_reader{};
 		variant_list		m_variant_list;
 		buffered_variant	m_model_variant;
 		std::size_t			m_list_ptr{0};
 
 	public:
-		variant_buffer(std::size_t const sample_count, std::set <std::string> const &requested_format_fields):
+		variant_buffer():
+			m_reader(nullptr),
+			m_model_variant(0)
+		{
+		}
+		
+		variant_buffer(vcf_reader &reader, std::size_t const sample_count, std::set <std::string> const &requested_format_fields):
+			m_reader(&reader),
 			m_model_variant(sample_count, requested_format_fields)
 		{
 		}
 
-		variant_buffer(std::size_t const sample_count = 0):
+		variant_buffer(vcf_reader &reader, std::size_t const sample_count = 0):
+			m_reader(&reader),
 			m_model_variant(sample_count)
 		{
 		}

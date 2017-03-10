@@ -38,7 +38,13 @@ namespace vcf2multialign {
 
 			// Read the line.
 			if (!m_reader->get_line(current_variant.line))
+			{
+				// Check if the first variant was already invalid.
+				if (m_variant_list[0].var.pos() == 0)
+					m_list_ptr = 0;
+					
 				break;
+			}
 
 			// Parse the variant.
 			m_reader->get_next_variant(current_variant.var, current_variant.line);
