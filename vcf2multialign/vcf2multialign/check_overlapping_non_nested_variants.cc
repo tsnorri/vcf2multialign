@@ -28,6 +28,19 @@ typedef boost::bimap <
 
 namespace {
 	
+	struct var_info
+	{
+		size_t pos;
+		size_t lineno;
+		
+		var_info(size_t const pos_, size_t const lineno_):
+			pos(pos_),
+			lineno(lineno_)
+		{
+		}
+	};
+
+	
 	template <typename t_map>
 	void check_overlap(
 		t_map &bad_overlap_side,
@@ -71,7 +84,7 @@ namespace {
 
 
 namespace vcf2multialign {
-	
+
 	size_t check_overlapping_non_nested_variants(
 		vcf_reader &reader,
 		variant_set /* out */ &skipped_variants,
@@ -85,7 +98,7 @@ namespace vcf2multialign {
 		> overlap_map;
 		
 		size_t last_position(0);
-		std::multimap <size_t, size_t> end_positions;
+		std::multimap <size_t, var_info> end_positions; // end -> pos & lineno
 		std::multimap <size_t, size_t, std::greater <size_t>> current_end_positions; // End positions for variants that have the same POS.
 		conflict_count_map conflict_counts;
 		overlap_map bad_overlaps;
@@ -127,7 +140,11 @@ namespace vcf2multialign {
 
 			if (end_it == it)
 			{
-				end_positions.emplace(end, var_lineno);
+				end_positions.emplace(
+					std::piecewise_construct,
+					std::forward_as_tuple(end),
+					std::forward_as_tuple(pos, var_lineno)
+				);
 				goto loop_end;
 			}
 			
@@ -139,20 +156,35 @@ namespace vcf2multialign {
 				if (end <= it->first)
 					break;
 				
-				++conflict_count;
-				std::cerr << "Variant on line " << var_lineno << " conflicts with line " << it->second << "." << std::endl;
+				// Check if the potentially conflicting variant is in fact inside this one.
+				auto const other_lineno(it->second.lineno);
+				auto const other_pos(it->second.pos);
+				if (pos == other_pos)
+					goto loop_end_2;
 				
-				auto const res(bad_overlaps.insert(overlap_map::value_type(it->second, var_lineno)));
-				if (false == res.second)
-					throw std::runtime_error("Unable to insert");
+				++conflict_count;
+				std::cerr << "Variant on line " << var_lineno << " conflicts with line " << other_lineno << "." << std::endl;
+				
+				{
+					auto const res(bad_overlaps.insert(overlap_map::value_type(other_lineno, var_lineno)));
+					if (false == res.second)
+						throw std::runtime_error("Unable to insert");
+				}
 
-				++conflict_counts.left[it->second];
+				++conflict_counts.left[other_lineno];
 				++conflict_counts.left[var_lineno];
+				
+			loop_end_2:
 				++it;
 			} while (end_it != it);
 			
 			// Add the end position.
-			end_positions.emplace(end, var_lineno);
+			end_positions.emplace(
+				std::piecewise_construct,
+				std::forward_as_tuple(end),
+				std::forward_as_tuple(pos, var_lineno)
+			);
+
 
 		loop_end:
 			last_position = pos;
