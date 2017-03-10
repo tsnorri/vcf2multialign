@@ -33,13 +33,15 @@ namespace vcf2multialign {
 	class variant_buffer
 	{
 	public:
-		typedef std::vector <buffered_variant> variant_list;
+		typedef std::vector <buffered_variant>								variant_list;
+		typedef std::pair <variant_list::iterator, variant_list::iterator>	variant_range;
 
 	protected:
 		vcf_reader			*m_reader{};
 		variant_list		m_variant_list;
 		buffered_variant	m_model_variant;
 		std::size_t			m_list_ptr{0};
+		bool				m_reached_end{false};
 
 	public:
 		variant_buffer():
@@ -61,7 +63,7 @@ namespace vcf2multialign {
 		}
 
 		void add_format_field(std::string const &name) { m_model_variant.var.add_format_field(name); }
-		std::pair <variant_list::iterator, variant_list::iterator> variant_range();
+		void get_variant_range(variant_range &rng);
 		void fill_buffer();
 	};
 }

@@ -175,7 +175,10 @@ namespace vcf2multialign {
 		
 		auto const lineno(var.lineno());
 		if (0 != m_skipped_variants->count(lineno))
+		{
+			dispatch_async_f <variant_handler, &variant_handler::process_next_variant>(m_main_queue, this);
 			return;
+		}
 		
 		// Preprocess the ALT field to check that it can be handled.
 		{
@@ -201,7 +204,10 @@ namespace vcf2multialign {
 			}
 			
 			if (m_valid_alts.empty())
+			{
+				dispatch_async_f <variant_handler, &variant_handler::process_next_variant>(m_main_queue, this);
 				return;
+			}
 		}
 		
 		size_t const var_pos(var.zero_based_pos());
@@ -240,7 +246,6 @@ namespace vcf2multialign {
 		// Update current_pos to match the position up to which the sequence was output.
 		// Also add the length to the heaviest path length.
 		previous_variant.current_pos = var_pos;
-		previous_variant.heaviest_path_length += var_pos - previous_variant.current_pos;
 		
 		// Find haplotypes that have the variant.
 		var.prepare_samples();
@@ -368,6 +373,8 @@ namespace vcf2multialign {
 				++m_i;
 				if (0 == m_i % 50000)
 					std::cerr << "Handled " << m_i << " variants…" << std::endl;
+				
+				dispatch_async_f <variant_handler, &variant_handler::process_next_variant>(m_main_queue, this);
 			};
 			
 			dispatch_async_fn(m_main_queue, fn);
@@ -375,15 +382,28 @@ namespace vcf2multialign {
 		
 		dispatch_barrier_async_fn(m_parsing_queue, fn);
 	}
+	
+	
+	void variant_handler::process_next_variant()
+	{
+		if (m_variant_range.first == m_variant_range.second)
+		{
+			fill_variant_buffer();
+			return;
+		}
+		
+		process_variant(m_variant_range.first->var);
+		++m_variant_range.first;
+	}
 
 
-	void variant_handler::process_next_variants_mt()
+	void variant_handler::fill_variant_buffer()
 	{
 		m_variant_buffer.fill_buffer();
-		auto p(m_variant_buffer.variant_range());
+		m_variant_buffer.get_variant_range(m_variant_range);
 		
 		// Check if there is a next variant to be processed.
-		if (p.first == p.second)
+		if (m_variant_range.first == m_variant_range.second)
 		{
 			// Fill the remaining part with reference.
 			m_error_logger->flush();
@@ -401,24 +421,11 @@ namespace vcf2multialign {
 				}
 			}
 			
-			dispatch_async_fn(m_main_queue, m_finish_callback);
+			m_finish_callback();
 			return;
 		}
-
-		while (p.first != p.second)
-		{
-			process_variant(p.first->var);
-			++p.first;
-		}
-
-		// Use a barrier to make sure that all parsing has been completed.
-		dispatch_barrier_async_f <variant_handler, &variant_handler::process_next_variants_wt>(m_parsing_queue, this);
-	}
-
-
-	void variant_handler::process_next_variants_wt()
-	{
-		dispatch_async_f <variant_handler, &variant_handler::process_next_variants_mt>(m_main_queue, this);
+		
+		process_next_variant();
 	}
 	
 	
@@ -447,6 +454,6 @@ namespace vcf2multialign {
 
 		m_vcf_reader->reset();
 		m_vcf_reader->set_parsed_fields(vcf_field::ALL);
-		process_next_variants_mt();
+		fill_variant_buffer();
 	}
 }

@@ -121,6 +121,7 @@ namespace vcf2multialign {
 		
 		vcf_reader										*m_vcf_reader{};
 		variant_buffer									m_variant_buffer;
+		variant_buffer::variant_range					m_variant_range;
 		overlap_stack_type								m_overlap_stack;
 		
 		variant_set const								*m_skipped_variants{};
@@ -182,9 +183,9 @@ namespace vcf2multialign {
 		void process_variants(haplotype_map &haplotypes);
 
 	protected:
+		void fill_variant_buffer();
+		void process_next_variant();
 		void process_variant(variant &var);
-		void process_next_variants_mt();
-		void process_next_variants_wt();
 
 		void fill_streams(haplotype_ptr_map &haplotypes, size_t const fill_amt) const;
 		void output_reference(std::size_t const output_start_pos, std::size_t const output_end_pos);

@@ -9,10 +9,11 @@
 
 namespace vcf2multialign {
 
-	auto variant_buffer::variant_range() -> std::pair <variant_list::iterator, variant_list::iterator>
+	void variant_buffer::get_variant_range(variant_range &rng)
 	{
 		auto it(m_variant_list.begin());
-		return std::make_pair(it, it + m_list_ptr);
+		rng.second = it + m_list_ptr;
+		rng.first = std::move(it);
 	}
 
 
@@ -39,10 +40,11 @@ namespace vcf2multialign {
 			// Read the line.
 			if (!m_reader->get_line(current_variant.line))
 			{
-				// Check if the first variant was already invalid.
-				if (m_variant_list[0].var.pos() == 0)
+				// Check if the stream end was already reached.
+				if (m_reached_end)
 					m_list_ptr = 0;
-					
+				
+				m_reached_end = true;
 				break;
 			}
 
