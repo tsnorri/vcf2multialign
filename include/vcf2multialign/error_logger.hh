@@ -18,7 +18,7 @@ namespace vcf2multialign {
 		
 	public:
 		file_ostream &output_stream() { return m_output_stream; }
-		void flush() { m_output_stream.flush(); }
+		void flush() { if (is_logging_errors()) m_output_stream.flush(); }
 		bool is_logging_errors() const { return m_output_stream.is_open(); }
 		
 		void write_header();
