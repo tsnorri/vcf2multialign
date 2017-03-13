@@ -249,6 +249,16 @@ namespace vcf2multialign {
 		
 		// Find haplotypes that have the variant.
 		var.prepare_samples();
+
+		// First make sure that all valid alts are listed in m_alt_haplotypes.
+		for (auto const alt_idx : m_valid_alts)
+		{
+			auto const &alt_sv(var.alt()[alt_idx - 1]);
+			std::string alt(alt_sv.cbegin(), alt_sv.cend());
+			m_alt_haplotypes[alt];
+		}
+		m_alt_haplotypes[*m_null_allele_seq];
+				
 		for (auto const &kv : *m_all_haplotypes)
 		{
 			// Handle the samples in parallel.
@@ -271,15 +281,6 @@ namespace vcf2multialign {
 				if (!phased)
 					throw std::runtime_error("Variant file not phased");
 
-				// First make sure that all valid alts are listed in m_alt_haplotypes.
-				for (auto const alt_idx : m_valid_alts)
-				{
-					auto const &alt_sv(var.alt()[alt_idx - 1]);
-					std::string alt(alt_sv.cbegin(), alt_sv.cend());
-					m_alt_haplotypes[alt];
-				}
-				m_alt_haplotypes[*m_null_allele_seq];
-				
 				// Make the main queue handle the alts in order to avoid locking.
 				uint8_t chr_idx(0);
 				for (auto const alt_idx : *gt_vec_ptr)
