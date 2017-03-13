@@ -207,7 +207,7 @@ namespace {
 		{
 			m_haplotypes.clear();
 			
-			size_t i(1);
+			size_t i(0);
 			while (m_sample_names_it != m_sample_names_end)
 			{
 				auto const &sample_name(m_sample_names_it->first);
