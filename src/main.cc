@@ -30,6 +30,9 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
+	std::ios_base::sync_with_stdio(false);
+	std::cin.tie(nullptr);
+
 	// libdispatch on macOS does not need pthread_workqueue.
 #ifdef __linux__
 	pthread_workqueue_init_np();
