@@ -3,65 +3,114 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#include <algorithm>
+#include <vcf2multialign/util.hh>
 #include <vcf2multialign/variant_buffer.hh>
 
 
 namespace vcf2multialign {
 
-	void variant_buffer::get_variant_range(variant_range &rng)
+	void variant_buffer::return_node_to_buffer(variant_set::node_type &&node)
 	{
-		auto it(m_variant_list.begin());
-		rng.second = it + m_list_ptr;
-		rng.first = std::move(it);
+		std::lock_guard <std::mutex> guard(m_buffer_mutex);
+		m_d.m_buffer.emplace_back(std::move(node));
 	}
-
-
-	void variant_buffer::fill_buffer()
+	
+	
+	bool variant_buffer::get_node_from_buffer(variant_set::node_type &node)
 	{
-		auto const size(m_variant_list.size());
-
-		// If there is an item that has not been handled before, move it to the beginning of the list.
-		if (m_list_ptr)
+		std::lock_guard <std::mutex> guard(m_buffer_mutex);
+		auto const bufsize(m_d.m_buffer.size());
+		if (bufsize)
 		{
 			using std::swap;
-			swap(m_variant_list[m_list_ptr], m_variant_list[0]);
-			m_list_ptr = 1;
+			swap(node, m_d.m_buffer[bufsize - 1]);
+			m_d.m_buffer.pop_back();
+			return true;
 		}
-
-		while (true)
+		return false;
+	}
+	
+	
+	void variant_buffer::read_input()
+	{
+		bool should_continue(false);
+		do
 		{
-			// Copy a model variant if needed.
-			if (! (m_list_ptr < size))
-				m_variant_list.push_back(m_model_variant);
-
-			auto &current_variant(m_variant_list[m_list_ptr]);
-
-			// Read the line.
-			if (!m_reader->get_line(current_variant.line))
-			{
-				// Check if the stream end was already reached.
-				if (m_reached_end)
-					m_list_ptr = 0;
+			// Read from the stream.
+			m_d.m_reader->fill_buffer();
+			
+			should_continue = m_d.m_reader->parse([this](transient_variant const &transient_variant) -> bool {
 				
-				m_reached_end = true;
-				break;
-			}
+				using std::swap;
+				
+				// Get a node handle.
+				variant_set::node_type node;	// Empty, insert does nothing.
+				if (! get_node_from_buffer(node))
+				{
+					// No handles in the buffer, create a new one.
+					m_d.m_factory.emplace();
+					node = m_d.m_factory.extract(m_d.m_factory.begin());
+				}
+				
+				// Copy the variant to node.
+				node.value() = transient_variant;
+				
+				// Check if the variant has a new POS value.
+				auto const variant_pos(node.value().pos());
+				if (variant_pos != m_d.m_previous_pos)
+				{
+					m_d.m_previous_pos = variant_pos;
+					variant_set prepared_variants;
+					swap(m_d.m_prepared_variants, prepared_variants);
+		
+					auto fn = [this, pr = std::move(prepared_variants)]() mutable {
+						process_input(std::move(pr));
+					};
+					dispatch_async_fn(*m_d.m_main_queue, fn);
+					
+					// Wait for our turn to continue.
+					// Do this only after the main thread has received something to process so that
+					// a long span of variants with the same POS don't cause a deadlock.
+					auto const st(dispatch_semaphore_wait(*m_d.m_process_sema, DISPATCH_TIME_FOREVER));
+					always_assert(0 == st, "dispatch_semaphore_wait returned early");
+				}
+				
+				// Add the node to the input list.
+				m_d.m_prepared_variants.insert(std::move(node));
+				
+				return true;
+			});
+		} while (should_continue);
 
-			// Parse the variant.
-			m_reader->get_next_variant(current_variant.var, current_variant.line);
-
-			// Check if the new variant has the same position as the previous ones.
-			if (m_variant_list[0].var.pos() != current_variant.var.pos()) 
-				break;
-
-			++m_list_ptr;
+		if (!m_d.m_prepared_variants.empty())
+		{
+			using std::swap;
+			variant_set prepared_variants;
+			swap(m_d.m_prepared_variants, prepared_variants);
+			auto fn = [this, pr = std::move(prepared_variants)]() mutable {
+				process_input(std::move(pr));
+			};
+			dispatch_async_fn(*m_d.m_main_queue, fn);
 		}
-
-		// Sort so that the longest REF is in the beginning of the list.
-		auto const begin(m_variant_list.begin());
-		std::sort(begin, begin + m_list_ptr, [](buffered_variant &lhs, buffered_variant &rhs) {
-			return lhs.var.ref().size() > rhs.var.ref().size();
-		});
+		
+		dispatch_async_f <variant_buffer_delegate, &variant_buffer_delegate::finish>(*m_d.m_main_queue, m_d.m_delegate);
+	}
+	
+	
+	void variant_buffer::process_input(variant_set &&variants)
+	{
+		while (!variants.empty())
+		{
+			auto node(variants.extract(variants.cbegin()));
+			auto &value(node.value());
+	
+			// Process input.
+			m_d.m_delegate->handle_variant(value);
+	
+			// Return the node.
+			return_node_to_buffer(std::move(node));
+	
+			dispatch_semaphore_signal(*m_d.m_process_sema);
+		}
 	}
 }
