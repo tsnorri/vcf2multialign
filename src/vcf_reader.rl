@@ -110,7 +110,7 @@ namespace vcf2multialign {
 		template <t_fnt t_fn, typename ... t_args>
 		static void handle_string_end(vcf_reader &r, t_args ... args)
 		{
-			std::string_view sv(r.m_start, r.m_fsm.p - r.m_start + 1);
+			std::string_view sv(r.m_start, r.m_fsm.p - r.m_start);
 			(r.m_current_variant.*(t_fn))(sv, std::forward <t_args>(args)...);
 		}
 		
@@ -123,7 +123,7 @@ namespace vcf2multialign {
 	
 	
 	template <int t_continue, int t_break>
-	bool vcf_reader::check_max_field(vcf_field const field, int const target, callback_fn const &cb)
+	int vcf_reader::check_max_field(vcf_field const field, int const target, callback_fn const &cb)
 	{
 		if (field <= m_max_parsed_field)
 			return target;
@@ -355,12 +355,12 @@ namespace vcf2multialign {
 				%{ HANDLE_STRING_END(&vc::set_ref); };
 			
 			# FIXME: add breakends.
-			simple_alt	= ([ACGTN]+) %{ m_alt_is_complex = false; };
-			complex_alt	= ([ACGTN*]+) %{ m_alt_is_complex = true; };
+			simple_alt	= ([ACGTN]+);
+			complex_alt	= ([*]+) %{ m_alt_is_complex = true; };
 			alt_part	= (simple_alt | complex_alt)
 				>(start_string)
 				%{ HANDLE_STRING_END(&vc::set_alt, m_idx++, m_alt_is_complex); };
-			alt			= alt_part (',' alt_part)*;
+			alt			= (alt_part (',' alt_part)*) >{ m_idx = 0; };
 			
 			qual		= (digit+)
 				>(start_integer)
@@ -399,7 +399,10 @@ namespace vcf2multialign {
 			sample_gt_allele_idx	= (digit+)
 				>(start_integer)
 				$(update_integer)
-				%{ HANDLE_INTEGER_END(&vc::set_gt, m_sample_idx - 1, m_idx++, m_gt_is_phased); };
+				%{
+					HANDLE_INTEGER_END(&vc::set_gt, m_sample_idx - 1, m_idx++, m_gt_is_phased);
+					m_gt_is_phased = false;
+				};
 				
 			sample_gt_part			= (sample_gt_null_allele | sample_gt_allele_idx);
 			sample_gt_p				= sample_gt_part ('|' ${ m_gt_is_phased = true; } sample_gt_part)+;
@@ -407,7 +410,6 @@ namespace vcf2multialign {
 			sample_gt				= (sample_gt_part | sample_gt_p | sample_gt_up)
 				>{
 					m_idx = 0;
-					m_gt_is_phased = false;
 				};
 			
 			# FIXME: add actions.
@@ -434,8 +436,10 @@ namespace vcf2multialign {
 					m_idx = 0;
 					m_format_idx = 0;
 					m_sample_idx = 0;
+					m_alt_is_complex = false;
 					++m_lineno;
 					m_current_variant.reset();
+					m_current_variant.set_lineno(m_lineno);
 					
 					fgoto *check_max_field <fentry(main_nl), fentry(break_nl)>(vcf_field::CHROM, fentry(chrom_id_f), cb);
 				}
@@ -516,12 +520,12 @@ namespace vcf2multialign {
 				$err(error);
 			
 			# Sample fields
-			sample_gt_f := (((sample_gt)) ssep @(end_sample_field)) $err(error);
-			sample_dp_f := (((sample_dp)) ssep @(end_sample_field)) $err(error);
-			sample_gq_f := (((sample_gq)) ssep @(end_sample_field)) $err(error);
-			sample_ps_f := (((sample_ps)) ssep @(end_sample_field)) $err(error);
-			sample_pq_f := (((sample_pq)) ssep @(end_sample_field)) $err(error);
-			sample_mq_f := (((sample_mq)) ssep @(end_sample_field)) $err(error);
+			sample_gt_f := ((sample_gt) ssep @(end_sample_field)) $err(error);
+			sample_dp_f := ((sample_dp) ssep @(end_sample_field)) $err(error);
+			sample_gq_f := ((sample_gq) ssep @(end_sample_field)) $err(error);
+			sample_ps_f := ((sample_ps) ssep @(end_sample_field)) $err(error);
+			sample_pq_f := ((sample_pq) ssep @(end_sample_field)) $err(error);
+			sample_mq_f := ((sample_mq) ssep @(end_sample_field)) $err(error);
 			
 			# Sample record
 			sample_rec_f := "" >to{

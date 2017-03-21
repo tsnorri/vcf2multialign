@@ -32,7 +32,7 @@ namespace vcf2multialign {
 		template <typename> friend struct caller;
 		
 		template <int t_continue, int t_break>
-		bool check_max_field(vcf_field const field, int const target, callback_fn const &cb);
+		int check_max_field(vcf_field const field, int const target, callback_fn const &cb);
 
 	protected:
 		fsm							m_fsm;
