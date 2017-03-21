@@ -3,31 +3,23 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#ifndef VCF2MULTIALIGN_VCF_READER_BASE_HH
-#define VCF2MULTIALIGN_VCF_READER_BASE_HH
+#ifndef VCF2MULTIALIGN_VCF_READER_HH
+#define VCF2MULTIALIGN_VCF_READER_HH
 
 #include <istream>
-
-
-// XXX Hack.
-namespace std {
-	using std::experimental::string_view;
-}
-
-
-namespace  vcf2multialign { namespace detail {
-	template <typename t_enum>
-	constexpr typename std::underlying_type <t_enum>::type to_underlying(t_enum e)
-	{
-		return static_cast <typename std::underlying_type <t_enum>::type>(e);
-	}
-}}
+#include <map>
+#include <vector>
+#include <vcf2multialign/variant.hh>
 
 
 namespace vcf2multialign {
 	
-	class vcf_reader_base
+	class vcf_reader
 	{
+	public:
+		typedef std::function <bool(transient_variant const &var)> callback_fn;
+		typedef std::map <std::string, std::size_t> sample_name_map;
+		
 	protected:
 		struct fsm
 		{
@@ -35,9 +27,16 @@ namespace vcf2multialign {
 			char	*pe{nullptr};
 			char	*eof{nullptr};
 		};
+		
+		template <typename> struct caller;
+		template <typename> friend struct caller;
+		
+		template <int t_continue, int t_break>
+		bool check_max_field(vcf_field const field, int const target, callback_fn const &cb);
 
 	protected:
 		fsm							m_fsm;
+		transient_variant			m_current_variant;
 		sample_name_map				m_sample_names;
 		std::vector <char>			m_buffer;
 		std::vector <format_field>	m_format;
@@ -57,15 +56,23 @@ namespace vcf2multialign {
 		bool						m_alt_is_complex{false};	// Is the current ALT “complex” (includes *).
 	
 	public:
-		vcf_parser(std::istream &stream):
+		vcf_reader():
+			m_buffer(128)
+		{
+		}
+		
+		vcf_reader(std::istream &stream):
 			m_buffer(128),
 			m_stream(&stream)
 		{
 		}
 		
 		void set_stream(std::istream &stream) { m_stream = &stream; }
+		void read_header();
 		void fill_buffer();
 		void reset();
+		bool parse(callback_fn &&callback);
+		bool parse(callback_fn const &callback);
 		
 		std::size_t lineno() const { return m_lineno; }
 		size_t sample_no(std::string const &sample_name) const;
@@ -74,7 +81,6 @@ namespace vcf2multialign {
 		void set_parsed_fields(vcf_field max_field) { m_max_parsed_field = max_field; }
 		
 	protected:
-		void read_header(vcf_field max_field);
 		void skip_to_next_nl();
 	};
 }

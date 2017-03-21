@@ -3,7 +3,8 @@
  This code is licensed under MIT license (see LICENSE for details).
  */
 
-#include <vcf2multialign/vcf_reader_base.hh>
+#include <vcf2multialign/util.hh>
+#include <vcf2multialign/vcf_reader.hh>
 
 
 %% machine vcf_parser;
@@ -13,71 +14,118 @@
 // We would like to post-process strings that have been read and then pass
 // them to the variant object with a simple function call at the call site.
 // Solution: Templates can have member function pointers as parameters but of a specific type.
-// We convert the pointer to (void (t_record_class::*)(void)) for template instantiation and
-// back to t_fnt for calling with t_args.
-#define HANDLE_STRING_END(FN, ...)	handle_string_end	<(rc_void_mem_fn)(FN)>(FN, ##__VA_ARGS__)
-#define HANDLE_INTEGER_END(FN, ...)	handle_integer_end	<(rc_void_mem_fn)(FN)>(FN, ##__VA_ARGS__)
+#define HANDLE_STRING_END(FN, ...)	caller <decltype(FN)>::handle_string_end <FN>(*this, ##__VA_ARGS__)
+#define HANDLE_INTEGER_END(FN, ...)	caller <decltype(FN)>::handle_integer_end <FN>(*this, ##__VA_ARGS__)
+
+
+namespace vcf2multialign { namespace detail {
+
+	template <typename t_enum>
+	constexpr typename std::underlying_type <t_enum>::type to_underlying(t_enum e)
+	{
+		return static_cast <typename std::underlying_type <t_enum>::type>(e);
+	}
+	
+
+	// Split a t_string into string_views.
+	template <bool t_emplace_back, typename t_string, typename t_invalid_pos>
+	size_t read_fields(
+		t_string const &string,
+		t_invalid_pos const invalid_pos,
+		char const *string_start,
+		char const *sep,
+		size_t const count,
+		std::vector <std::string_view> &res
+	)
+	{
+		char const *string_ptr(string_start);
+		
+		if (t_emplace_back)
+			res.clear();
+		else
+			res.resize(count);
+		
+		typename t_string::size_type sep_pos(0);
+		size_t i(0);
+		bool should_break(false);
+		while (i < count)
+		{
+			sep_pos = string.find(sep, sep_pos);
+			if (invalid_pos == sep_pos)
+			{
+				should_break = true;
+				sep_pos = string.size();
+			}
+			
+			if (t_emplace_back)
+				res.emplace_back(string_ptr, sep_pos - (string_ptr - string_start));
+			else
+			{
+				std::string_view sv(string_ptr, sep_pos - (string_ptr - string_start));
+				res[i] = std::move(sv);
+			}
+			
+			++i;
+			++sep_pos;
+			string_ptr = string_start + sep_pos;
+			
+			if (should_break)
+				break;
+		}
+		return i;
+	}
+	
+	
+	// Split a string into string_views.
+	template <bool t_emplace_back>
+	size_t read_fields(
+		std::string const &string,
+		char const *sep,
+		size_t const count,
+		std::vector <std::string_view> &res
+	)
+	{
+		return read_fields <t_emplace_back>(string, std::string::npos, string.c_str(), sep, count, res);
+	}
+	
+	
+	template <bool t_emplace_back>
+	size_t read_fields(
+		std::string_view const &sv,
+		char const *sep,
+		size_t const count,
+		std::vector <std::string_view> &res
+	)
+	{
+		return read_fields <t_emplace_back>(sv, std::string_view::npos, static_cast <char const *>(sv.data()), sep, count, res);
+	}
+}}
 
 
 namespace vcf2multialign {
 	
-	template <vcf_field t_max_field, typename t_variant>
-	class vcf_reader_tpl : public vcf_reader_base
+	template <typename t_fnt>
+	struct vcf_reader::caller
 	{
-	public:
-		using vcf_reader_base::vcf_reader_base;
+		template <t_fnt t_fn, typename ... t_args>
+		static void handle_string_end(vcf_reader &r, t_args ... args)
+		{
+			std::string_view sv(r.m_start, r.m_fsm.p - r.m_start + 1);
+			(r.m_current_variant.*(t_fn))(sv, std::forward <t_args>(args)...);
+		}
 		
-	protected:
-		t_variant					m_current_variant;
-		
-	protected:
-		typedef void (t_variant::*rc_void_mem_fn)(void);
-		
-		template <rc_void_mem_fn t_fn, typename t_fnt, typename ... t_args>
-		inline void handle_string_end(t_fnt, t_args ... args);
-		
-		template <rc_void_mem_fn t_fn, typename t_fnt, typename ... t_args>
-		inline void handle_integer_end(t_fnt, t_args ... args);
-		
-		template <int t_continue, int t_break, typename t_fn>
-		inline bool check_max_field(vcf_field const field, int const target, t_fn cb);
-		
-	public:
-		void set_parsed_fields(vcf_field max_field);
-		
-		void read_header();
-		
-		template <typename t_fn>
-		bool parse(t_fn callback);
+		template <t_fnt t_fn, typename ... t_args>
+		static void handle_integer_end(vcf_reader &r, t_args ... args)
+		{
+			(r.m_current_variant.*(t_fn))(r.m_integer, std::forward <t_args>(args)...);
+		}
 	};
 	
 	
-	template <vcf_field t_max_field, typename t_variant>
-	template <rc_void_mem_fn t_fn, typename t_fnt, typename ... t_args>
-	void vcf_reader_tpl <t_max_field, t_variant>::handle_string_end(t_fnt, t_args ... args)
+	template <int t_continue, int t_break>
+	bool vcf_reader::check_max_field(vcf_field const field, int const target, callback_fn const &cb)
 	{
-		std::string_view sv(m_start, m_fsm.p - m_start + 1);
-		(m_current_variant->*((t_fnt) t_fn))(sv, std::forward <t_args>(args)...);
-	}
-
-	
-	template <vcf_field t_max_field, typename t_variant>
-	template <rc_void_mem_fn t_fn, typename t_fnt, typename ... t_args>
-	void vcf_reader_tpl <t_max_field, t_variant>::handle_integer_end(t_fnt, t_args ... args)
-	{
-		(m_current_variant->*((t_fnt) t_fn))(m_integer, std::forward <t_args>(args)...);
-	}
-	
-	
-	template <vcf_field t_max_field, typename t_variant>
-	template <
-		int t_continue,
-		int t_break,
-		typename t_fn
-	>
-	bool vcf_reader_tpl <t_max_field, t_variant>::check_max_field(vcf_field const field, int const target, t_fn cb)
-	{
-		if (field <= t_max_field || (t_max_field == vcf_field::VARY && field <= m_max_parsed_field))
+		if (field <= m_max_parsed_field)
 			return target;
 		
 		skip_to_next_nl();
@@ -88,32 +136,144 @@ namespace vcf2multialign {
 	}
 	
 	
-	template <vcf_field t_max_field, typename t_variant>
-	void vcf_reader_tpl <t_max_field, t_variant>::set_parsed_fields(vcf_field const max_field)
+	void vcf_reader::skip_to_next_nl()
 	{
-		if (t_max_field != vcf_field::VARY)
-			throw std::runtime_error("t_max_field not set to VARY");
-		
-		vcf_reader_base::set_parsed_fields(max_field);
+		std::string_view sv(m_fsm.p, m_fsm.pe - m_fsm.p);
+		auto const pos(sv.find('\n'));
+		always_assert(std::string_view::npos != pos, "Unable to find the next newline");
+		m_fsm.p += pos;
 	}
 	
 	
-	template <vcf_field t_max_field, typename t_variant>
-	void vcf_reader_tpl <t_max_field, t_variant>::read_header()
+	// Seek to the beginning of the records.
+	void vcf_reader::reset()
 	{
-		vcf_reader_base::read_header(t_max_field);
+		m_stream->clear();
+		m_stream->seekg(m_first_variant_offset);
+		m_lineno = m_last_header_lineno;
+		m_len = 0;
+		m_pos = 0;
+	}
+	
+	
+	// Return the 1-based number of the given sample.
+	size_t vcf_reader::sample_no(std::string const &sample_name) const
+	{
+		auto const it(m_sample_names.find(sample_name));
+		if (it == m_sample_names.cend())
+			return 0;
+		return it->second;
+	}
+	
+	
+	void vcf_reader::read_header()
+	{
+		// For now, just skip lines that begin with "##".
+		std::string line;
+		while (std::getline(*m_stream, line))
+		{
+			++m_lineno;
+			if (! ('#' == line[0] && '#' == line[1]))
+				break;
+			
+			// FIXME: header handling goes here.
+		}
 		
+		// Check for column headers.
+		{
+			auto const prefix(std::string("#CHROM"));
+			auto const res(mismatch(line.cbegin(), line.cend(), prefix.cbegin(), prefix.cend()));
+			if (prefix.cend() != res.second)
+			{
+				std::cerr << "Expected the next line to start with '#CHROM', instead got: '" << line << "'" << std::endl;
+				exit(1);
+			}
+		}
+		
+		// Read sample names.
+		std::vector <std::string_view> header_names;
+		detail::read_fields <true>(line, "\t", -1, header_names);
+		std::size_t i(1);
+		for (auto it(header_names.cbegin() + detail::to_underlying(vcf_field::ALL)), end(header_names.cend()); it != end; ++it)
+		{
+			std::string str(*it);
+			auto const res(m_sample_names.emplace(std::move(str), i));
+			always_assert(res.second, "Duplicate sample name");
+			++i;
+		}
+		
+		// stream now points to the first variant.
+		m_first_variant_offset = m_stream->tellg();
+		m_last_header_lineno = m_lineno;
+		
+		// Instantiate a variant.
+		transient_variant var(sample_count());
 		using std::swap;
-		t_variant var(sample_count());
 		swap(m_current_variant, var);
 	}
 	
 	
-	template <vcf_field t_max_field, typename t_variant>
-	template <typename t_fn>
-	bool vcf_reader_tpl <t_max_field, t_variant>::parse(t_fn cb)
+	void vcf_reader::fill_buffer()
 	{
-		typedef t_record_class rc;
+		// Copy the remainder to the beginning.
+		if (m_pos + 1 < m_len)
+		{
+			char *data_start(m_buffer.data());
+			char const *start(data_start + m_pos + 1);
+			char const *end(data_start + m_len);
+			std::copy(start, end, data_start);
+			m_len -= m_pos + 1;
+		}
+		else
+		{
+			m_len = 0;
+		}
+		
+		// Read until there's at least one newline in the buffer.
+		while (true)
+		{
+			char *data_start(m_buffer.data());
+			char *data(data_start + m_len);
+		
+			std::size_t space(m_buffer.size() - m_len);
+			m_stream->read(data, space);
+			std::size_t const read_len(m_stream->gcount());
+			m_len += read_len;
+		
+			if (m_stream->eof())
+			{
+				m_pos = m_len;
+				m_fsm.p = data_start;
+				m_fsm.pe = data_start + m_len;
+				m_fsm.eof = m_fsm.pe;
+				return;
+			}
+		
+			// Try to find the last newline in the new part.
+			std::string_view sv(data, read_len);
+			m_pos = sv.rfind('\n');
+			if (std::string_view::npos != m_pos)
+			{
+				m_pos += (data - data_start);
+				m_fsm.p = data_start;
+				m_fsm.pe = m_fsm.p + m_pos + 1;
+				return;
+			}
+		
+			m_buffer.resize(2 * m_buffer.size());
+		}
+	}
+	
+	
+	bool vcf_reader::parse(callback_fn &&callback)
+	{
+		return parse(callback);
+	}
+	
+	
+	bool vcf_reader::parse(callback_fn const &cb)
+	{
+		typedef variant_tpl <std::string_view> vc;
 		bool retval(true);
 		int cs(0);
 		// FIXME: add throwing EOF actions?
@@ -137,7 +297,7 @@ namespace vcf2multialign {
 			}
 			
 			action end_sample_field {
-				// Check the current field is followed by another field, another sample or a new record.
+				// Check that the current field is followed by another field, another sample or a new record.
 				switch (fc)
 				{
 					case ':':
@@ -145,30 +305,31 @@ namespace vcf2multialign {
 
 					case '\t':
 					{
-						if (m_format.size() != m_format_idx)
-							throw std::runtime_error("Not all fields present in the sample");
-						
+						always_assert(m_format.size() == m_format_idx, "Not all fields present in the sample");
 						m_format_idx = 0;
 						fgoto sample_rec_f;
 					}
 					
 					case '\n':
 					{
-						if (m_format.size() != m_format_idx)
-							throw std::runtime_error("Not all fields present in the sample");
+						always_assert(m_format.size() == m_format_idx, "Not all fields present in the sample");
 						
-						cb(m_current_variant);
+						if(!cb(m_current_variant))
+						{
+							fhold;
+							fbreak;
+						}
 						
 						fgoto main;
 					}
 					
 					default:
-						throw std::runtime_error("Unexpected character");
+						fail("Unexpected character");
 				}
 			}
 			
 			action error {
-				throw std::runtime_error("Unexpected character");
+				fail("Unexpected character");
 			}
 			
 			tab			= '\t';
@@ -177,34 +338,34 @@ namespace vcf2multialign {
 			
 			chrom_id	= (alnum+)
 				>(start_string)
-				%{ HANDLE_STRING_END(&rc::set_chrom_id); };
+				%{ HANDLE_STRING_END(&vc::set_chrom_id); };
 			
 			pos			= (digit+)
 				>(start_integer)
 				$(update_integer)
-				%{ HANDLE_INTEGER_END(&rc::set_pos); };
+				%{ HANDLE_INTEGER_END(&vc::set_pos); };
 			
 			id_part		= (alnum+)
 				>(start_string)
-				%{ HANDLE_STRING_END(&rc::set_id, m_idx++); };
+				%{ HANDLE_STRING_END(&vc::set_id, m_idx++); };
 			id_rec		= (id_part (';' id_part)*) >{ m_idx = 0; };
 			
 			ref			= ([ACGTN]+)
 				>(start_string)
-				%{ HANDLE_STRING_END(&rc::set_ref); };
+				%{ HANDLE_STRING_END(&vc::set_ref); };
 			
 			# FIXME: add breakends.
 			simple_alt	= ([ACGTN]+) %{ m_alt_is_complex = false; };
 			complex_alt	= ([ACGTN*]+) %{ m_alt_is_complex = true; };
 			alt_part	= (simple_alt | complex_alt)
 				>(start_string)
-				%{ HANDLE_STRING_END(&rc::set_alt, m_idx++, m_alt_is_complex); };
+				%{ HANDLE_STRING_END(&vc::set_alt, m_idx++, m_alt_is_complex); };
 			alt			= alt_part (',' alt_part)*;
 			
 			qual		= (digit+)
 				>(start_integer)
 				$(update_integer)
-				%{ HANDLE_INTEGER_END(&rc::set_qual); };
+				%{ HANDLE_INTEGER_END(&vc::set_qual); };
 			
 			# FIXME: add actions.
 			filter_pass	= 'PASS';
@@ -232,13 +393,13 @@ namespace vcf2multialign {
 			sample_gt_null_allele	= '.'
 				%{
 					m_integer = NULL_ALLELE;
-					HANDLE_INTEGER_END(&rc::set_gt, m_sample_idx - 1, m_idx++, m_gt_is_phased);
+					HANDLE_INTEGER_END(&vc::set_gt, m_sample_idx - 1, m_idx++, m_gt_is_phased);
 				};
 				
 			sample_gt_allele_idx	= (digit+)
 				>(start_integer)
 				$(update_integer)
-				%{ HANDLE_INTEGER_END(&rc::set_gt, m_sample_idx - 1, m_idx++, m_gt_is_phased); };
+				%{ HANDLE_INTEGER_END(&vc::set_gt, m_sample_idx - 1, m_idx++, m_gt_is_phased); };
 				
 			sample_gt_part			= (sample_gt_null_allele | sample_gt_allele_idx);
 			sample_gt_p				= sample_gt_part ('|' ${ m_gt_is_phased = true; } sample_gt_part)+;
@@ -260,8 +421,8 @@ namespace vcf2multialign {
 			ssep			= [\t\n:];	# Sample separator
 				
 			# Handle a newline and continue.
-			main_nl := '\n' %{ fgoto main; }
-			break_nl := '\n' % { fbreak; }
+			main_nl := '\n' %{ fgoto main; };
+			break_nl := '\n' %{ fbreak; };
 			
 			# Line start.
 			# Apparently main has to be able to read a character, so use fhold.
@@ -364,8 +525,7 @@ namespace vcf2multialign {
 			
 			# Sample record
 			sample_rec_f := "" >to{
-				if (! (m_format_idx < m_format.size()))
-					throw std::runtime_error("Format does not match the sample");
+				always_assert(m_format_idx < m_format.size(), "Format does not match the sample");
 
 				++m_sample_idx;
 
@@ -394,7 +554,7 @@ namespace vcf2multialign {
 						fgoto sample_mq_f;
 						
 					default:
-						throw std::runtime_error("Unexpected format value");
+						fail("Unexpected format value");
 				}
 			};
 			
