@@ -44,10 +44,18 @@ namespace vcf2multialign {
 		{
 		}
 		
+		bool operator==(vector_source const &other) const
+		{
+			return this == &other;
+		}
+		
 		vector_source &operator=(vector_source &&other) &
 		{
-			m_store = std::move(other.m_store);
-			m_allow_resize = other.m_allow_resize;
+			if (*this != other)
+			{
+				m_store = std::move(other.m_store);
+				m_allow_resize = other.m_allow_resize;
+			}
 			return *this;
 		}
 		
