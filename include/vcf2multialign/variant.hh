@@ -24,8 +24,14 @@ namespace vcf2multialign {
 	
 	struct genotype
 	{
-		std::vector <std::size_t>	alts;
-		bool						is_phased{false};
+		std::size_t	alt{0};
+		bool		is_phased{false};
+	};
+	
+	
+	struct sample
+	{
+		std::vector <genotype>	genotype;
 	};
 	
 	
@@ -34,14 +40,14 @@ namespace vcf2multialign {
 		friend class vcf_reader;
 		
 	protected:
-		std::vector <genotype>	m_gt;
+		std::vector <sample>	m_samples;
 		std::size_t				m_pos{0};
 		std::size_t				m_qual{0};
 		std::size_t				m_lineno{0};
 		
 	public:
 		variant_base(std::size_t sample_count):
-			m_gt(sample_count)
+			m_samples(1 + sample_count)
 		{
 		}
 		
@@ -54,12 +60,12 @@ namespace vcf2multialign {
 		void set_pos(std::size_t const pos) { m_pos = pos; }
 		void set_qual(std::size_t const qual) { m_qual = qual; }
 		void set_gt(std::size_t const alt, std::size_t const sample, std::size_t const idx, bool const is_phased);
-		void reset() { m_gt.clear(); }
+		void reset() { m_samples.clear(); }	// FIXME: does this cause the genotype vectors to be deallocated?
 
-		size_t lineno() const									{ return m_lineno; }
-		size_t pos() const										{ return m_pos; };
+		size_t lineno() const										{ return m_lineno; }
+		size_t pos() const											{ return m_pos; };
 		size_t zero_based_pos() const;
-		genotype const &gt(std::size_t const sample_idx) const	{ return m_gt.at(sample_idx); }
+		sample const &sample(std::size_t const sample_idx) const	{ return m_samples.at(sample_idx); }
 	};
 	
 	
