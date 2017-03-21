@@ -30,8 +30,8 @@ int main(int argc, char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	std::ios_base::sync_with_stdio(false);
-	std::cin.tie(nullptr);
+	std::ios_base::sync_with_stdio(false);	// Don't use C style IO after calling cmdline_parser.
+	std::cin.tie(nullptr);					// We don't require any input from the user.
 
 	// libdispatch on macOS does not need pthread_workqueue.
 #ifdef __linux__
