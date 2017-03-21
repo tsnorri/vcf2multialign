@@ -393,14 +393,14 @@ namespace vcf2multialign {
 			sample_gt_null_allele	= '.'
 				%{
 					m_integer = NULL_ALLELE;
-					HANDLE_INTEGER_END(&vc::set_gt, m_sample_idx - 1, m_idx++, m_gt_is_phased);
+					HANDLE_INTEGER_END(&vc::set_gt, m_sample_idx, m_idx++, m_gt_is_phased);
 				};
 				
 			sample_gt_allele_idx	= (digit+)
 				>(start_integer)
 				$(update_integer)
 				%{
-					HANDLE_INTEGER_END(&vc::set_gt, m_sample_idx - 1, m_idx++, m_gt_is_phased);
+					HANDLE_INTEGER_END(&vc::set_gt, m_sample_idx, m_idx++, m_gt_is_phased);
 					m_gt_is_phased = false;
 				};
 				
@@ -531,6 +531,7 @@ namespace vcf2multialign {
 			sample_rec_f := "" >to{
 				always_assert(m_format_idx < m_format.size(), "Format does not match the sample");
 
+				// Sample index 0 is reserved for the reference.
 				++m_sample_idx;
 
 				// Parse according to the format field.
