@@ -9,6 +9,7 @@
 #include <boost/range/adaptor/reversed.hpp>
 #include <iostream>
 #include <vcf2multialign/check_overlapping_non_nested_variants.hh>
+#include <vcf2multialign/util.hh>
 
 
 namespace v2m = vcf2multialign;
@@ -63,8 +64,7 @@ namespace {
 			for (auto it(range.first); it != range.second; ++it)
 			{
 				auto c_it(conflict_counts.left.find(it->second));
-				if (conflict_counts.left.end() == c_it)
-					throw std::runtime_error("Unable to find conflict count for variant");
+				v2m::always_assert(conflict_counts.left.end() != c_it, "Unable to find conflict count for variant");
 				
 				auto &val(c_it->second);
 				--val;
@@ -116,8 +116,7 @@ namespace vcf2multialign {
 				// Verify that the positions are in increasing order.
 				auto const pos(var.zero_based_pos());
 
-				if (! (last_position <= pos))
-					throw std::runtime_error("Positions not in increasing order");
+				always_assert(last_position <= pos, "Positions not in increasing order");
 
 				auto const end(pos + var.ref().size());
 				auto const var_lineno(var.lineno());
@@ -126,6 +125,8 @@ namespace vcf2multialign {
 				auto it(end_positions.upper_bound(pos));
 				auto const end_it(end_positions.cend());
 
+				// If not found, add the current end position to end_positions
+				// and skip the remaining checks.
 				if (end_it == it)
 				{
 					end_positions.emplace(
@@ -136,12 +137,12 @@ namespace vcf2multialign {
 					goto loop_end;
 				}
 			
-				// Check that the found position is not within var's range.
-				// If it is, continue checking succeeding positions.
 				do
 				{
-					// Proper nesting.
-					if (end <= it->first)
+					// Proper nesting since the current starting position must be greater
+					// than the previous one.
+					auto const other_end(it->first);
+					if (end <= other_end)
 						break;
 				
 					// Check if the potentially conflicting variant is in fact inside this one.
@@ -151,12 +152,15 @@ namespace vcf2multialign {
 						goto loop_end_2;
 				
 					++conflict_count;
-					std::cerr << "Variant on line " << var_lineno << " conflicts with line " << other_lineno << "." << std::endl;
+					
+					// Convert starting to 1-based to get ranges like [x, y] (instead of [x, y)).
+					std::cerr
+					<< "Variant on line " << var_lineno << " conflicts with line " << other_lineno
+					<< " ([" << 1 + pos << ", " << end << "] vs. [" << 1 + other_pos << ", " << other_end << "])." << std::endl;
 				
 					{
 						auto const res(bad_overlaps.insert(overlap_map::value_type(other_lineno, var_lineno)));
-						if (false == res.second)
-							throw std::runtime_error("Unable to insert");
+						always_assert(res.second, "Unable to insert");
 					}
 
 					++conflict_counts.left[other_lineno];
@@ -199,8 +203,7 @@ namespace vcf2multialign {
 			conflict_counts.left.erase(var_lineno);
 		}
 		
-		if (bad_overlaps.size() != 0)
-			throw std::runtime_error("Unable to remove all conflicting variants");
+		always_assert(bad_overlaps.size() == 0, "Unable to remove all conflicting variants");
 		
 		return conflict_count;
 	}
