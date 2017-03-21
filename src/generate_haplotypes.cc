@@ -11,6 +11,7 @@
 #include <iostream>
 #include <map>
 #include <vcf2multialign/check_overlapping_non_nested_variants.hh>
+#include <vcf2multialign/dispatch_fn.hh>
 #include <vcf2multialign/generate_haplotypes.hh>
 #include <vcf2multialign/read_single_fasta_seq.hh>
 #include <vcf2multialign/types.hh>
@@ -91,8 +92,8 @@ namespace {
 
 	protected:
 		v2m::variant_handler								m_variant_handler;
-		dispatch_queue_t									m_main_queue{};
-		dispatch_queue_t									m_parsing_queue{};
+		v2m::dispatch_ptr <dispatch_queue_t>				m_main_queue{};
+		v2m::dispatch_ptr <dispatch_queue_t>				m_parsing_queue{};
 		v2m::vector_type									m_reference;
 		v2m::file_istream									m_vcf_stream;
 		v2m::vcf_reader										m_vcf_reader;
@@ -113,32 +114,23 @@ namespace {
 		
 	public:
 		generate_context(
-			dispatch_queue_t main_queue,
-			dispatch_queue_t parsing_queue,
+			v2m::dispatch_ptr <dispatch_queue_t> &&main_queue,
+			v2m::dispatch_ptr <dispatch_queue_t> &&parsing_queue,
 			char const *null_allele_seq,
 			std::size_t const chunk_size,
 			bool const should_overwrite_files
 		):
-			m_main_queue(main_queue),
-			m_parsing_queue(parsing_queue),
+			m_main_queue(std::move(main_queue)),
+			m_parsing_queue(std::move(parsing_queue)),
 			m_null_allele_seq(null_allele_seq),
 			m_chunk_size(chunk_size),
 			m_should_overwrite_files(should_overwrite_files)
 		{
-			dispatch_retain(m_main_queue);
-			dispatch_retain(m_parsing_queue);
 		}
 		
 		
 		generate_context(generate_context const &) = delete;
 		generate_context(generate_context &&) = delete;
-		
-		
-		~generate_context()
-		{
-			dispatch_release(m_main_queue);
-			dispatch_release(m_parsing_queue);
-		}
 		
 		
 		void cleanup() { delete this; }
@@ -149,23 +141,20 @@ namespace {
 			size_t i(0);
 			m_vcf_reader.reset();
 			m_vcf_reader.set_parsed_fields(v2m::vcf_field::ALL);
-			v2m::variant var(m_vcf_reader.sample_count());
-			var.add_format_field("GT");
-
-			if (!m_vcf_reader.get_next_variant(var))
-				throw std::runtime_error("Unable to read the first variant");
 			
-			var.prepare_samples();
-			v2m::variant::sample_field_vector sample_fields;
-			v2m::variant::genotype_vector gtv;
-			bool is_phased(false);
-			
-			for (auto const &kv : m_vcf_reader.sample_names())
+			m_vcf_reader.fill_buffer();
+			if (!m_vcf_reader.parse([this](v2m::transient_variant const &var) -> bool {
+				for (auto const &kv : m_vcf_reader.sample_names())
+				{
+					auto const sample_no(kv.second);
+					auto const &sample(var.sample(sample_no));
+					m_ploidy[sample_no] = sample.genotype.size();
+				}
+				
+				return false;
+			}))
 			{
-				auto const sample_no(kv.second);
-				var.parse_sample(sample_no, sample_fields);
-				var.get_genotype(sample_fields, gtv, is_phased);
-				m_ploidy[sample_no] = gtv.size();
+				throw std::runtime_error("Unable to read the first variant");
 			}
 		}
 		
@@ -174,32 +163,40 @@ namespace {
 		{
 			m_vcf_reader.reset();
 			m_vcf_reader.set_parsed_fields(v2m::vcf_field::REF);
-			v2m::variant var;
 			bool found_mismatch(false);
 			std::size_t i(0);
 			
-			while (m_vcf_reader.get_next_variant(var))
-			{
-				auto const var_ref(var.ref());
-				auto const var_pos(var.zero_based_pos());
-				auto const lineno(var.lineno());
-				std::size_t diff_pos{0};
-				
-				if (!compare_references(m_reference, var_ref, var_pos, diff_pos))
+			bool should_continue(false);
+			do {
+				m_vcf_reader.fill_buffer();
+				should_continue = m_vcf_reader.parse(
+					[this, &found_mismatch, &i]
+					(v2m::transient_variant const &var)
+					-> bool
 				{
-					if (!found_mismatch)
+					auto const var_ref(var.ref());
+					auto const var_pos(var.zero_based_pos());
+					auto const lineno(var.lineno());
+					std::size_t diff_pos{0};
+				
+					if (!compare_references(m_reference, var_ref, var_pos, diff_pos))
 					{
-						found_mismatch = true;
-						std::cerr << "Reference differs from the variant file on line " << lineno << " (and possibly others)." << std::endl;
+						if (!found_mismatch)
+						{
+							found_mismatch = true;
+							std::cerr << "Reference differs from the variant file on line " << lineno << " (and possibly others)." << std::endl;
+						}
+					
+						m_error_logger.log_ref_mismatch(lineno, diff_pos);
 					}
 					
-					m_error_logger.log_ref_mismatch(lineno, diff_pos);
-				}
-
-				++i;
-				if (0 == i % 100000)
-					std::cerr << "Handled " << i << " variants…" << std::endl;
-			}
+					++i;
+					if (0 == i % 100000)
+						std::cerr << "Handled " << i << " variants…" << std::endl;
+					
+					return true;
+				});
+			} while (should_continue);
 		}
 		
 		
@@ -360,6 +357,7 @@ namespace {
 				);
 				
 				m_variant_handler = std::move(temp);
+				m_variant_handler.variant_buffer().set_delegate(m_variant_handler);
 			}
 			
 			std::cerr << "Generating haplotype sequences…" << std::endl;
@@ -382,14 +380,17 @@ namespace vcf2multialign {
 		bool const should_check_ref
 	)
 	{
-		dispatch_queue_t main_queue(dispatch_get_main_queue());
-		dispatch_queue_t parsing_queue(dispatch_queue_create("fi.iki.tsnorri.vcf2multialign.parsing_queue", DISPATCH_QUEUE_CONCURRENT));
+		dispatch_ptr <dispatch_queue_t> main_queue(dispatch_get_main_queue(), true);
+		dispatch_ptr <dispatch_queue_t> parsing_queue(
+			dispatch_queue_create("fi.iki.tsnorri.vcf2multialign.parsing_queue", DISPATCH_QUEUE_SERIAL),
+			false
+		);
 		
 		// generate_context needs to be allocated on the heap because later dispatch_main is called.
 		// The class deallocates itself in cleanup().
 		generate_context *ctx(new generate_context(
-			main_queue,
-			parsing_queue,
+			std::move(main_queue),
+			std::move(parsing_queue),
 			null_allele_seq,
 			chunk_size,
 			should_overwrite_files
