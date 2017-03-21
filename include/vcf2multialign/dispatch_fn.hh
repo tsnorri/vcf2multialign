@@ -67,7 +67,7 @@ namespace vcf2multialign { namespace detail {
 namespace vcf2multialign {
 	
 	// Allow passing pointer-to-member-function to dispatch_async_f without std::function.
-	template <typename t_owner, void(t_owner::*t_fn)()>
+	template <typename t_owner, void(t_owner::*t_fn)(void)>
 	void dispatch_async_f(dispatch_queue_t queue, t_owner *obj)
 	{
 		dispatch_async_f(queue, obj, detail::call_member_function <t_owner, t_fn>);
@@ -122,7 +122,7 @@ namespace vcf2multialign {
 		}
 		
 		dispatch_ptr(dispatch_ptr const &other):
-			dispatch_ptr(other.m_ptr)
+			dispatch_ptr(other.m_ptr, true)
 		{
 		}
 		
