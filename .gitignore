@@ -33,3 +33,5 @@
 src/cmdline.c
 src/cmdline.h
 src/vcf2multialign
+src/config.h
+src/vcf_reader.cc
