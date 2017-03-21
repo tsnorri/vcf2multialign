@@ -423,8 +423,9 @@ namespace vcf2multialign {
 			ssep			= [\t\n:];	# Sample separator
 				
 			# Handle a newline and continue.
-			main_nl := '\n' %{ fgoto main; };
-			break_nl := '\n' %{ fbreak; };
+			# The newline gets eaten before its checked, though, so use any instead.
+			main_nl := any @{ fhold; fgoto main; };
+			break_nl := any @{ fhold; fbreak; };
 			
 			# Line start.
 			# Apparently main has to be able to read a character, so use fhold.
