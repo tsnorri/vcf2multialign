@@ -18,3 +18,6 @@ LDFLAGS			= $(LIBDISPATCH_LIBS) $(BOOST_LIBS)
 
 %.c: %.ggo
 	$(GENGETOPT) --input="$<"
+
+%.cc: %.rl
+	$(RAGEL) -L -C -G2 -o $@ $<
