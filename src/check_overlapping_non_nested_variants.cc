@@ -105,77 +105,84 @@ namespace vcf2multialign {
 		
 		reader.reset();
 		reader.set_parsed_fields(vcf_field::REF);
-		variant var(reader.sample_count());
-		while (reader.get_next_variant(var))
-		{
-			// Verify that the positions are in increasing order.
-			auto const pos(var.zero_based_pos());
-
-			if (! (last_position <= pos))
-				throw std::runtime_error("Positions not in increasing order");
-
-			auto const end(pos + var.ref().size());
-			auto const var_lineno(var.lineno());
-
-			// Try to find an end position that is greater than var's position.
-			auto it(end_positions.upper_bound(pos));
-			auto const end_it(end_positions.cend());
-
-			if (end_it == it)
+		bool should_continue(false);
+		do {
+			reader.fill_buffer();
+			should_continue = reader.parse(
+				[&last_position, &end_positions, &conflict_counts, &bad_overlaps, &i, &conflict_count]
+				(v2m::transient_variant const &var)
+				-> bool
 			{
+				// Verify that the positions are in increasing order.
+				auto const pos(var.zero_based_pos());
+
+				if (! (last_position <= pos))
+					throw std::runtime_error("Positions not in increasing order");
+
+				auto const end(pos + var.ref().size());
+				auto const var_lineno(var.lineno());
+
+				// Try to find an end position that is greater than var's position.
+				auto it(end_positions.upper_bound(pos));
+				auto const end_it(end_positions.cend());
+
+				if (end_it == it)
+				{
+					end_positions.emplace(
+						std::piecewise_construct,
+						std::forward_as_tuple(end),
+						std::forward_as_tuple(pos, var_lineno)
+					);
+					goto loop_end;
+				}
+			
+				// Check that the found position is not within var's range.
+				// If it is, continue checking succeeding positions.
+				do
+				{
+					// Proper nesting.
+					if (end <= it->first)
+						break;
+				
+					// Check if the potentially conflicting variant is in fact inside this one.
+					auto const other_lineno(it->second.lineno);
+					auto const other_pos(it->second.pos);
+					if (pos == other_pos)
+						goto loop_end_2;
+				
+					++conflict_count;
+					std::cerr << "Variant on line " << var_lineno << " conflicts with line " << other_lineno << "." << std::endl;
+				
+					{
+						auto const res(bad_overlaps.insert(overlap_map::value_type(other_lineno, var_lineno)));
+						if (false == res.second)
+							throw std::runtime_error("Unable to insert");
+					}
+
+					++conflict_counts.left[other_lineno];
+					++conflict_counts.left[var_lineno];
+				
+				loop_end_2:
+					++it;
+				} while (end_it != it);
+			
+				// Add the end position.
 				end_positions.emplace(
 					std::piecewise_construct,
 					std::forward_as_tuple(end),
 					std::forward_as_tuple(pos, var_lineno)
 				);
-				goto loop_end;
-			}
-			
-			// Check that the found position is not within var's range.
-			// If it is, continue checking succeeding positions.
-			do
-			{
-				// Proper nesting.
-				if (end <= it->first)
-					break;
-				
-				// Check if the potentially conflicting variant is in fact inside this one.
-				auto const other_lineno(it->second.lineno);
-				auto const other_pos(it->second.pos);
-				if (pos == other_pos)
-					goto loop_end_2;
-				
-				++conflict_count;
-				std::cerr << "Variant on line " << var_lineno << " conflicts with line " << other_lineno << "." << std::endl;
-				
-				{
-					auto const res(bad_overlaps.insert(overlap_map::value_type(other_lineno, var_lineno)));
-					if (false == res.second)
-						throw std::runtime_error("Unable to insert");
-				}
 
-				++conflict_counts.left[other_lineno];
-				++conflict_counts.left[var_lineno];
-				
-			loop_end_2:
-				++it;
-			} while (end_it != it);
+			loop_end:
+				last_position = pos;
 			
-			// Add the end position.
-			end_positions.emplace(
-				std::piecewise_construct,
-				std::forward_as_tuple(end),
-				std::forward_as_tuple(pos, var_lineno)
-			);
-
-
-		loop_end:
-			last_position = pos;
+				++i;
+				if (0 == i % 100000)
+					std::cerr << "Handled " << i << " variants…" << std::endl;
 			
-			++i;
-			if (0 == i % 100000)
-				std::cerr << "Handled " << i << " variants…" << std::endl;
-		}
+				return true;
+			});
+		} while (should_continue);
 		
 		// Remove conflicting variants starting from the one with the highest score.
 		while (!conflict_counts.empty())
