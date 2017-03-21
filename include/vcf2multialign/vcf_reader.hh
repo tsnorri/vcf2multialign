@@ -34,6 +34,8 @@ namespace vcf2multialign {
 		template <int t_continue, int t_break>
 		int check_max_field(vcf_field const field, int const target, callback_fn const &cb);
 
+		void report_unexpected_character(char const *current_character, int const current_state);
+
 	protected:
 		fsm							m_fsm;
 		transient_variant			m_current_variant;
@@ -41,6 +43,7 @@ namespace vcf2multialign {
 		std::vector <char>			m_buffer;
 		std::vector <format_field>	m_format;
 		std::istream				*m_stream{nullptr};
+		char						*m_line_start{nullptr};		// Current line start.
 		char const					*m_start{0};				// Current string start.
 		std::istream::pos_type		m_first_variant_offset{0};
 		std::size_t					m_last_header_lineno{0};

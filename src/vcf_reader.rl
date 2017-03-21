@@ -134,6 +134,15 @@ namespace vcf2multialign {
 		
 		return t_continue;
 	}
+
+
+	void vcf_reader::report_unexpected_character(char const *current_character, int const current_state)
+	{
+		std::cerr
+		<< "Unexpected character '" << *current_character << "' at " << m_lineno << ':' << (current_character - m_line_start)
+		<< ", state " << current_state << '.' << std::endl;
+		abort();
+	}
 	
 	
 	void vcf_reader::skip_to_next_nl()
@@ -324,12 +333,12 @@ namespace vcf2multialign {
 					}
 					
 					default:
-						fail("Unexpected character");
+						report_unexpected_character(fpc, fcurs);
 				}
 			}
 			
 			action error {
-				fail("Unexpected character");
+				report_unexpected_character(fpc, fcurs);
 			}
 			
 			tab			= '\t';
@@ -345,7 +354,7 @@ namespace vcf2multialign {
 				$(update_integer)
 				%{ HANDLE_INTEGER_END(&vc::set_pos); };
 			
-			id_part		= (alnum+)
+			id_part		= (([.] | alnum)+)
 				>(start_string)
 				%{ HANDLE_STRING_END(&vc::set_id, m_idx++); };
 			id_rec		= (id_part (';' id_part)*) >{ m_idx = 0; };
@@ -441,6 +450,7 @@ namespace vcf2multialign {
 					++m_lineno;
 					m_current_variant.reset();
 					m_current_variant.set_lineno(m_lineno);
+					m_line_start = fpc;
 					
 					fgoto *check_max_field <fentry(main_nl), fentry(break_nl)>(vcf_field::CHROM, fentry(chrom_id_f), cb);
 				}
