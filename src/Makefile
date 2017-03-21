@@ -17,9 +17,14 @@ OBJECTS		=	check_overlapping_non_nested_variants.o \
 all: vcf2multialign
 
 clean:
-	$(RM) $(OBJECTS)
+	$(RM) $(OBJECTS) vcf2multialign cmdline.c cmdline.h version.h
 
 vcf2multialign: $(OBJECTS)
 	$(CXX) -o $@ $(OBJECTS) $(LDFLAGS)
 
 main.c : cmdline.c
+cmdline.c : config.h
+
+# Use the name config.h since cmdline.c includes it automatically.
+config.h : Makefile
+	printf "#define CMDLINE_PARSER_VERSION \"0.2 %s\"" `git rev-parse --short --verify HEAD` > config.h
