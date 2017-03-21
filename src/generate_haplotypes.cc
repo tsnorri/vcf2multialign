@@ -357,7 +357,7 @@ namespace {
 				);
 				
 				m_variant_handler = std::move(temp);
-				m_variant_handler.variant_buffer().set_delegate(m_variant_handler);
+				m_variant_handler.get_variant_buffer().set_delegate(m_variant_handler);
 			}
 			
 			std::cerr << "Generating haplotype sequences…" << std::endl;

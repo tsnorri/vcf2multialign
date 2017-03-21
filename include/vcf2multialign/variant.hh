@@ -22,16 +22,16 @@ namespace vcf2multialign {
 	class vcf_reader;
 	
 	
-	struct genotype
+	struct genotype_field
 	{
 		std::size_t	alt{0};
 		bool		is_phased{false};
 	};
 	
 	
-	struct sample
+	struct sample_field
 	{
-		std::vector <genotype>	genotype;
+		std::vector <genotype_field>	genotype;
 	};
 	
 	
@@ -40,10 +40,10 @@ namespace vcf2multialign {
 		friend class vcf_reader;
 		
 	protected:
-		std::vector <sample>	m_samples;
-		std::size_t				m_pos{0};
-		std::size_t				m_qual{0};
-		std::size_t				m_lineno{0};
+		std::vector <sample_field>	m_samples;
+		std::size_t					m_pos{0};
+		std::size_t					m_qual{0};
+		std::size_t					m_lineno{0};
 		
 	public:
 		variant_base(std::size_t sample_count):
@@ -62,10 +62,10 @@ namespace vcf2multialign {
 		void set_gt(std::size_t const alt, std::size_t const sample, std::size_t const idx, bool const is_phased);
 		void reset() { m_samples.clear(); }	// FIXME: does this cause the genotype vectors to be deallocated?
 
-		size_t lineno() const										{ return m_lineno; }
-		size_t pos() const											{ return m_pos; };
+		size_t lineno() const											{ return m_lineno; }
+		size_t pos() const												{ return m_pos; };
 		size_t zero_based_pos() const;
-		sample const &sample(std::size_t const sample_idx) const	{ return m_samples.at(sample_idx); }
+		sample_field const &sample(std::size_t const sample_idx) const	{ return m_samples.at(sample_idx); }
 	};
 	
 	
