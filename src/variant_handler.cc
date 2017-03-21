@@ -4,10 +4,8 @@
  */
 
 #include <vcf2multialign/dispatch_fn.hh>
+#include <vcf2multialign/util.hh>
 #include <vcf2multialign/variant_handler.hh>
-
-
-namespace v2m = vcf2multialign;
 
 
 namespace vcf2multialign {
@@ -35,8 +33,7 @@ namespace vcf2multialign {
 		if (output_start_pos == output_end_pos)
 			return;
 		
-		if (! (output_start_pos < output_end_pos))
-			throw std::runtime_error("Bad offset order");
+		always_assert(output_start_pos < output_end_pos, "Bad offset order");
 
 		char const *ref_begin(m_reference->data());
 		auto const output_start(ref_begin + output_start_pos);
@@ -47,8 +44,7 @@ namespace vcf2multialign {
 				if (h_ptr)
 				{
 					auto &h(*h_ptr);
-					if (h.current_pos != output_start_pos)
-						throw std::runtime_error("Unexpected position");
+					always_assert(h.current_pos == output_start_pos, "Unexpected position");
 					
 					h.output_stream.write(output_start, output_end_pos - output_start_pos);
 					h.current_pos = output_end_pos;
@@ -92,8 +88,7 @@ namespace vcf2multialign {
 						if (h_ptr)
 						{
 							auto &h(*h_ptr);
-							if (! (h.current_pos <= output_start_pos))
-								throw std::runtime_error("Unexpected position");
+							always_assert(h.current_pos <= output_start_pos, "Unexpected position");
 							
 							h.output_stream << alt;
 							h.current_pos = output_end_pos;
@@ -139,8 +134,7 @@ namespace vcf2multialign {
 					
 					for (size_t i(0), count(alt_ptrs.size()); i < count; ++i)
 					{
-						if (alt_ptrs[i] && ref_ptrs[i])
-							throw std::runtime_error("Inconsistent haplotype pointers");
+						always_assert(! (alt_ptrs[i] && ref_ptrs[i]), "Inconsistent haplotype pointers");
 						
 						// Use ADL.
 						using std::swap;
@@ -167,7 +161,7 @@ namespace vcf2multialign {
 	}
 
 		
-	void variant_handler::process_variant(variant &var)
+	void variant_handler::handle_variant(variant &var)
 	{
 		m_skipped_samples.clear();
 		m_counts_by_alt.clear();
@@ -175,17 +169,14 @@ namespace vcf2multialign {
 		
 		auto const lineno(var.lineno());
 		if (0 != m_skipped_variants->count(lineno))
-		{
-			dispatch_async_f <variant_handler, &variant_handler::process_next_variant>(m_main_queue, this);
 			return;
-		}
 		
 		// Preprocess the ALT field to check that it can be handled.
 		{
 			// Check that the alt sequence is something that can be handled.
 			m_valid_alts.clear();
 			std::size_t i(0);
-			for (auto const &alt : var.alt())
+			for (auto const &alt : var.alts())
 			{
 				++i;
 				for (auto const c : alt)
@@ -204,16 +195,14 @@ namespace vcf2multialign {
 			}
 			
 			if (m_valid_alts.empty())
-			{
-				dispatch_async_f <variant_handler, &variant_handler::process_next_variant>(m_main_queue, this);
 				return;
-			}
 		}
 		
 		size_t const var_pos(var.zero_based_pos());
 		
 		auto const var_ref(var.ref());
 		auto const var_ref_size(var_ref.size());
+		auto const var_alts(var.alts());
 		
 		// If var is beyond previous_variant.end_pos, handle the variants on the stack
 		// until a containing variant is found or the bottom of the stack is reached.
@@ -223,19 +212,20 @@ namespace vcf2multialign {
 		auto &previous_variant(m_overlap_stack.top());
 		
 		// Check that if var is before previous_variant.end_pos, it is also completely inside it.
-		if (var_pos < previous_variant.end_pos && !(var_pos + var_ref_size <= previous_variant.end_pos))
-		{
-			std::cerr
-			<< "Invalid variant inclusion."
-			<< "\n\tlineno:\t" << lineno
-			<< "\n\tprevious_variant.lineno:\t" << previous_variant.lineno
-			<< "\n\tvar_pos:\t" << var_pos
-			<< "\n\tvar_ref_size:\t" << var_ref_size
-			<< "\n\tprevious_variant.start_pos:\t" << previous_variant.start_pos
-			<< "\n\tprevious_variant.end_pos:\t" << previous_variant.end_pos
-			<< std::endl;
-			throw std::runtime_error("Invalid variant inclusion");
-		}
+		always_assert(
+			(previous_variant.end_pos <= var_pos) || (var_pos + var_ref_size <= previous_variant.end_pos),
+			[lineno, &previous_variant, var_pos, var_ref_size](){
+				std::cerr
+				<< "Invalid variant inclusion."
+				<< "\n\tlineno:\t" << lineno
+				<< "\n\tprevious_variant.lineno:\t" << previous_variant.lineno
+				<< "\n\tvar_pos:\t" << var_pos
+				<< "\n\tvar_ref_size:\t" << var_ref_size
+				<< "\n\tprevious_variant.start_pos:\t" << previous_variant.start_pos
+				<< "\n\tprevious_variant.end_pos:\t" << previous_variant.end_pos
+				<< std::endl;
+			}
+		);
 		
 		// Output reference from 5' direction up to var_pos.
 		output_reference(previous_variant.current_pos, var_pos);
@@ -248,194 +238,126 @@ namespace vcf2multialign {
 		previous_variant.current_pos = var_pos;
 		
 		// Find haplotypes that have the variant.
-		var.prepare_samples();
-
 		// First make sure that all valid alts are listed in m_alt_haplotypes.
 		for (auto const alt_idx : m_valid_alts)
 		{
-			auto const &alt_sv(var.alt()[alt_idx - 1]);
-			std::string alt(alt_sv.cbegin(), alt_sv.cend());
-			m_alt_haplotypes[alt];
+			auto const &alt_str(var_alts[alt_idx - 1]);
+			m_alt_haplotypes[alt_str];
 		}
 		m_alt_haplotypes[*m_null_allele_seq];
 				
 		for (auto const &kv : *m_all_haplotypes)
 		{
-			// Handle the samples in parallel.
 			auto const sample_no(kv.first);
-			auto fn = [this, sample_no, lineno, &var](){
-				// Parse the sample fields.
-				std::unique_ptr <variant::sample_field_vector> sample_sv_vec_ptr;
-				m_sample_vs.get_vector(sample_sv_vec_ptr);
-				var.parse_sample(sample_no, *sample_sv_vec_ptr);
-				
-				// Parse the genotype.
-				std::unique_ptr <variant::genotype_vector> gt_vec_ptr;
-				m_gt_vs.get_vector(gt_vec_ptr);
-				bool phased{false};
-				var.get_genotype(*sample_sv_vec_ptr, *gt_vec_ptr, phased);
-				
-				// Return the sample vector.
-				m_sample_vs.put_vector(sample_sv_vec_ptr);
-				
-				if (!phased)
-					throw std::runtime_error("Variant file not phased");
 
-				// Make the main queue handle the alts in order to avoid locking.
-				uint8_t chr_idx(0);
-				for (auto const alt_idx : *gt_vec_ptr)
-				{
-					if (0 != alt_idx && 0 != m_valid_alts.count(alt_idx))
-					{
-						auto fn = [this, alt_idx, sample_no, chr_idx, lineno, &var](){
-							auto &ref_ptrs(m_ref_haplotype_ptrs.find(sample_no)->second); // Has nodes for every sample_no.
-							
-							// Read the alt sequence into a buffer.
-							std::string alt;
-							std::string const *alt_ptr(m_null_allele_seq);
-							if (NULL_ALLELE != alt_idx)
-							{
-								auto const &alt_sv(var.alt()[alt_idx - 1]);
-								std::string temp(alt_sv.cbegin(), alt_sv.cend());
-								alt = std::move(temp);
-								alt_ptr = &alt;
-							}
-							
-							haplotype_ptr_map &alt_ptrs_by_sample(m_alt_haplotypes[*alt_ptr]);
-							
-							auto it(alt_ptrs_by_sample.find(sample_no));
-							if (alt_ptrs_by_sample.end() == it)
-							{
-								it = alt_ptrs_by_sample.emplace(
-									std::piecewise_construct,
-									std::forward_as_tuple(sample_no),
-									std::forward_as_tuple(ref_ptrs.size(), nullptr)
-								).first;
-							}
-							auto &alt_ptrs(it->second);
-							
-							if (ref_ptrs[chr_idx])
-							{
-								// Use ADL.
-								using std::swap;
-								swap(alt_ptrs[chr_idx], ref_ptrs[chr_idx]);
-								++m_non_ref_totals.handled_count;
-								++m_counts_by_alt[alt_idx].handled_count;
-							}
-							else
-							{
-								if (m_overlapping_alts.insert(lineno).second)
-								{
-									std::cerr << "Overlapping alternatives on line " << lineno
-									<< " for sample " << sample_no << ':' << chr_idx
-									<< " (and possibly others); skipping when needed." << std::endl;
-								}
-								
-								if (m_error_logger->is_logging_errors())
-									m_skipped_samples.emplace_back(sample_no, alt_idx, chr_idx);
-							}
-							
-							++m_non_ref_totals.total_count;
-							++m_counts_by_alt[alt_idx].total_count;
-						};
-						
-						dispatch_async_fn(m_main_queue, fn);
-					}
-					++chr_idx;
-				}
-				
-				// Return the genotype vector.
-				m_gt_vs.put_vector(gt_vec_ptr);
-			};
+			// Get the sample.
+			auto const sample(var.sample(sample_no));
 			
-			if (REF_SAMPLE_NUMBER != sample_no)
-				dispatch_async_fn(m_parsing_queue, fn);
+			// Handle the genotype.
+			uint8_t chr_idx(0);
+			for (auto const gt : sample.genotype)
+			{
+				auto const alt_idx(gt.alt);
+				auto const is_phased(gt.is_phased);
+				always_assert(0 == chr_idx || gt.is_phased, "Variant file not phased");
+
+				if (0 != alt_idx && 0 != m_valid_alts.count(alt_idx))
+				{
+					auto &ref_ptrs(m_ref_haplotype_ptrs.find(sample_no)->second); // Has nodes for every sample_no.
+
+					std::string const *alt_ptr{m_null_allele_seq};
+					if (NULL_ALLELE != alt_idx)
+						alt_ptr = &var_alts[alt_idx - 1];
+					
+					haplotype_ptr_map &alt_ptrs_by_sample(m_alt_haplotypes[*alt_ptr]);
+					auto it(alt_ptrs_by_sample.find(sample_no));
+					if (alt_ptrs_by_sample.end() == it)
+					{
+						it = alt_ptrs_by_sample.emplace(
+							std::piecewise_construct,
+							std::forward_as_tuple(sample_no),
+							std::forward_as_tuple(ref_ptrs.size(), nullptr)
+						).first;
+					}
+					auto &alt_ptrs(it->second);
+					
+					if (ref_ptrs[chr_idx])
+					{
+						// Use ADL.
+						using std::swap;
+						swap(alt_ptrs[chr_idx], ref_ptrs[chr_idx]);
+						++m_non_ref_totals.handled_count;
+						++m_counts_by_alt[alt_idx].handled_count;
+					}
+					else
+					{
+						if (m_overlapping_alts.insert(lineno).second)
+						{
+							std::cerr << "Overlapping alternatives on line " << lineno
+							<< " for sample " << sample_no << ':' << chr_idx
+							<< " (and possibly others); skipping when needed." << std::endl;
+						}
+						
+						if (m_error_logger->is_logging_errors())
+							m_skipped_samples.emplace_back(sample_no, alt_idx, chr_idx);
+					}
+					
+					++m_non_ref_totals.total_count;
+					++m_counts_by_alt[alt_idx].total_count;
+				}
+				++chr_idx;
+			}
 		}
 		
-		// Make a barrier in the parsing queue in order to make sure that all
-		// the samples have been parsed before enqueuing in the main queue.
+		// Report errors if needed.
+		if (m_error_logger->is_logging_errors())
+		{
+			for (auto const &s : m_skipped_samples)
+				m_error_logger->log_overlapping_alternative(lineno, s.sample_no, s.chr_idx, m_counts_by_alt[s.alt_idx], m_non_ref_totals);
+		}
+		
+		// Create a new variant_overlap.
 		auto const var_end(var_pos + var_ref_size);
 		auto const previous_end_pos(previous_variant.end_pos);
-		auto fn = [this, var_pos, var_end, previous_end_pos, lineno](){
-			auto fn = [this, var_pos, var_end, previous_end_pos, lineno](){
-				// Report errors if needed.
-				if (m_error_logger->is_logging_errors())
-				{
-					for (auto const &s : m_skipped_samples)
-						m_error_logger->log_overlapping_alternative(lineno, s.sample_no, s.chr_idx, m_counts_by_alt[s.alt_idx], m_non_ref_totals);
-				}
-				
-				// Create a new variant_overlap.
-				variant_overlap overlap(var_pos, var_pos, var_end, 0, lineno, m_alt_haplotypes);
-				if (var_pos < previous_end_pos)
-				{
-					// Add the current variant to the stack.
-					m_overlap_stack.emplace(std::move(overlap));
-				}
-				else
-				{
-					// Replace the top of the stack with the current variant.
-					// Use ADL.
-					using std::swap;
-					swap(m_overlap_stack.top(), overlap);
-				}
-				
-				++m_i;
-				if (0 == m_i % 50000)
-					std::cerr << "Handled " << m_i << " variants…" << std::endl;
-				
-				dispatch_async_f <variant_handler, &variant_handler::process_next_variant>(m_main_queue, this);
-			};
-			
-			dispatch_async_fn(m_main_queue, fn);
-		};
-		
-		dispatch_barrier_async_fn(m_parsing_queue, fn);
-	}
-	
-	
-	void variant_handler::process_next_variant()
-	{
-		if (m_variant_range.first == m_variant_range.second)
+		variant_overlap overlap(var_pos, var_pos, var_end, 0, lineno, m_alt_haplotypes);
+		if (var_pos < previous_end_pos)
 		{
-			fill_variant_buffer();
-			return;
+			// Add the current variant to the stack.
+			m_overlap_stack.emplace(std::move(overlap));
+		}
+		else
+		{
+			// Replace the top of the stack with the current variant.
+			// Use ADL.
+			using std::swap;
+			swap(m_overlap_stack.top(), overlap);
 		}
 		
-		process_variant(m_variant_range.first->var);
-		++m_variant_range.first;
+		++m_i;
+		if (0 == m_i % 50000)
+			std::cerr << "Handled " << m_i << " variants…" << std::endl;
 	}
-
-
-	void variant_handler::fill_variant_buffer()
+	
+	
+	void variant_handler::finish()
 	{
-		m_variant_buffer.fill_buffer();
-		m_variant_buffer.get_variant_range(m_variant_range);
+		// Fill the remaining part with reference.
+		m_error_logger->flush();
+		std::cerr << "Filling with the reference…" << std::endl;
+		auto const ref_size(m_reference->size());
+		process_overlap_stack(ref_size);
 		
-		// Check if there is a next variant to be processed.
-		if (m_variant_range.first == m_variant_range.second)
+		char const *ref_begin(m_reference->data());
+		for (auto &kv : *m_all_haplotypes)
 		{
-			// Fill the remaining part with reference.
-			m_error_logger->flush();
-			std::cerr << "Filling with the reference…" << std::endl;
-			auto const ref_size(m_reference->size());
-			process_overlap_stack(ref_size);
-			
-			char const *ref_begin(m_reference->data());
-			for (auto &kv : *m_all_haplotypes)
+			for (auto &h : kv.second)
 			{
-				for (auto &h : kv.second)
-				{
-					auto const output_len(ref_size - h.current_pos);
-					h.output_stream.write(ref_begin + h.current_pos, output_len);
-				}
+				auto const output_len(ref_size - h.current_pos);
+				h.output_stream.write(ref_begin + h.current_pos, output_len);
 			}
-			
-			m_finish_callback();
-			return;
 		}
 		
-		process_next_variant();
+		m_finish_callback();
 	}
 	
 	
@@ -461,9 +383,12 @@ namespace vcf2multialign {
 			for (size_t i(0); i < count; ++i)
 				haplotype_ptr_vector[i] = &haplotype_vector[i];
 		}
+		
+		auto &reader(m_variant_buffer.reader());
+		reader.reset();
+		reader.set_parsed_fields(vcf_field::ALL);
+		
+		dispatch_async_f <decltype(m_variant_buffer), &variant_buffer::read_input>(*m_parsing_queue, &m_variant_buffer);
 
-		m_vcf_reader->reset();
-		m_vcf_reader->set_parsed_fields(vcf_field::ALL);
-		fill_variant_buffer();
 	}
 }

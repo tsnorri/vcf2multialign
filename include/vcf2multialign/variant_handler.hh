@@ -104,24 +104,22 @@ namespace vcf2multialign {
 	};
 
 	
-	class variant_handler
+	class variant_handler : public variant_buffer_delegate
 	{
 	protected:
-		typedef std::stack <variant_overlap>	overlap_stack_type;
-		typedef std::vector <size_t>			sample_number_vector;
+		typedef std::stack <variant_overlap>			overlap_stack_type;
+		typedef std::vector <size_t>					sample_number_vector;
 
 	protected:
-		dispatch_queue_t								m_main_queue;
-		dispatch_queue_t								m_parsing_queue;
+		dispatch_ptr <dispatch_queue_t>					m_main_queue{};
+		dispatch_ptr <dispatch_queue_t>					m_parsing_queue{};
 		std::function <void(void)>						m_finish_callback;
 		
 		error_logger									*m_error_logger{};
 		
 		vector_type	const								*m_reference{};
 		
-		vcf_reader										*m_vcf_reader{};
 		variant_buffer									m_variant_buffer;
-		variant_buffer::variant_range					m_variant_range;
 		overlap_stack_type								m_overlap_stack;
 		
 		variant_set const								*m_skipped_variants{};
@@ -132,9 +130,6 @@ namespace vcf2multialign {
 		std::map <uint8_t, sample_count>				m_counts_by_alt;				// In current variant.
 		sample_count									m_non_ref_totals;				// In current variant.
 		
-		vector_source <variant::sample_field_vector>	m_sample_vs;
-		vector_source <variant::genotype_vector>		m_gt_vs;
-		
 		haplotype_map									*m_all_haplotypes{};
 		alt_map											m_alt_haplotypes;
 		
@@ -143,8 +138,8 @@ namespace vcf2multialign {
 		
 	public:
 		variant_handler(
-			dispatch_queue_t main_queue,
-			dispatch_queue_t parsing_queue,
+			dispatch_ptr <dispatch_queue_t> const &main_queue,
+			dispatch_ptr <dispatch_queue_t> const &parsing_queue,
 			vcf_reader &vcf_reader_,
 			vector_type const &reference,
 			variant_set const &skipped_variants,
@@ -157,35 +152,21 @@ namespace vcf2multialign {
 			m_finish_callback(finish_callback),
 			m_error_logger(&error_logger),
 			m_reference(&reference),
-			m_vcf_reader(&vcf_reader_),
-			m_variant_buffer(vcf_reader_, vcf_reader_.sample_count()),
+			m_variant_buffer(vcf_reader_, main_queue, *this),
 			m_skipped_variants(&skipped_variants),
 			m_null_allele_seq(&null_allele)
 		{
-			dispatch_retain(m_main_queue);
-			dispatch_retain(m_parsing_queue);
-			m_variant_buffer.add_format_field("GT");
-		}
-		
-		~variant_handler()
-		{
-			dispatch_release(m_main_queue);
-			dispatch_release(m_parsing_queue);
 		}
 		
 		variant_handler() = default;
-		variant_handler(variant_handler const &) = delete;
-		variant_handler(variant_handler &&) = default;
-		variant_handler &operator=(variant_handler const &) & = delete;
-		variant_handler &operator=(variant_handler &&) & = default;
 		
 	public:
 		void process_variants(haplotype_map &haplotypes);
+		variant_buffer &variant_buffer() { return m_variant_buffer; }
 
 	protected:
-		void fill_variant_buffer();
-		void process_next_variant();
-		void process_variant(variant &var);
+		virtual void handle_variant(variant &var);
+		virtual void finish();
 
 		void fill_streams(haplotype_ptr_map &haplotypes, size_t const fill_amt) const;
 		void output_reference(std::size_t const output_start_pos, std::size_t const output_end_pos);
