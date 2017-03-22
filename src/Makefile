@@ -26,5 +26,5 @@ main.c : cmdline.c
 cmdline.c : config.h
 
 # Use the name config.h since cmdline.c includes it automatically.
-config.h : Makefile
+config.h: Makefile ../.git
 	printf "#define CMDLINE_PARSER_VERSION \"0.2 %s\"" `git rev-parse --short --verify HEAD` > config.h
