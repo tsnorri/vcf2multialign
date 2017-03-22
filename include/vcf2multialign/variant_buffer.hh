@@ -102,7 +102,7 @@ namespace vcf2multialign {
 		
 		vcf_reader &reader() { return *m_d.m_reader; }
 		void read_input();
-		void process_input(variant_set &&variants);
+		void process_input(variant_set &variants);
 		void set_delegate(variant_buffer_delegate &delegate) { m_d.m_delegate = &delegate; }
 	};
 	

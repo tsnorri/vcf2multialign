@@ -148,7 +148,7 @@ namespace {
 				{
 					auto const sample_no(kv.second);
 					auto const &sample(var.sample(sample_no));
-					m_ploidy[sample_no] = sample.genotype.size();
+					m_ploidy[sample_no] = sample.ploidy();
 				}
 				
 				return false;

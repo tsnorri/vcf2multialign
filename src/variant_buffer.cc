@@ -64,9 +64,9 @@ namespace vcf2multialign {
 					swap(m_d.m_prepared_variants, prepared_variants);
 		
 					auto fn = [this, pr = std::move(prepared_variants)]() mutable {
-						process_input(std::move(pr));
+						process_input(pr);
 					};
-					dispatch_async_fn(*m_d.m_main_queue, fn);
+					dispatch_async_fn(*m_d.m_main_queue, std::move(fn));
 					
 					// Wait for our turn to continue.
 					// Do this only after the main thread has received something to process so that
@@ -88,16 +88,16 @@ namespace vcf2multialign {
 			variant_set prepared_variants;
 			swap(m_d.m_prepared_variants, prepared_variants);
 			auto fn = [this, pr = std::move(prepared_variants)]() mutable {
-				process_input(std::move(pr));
+				process_input(pr);
 			};
-			dispatch_async_fn(*m_d.m_main_queue, fn);
+			dispatch_async_fn(*m_d.m_main_queue, std::move(fn));
 		}
 		
 		dispatch_async_f <variant_buffer_delegate, &variant_buffer_delegate::finish>(*m_d.m_main_queue, m_d.m_delegate);
 	}
 	
 	
-	void variant_buffer::process_input(variant_set &&variants)
+	void variant_buffer::process_input(variant_set &variants)
 	{
 		while (!variants.empty())
 		{

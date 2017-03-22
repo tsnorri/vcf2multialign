@@ -8,6 +8,7 @@
 
 #include <experimental/string_view>
 #include <vcf2multialign/types.hh>
+#include <vcf2multialign/util.hh>
 #include <vector>
 
 
@@ -18,8 +19,30 @@ namespace std {
 
 
 namespace vcf2multialign {
+	template <typename> class variant_tpl;
+}
+
+
+namespace vcf2multialign { namespace detail {
+
+	template <typename t_string, typename t_other_string>
+	struct variant_tpl_cmp
+	{
+		constexpr bool operator()(variant_tpl <t_string> const &, variant_tpl <t_other_string> const &) const { return false; }
+	};
+	
+	template <typename t_string>
+	struct variant_tpl_cmp <t_string, t_string>
+	{
+		bool operator()(variant_tpl <t_string> const &lhs, variant_tpl <t_string> const &rhs) const { return &lhs == &rhs; }
+	};
+}}
+
+
+namespace vcf2multialign {
 	
 	class vcf_reader;
+	class variant_base;
 	
 	
 	struct genotype_field
@@ -29,9 +52,21 @@ namespace vcf2multialign {
 	};
 	
 	
-	struct sample_field
+	class sample_field
 	{
-		std::vector <genotype_field>	genotype;
+		friend class variant_base;
+		
+	public:
+		typedef std::vector <genotype_field> genotype_vector;
+		
+	protected:
+		genotype_vector	m_genotype;
+		std::size_t		m_gt_count{0};
+		
+	public:
+		
+		std::size_t ploidy() const { return m_gt_count; }
+		boost::iterator_range <genotype_vector::const_iterator> get_genotype() const;
 	};
 	
 	
@@ -41,6 +76,7 @@ namespace vcf2multialign {
 		
 	protected:
 		std::vector <sample_field>	m_samples;
+		std::size_t					m_sample_count{0};
 		std::size_t					m_pos{0};
 		std::size_t					m_qual{0};
 		std::size_t					m_lineno{0};
@@ -56,16 +92,18 @@ namespace vcf2multialign {
 		variant_base &operator=(variant_base const &) & = default;
 		variant_base &operator=(variant_base &&) & = default;
 		
+		virtual ~variant_base() {}
+		
 		void set_lineno(std::size_t const lineno) { m_lineno = lineno; }
 		void set_pos(std::size_t const pos) { m_pos = pos; }
 		void set_qual(std::size_t const qual) { m_qual = qual; }
 		void set_gt(std::size_t const alt, std::size_t const sample, std::size_t const idx, bool const is_phased);
-		void reset() { m_samples.clear(); }	// FIXME: does this cause the genotype vectors to be deallocated?
+		void reset() { m_sample_count = 0; }	// Try to prevent unneeded deallocation.
 
 		size_t lineno() const											{ return m_lineno; }
 		size_t pos() const												{ return m_pos; };
 		size_t zero_based_pos() const;
-		sample_field const &sample(std::size_t const sample_idx) const	{ return m_samples.at(sample_idx); }
+		sample_field const &sample(std::size_t const sample_idx) const	{ always_assert(sample_idx <= m_sample_count); return m_samples.at(sample_idx); }
 	};
 	
 	
@@ -106,12 +144,15 @@ namespace vcf2multialign {
 		bool operator==(variant_tpl <t_other_string> const &other) const;
 		
 		template <typename t_other_string>
+		bool operator!=(variant_tpl <t_other_string> const &other) const { return !(*this == other); }
+		
+		template <typename t_other_string>
 		variant_tpl &operator=(variant_tpl <t_other_string> const &other);
 		
 		std::vector <t_string> const &alts() const	{ return m_alts; }
 		t_string const &ref() const					{ return m_ref; }
 		
-		void reset() { m_alts.clear(); m_id.clear(); };
+		void reset() { variant_base::reset(); m_alts.clear(); m_id.clear(); };
 		void set_chrom_id(std::string_view const &chrom_id) { m_chrom_id = chrom_id; }
 		void set_ref(std::string_view const &ref) { m_ref = ref; }
 		void set_id(std::string_view const &id, std::size_t const pos);
@@ -125,6 +166,9 @@ namespace vcf2multialign {
 	{
 		friend class vcf_reader;
 		
+	protected:
+		typedef variant_tpl superclass;
+		
 	public:
 		using variant_tpl::variant_tpl;
 		void reset();
@@ -134,12 +178,23 @@ namespace vcf2multialign {
 	class variant : public variant_tpl <std::string>
 	{
 		friend class vcf_reader;
-		
+
+	protected:
+		typedef variant_tpl superclass;
+
 	public:
 		using variant_tpl::variant_tpl;
 		void reset();
 		
+		variant &operator=(transient_variant const &other) { variant_tpl::operator=(other); return *this; }
 	};
+	
+	
+	inline auto sample_field::get_genotype() const -> boost::iterator_range <genotype_vector::const_iterator>
+	{
+		auto const begin(m_genotype.cbegin());
+		return boost::make_iterator_range(begin, begin + m_gt_count);
+	}
 	
 	
 	template <typename t_string>
@@ -161,7 +216,8 @@ namespace vcf2multialign {
 	template <typename t_other_string>
 	bool variant_tpl <t_string>::operator==(variant_tpl <t_other_string> const &other) const
 	{
-		return this == &other;
+		detail::variant_tpl_cmp <t_string, t_other_string> cmp;
+		return cmp(*this, other);
 	}
 	
 	
@@ -172,8 +228,8 @@ namespace vcf2multialign {
 		if (*this != other)
 		{
 			variant_base::operator=(other);
-			m_chrom_id = other.m_chrom_id;
-			m_ref = other.m_ref;
+			m_chrom_id.assign(other.m_chrom_id.cbegin(), other.m_chrom_id.cend());
+			m_ref.assign(other.m_ref.cbegin(), other.m_ref.cend());
 			copy_vectors(other);
 		}
 		return *this;

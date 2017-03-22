@@ -18,15 +18,24 @@ namespace vcf2multialign {
 	
 	void variant_base::set_gt(std::size_t const alt, std::size_t const sample_no, std::size_t const idx, bool const is_phased)
 	{
-		if (! (sample_no < m_samples.size()))
-			m_samples.resize(sample_no + 1);
+		// Check that the samples are given in consecutive order.
+		always_assert(0 != sample_no);
+		always_assert(sample_no == 1 || sample_no == m_sample_count - 1 || sample_no == m_sample_count);
+		m_sample_count = 1 + sample_no;
+		
+		if (! (m_sample_count <= m_samples.size()))
+			m_samples.resize(m_sample_count);
 		
 		auto &sample(m_samples[sample_no]);
 		
-		if (! (idx < sample.genotype.size()))
-			sample.genotype.resize(idx + 1);
+		// Again check the order.
+		always_assert(0 == idx || idx == sample.m_gt_count);
+		sample.m_gt_count = 1 + idx;
 		
-		auto &gt(sample.genotype[idx]);
+		if (! (sample.m_gt_count <= sample.m_genotype.size()))
+			sample.m_genotype.resize(sample.m_gt_count);
+		
+		auto &gt(sample.m_genotype[idx]);
 		
 		gt.alt = alt;
 		gt.is_phased = is_phased;
@@ -35,6 +44,7 @@ namespace vcf2multialign {
 	
 	void transient_variant::reset()
 	{
+		superclass::reset();
 		std::string_view empty(nullptr, 0);
 		m_chrom_id = empty;
 		m_ref = empty;
@@ -43,6 +53,7 @@ namespace vcf2multialign {
 	
 	void variant::reset()
 	{
+		superclass::reset();
 		m_chrom_id.clear();
 		m_ref.clear();
 	}

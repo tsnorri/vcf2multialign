@@ -255,11 +255,11 @@ namespace vcf2multialign {
 			
 			// Handle the genotype.
 			uint8_t chr_idx(0);
-			for (auto const gt : sample.genotype)
+			for (auto const gt : sample.get_genotype())
 			{
 				auto const alt_idx(gt.alt);
 				auto const is_phased(gt.is_phased);
-				always_assert(0 == chr_idx || gt.is_phased, "Variant file not phased");
+				always_assert(0 == chr_idx || is_phased, "Variant file not phased");
 
 				if (0 != alt_idx && 0 != m_valid_alts.count(alt_idx))
 				{
