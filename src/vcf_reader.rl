@@ -145,6 +145,7 @@ namespace vcf2multialign {
 		std::cerr
 		<< "** Buffer contents from the start:" << std::endl;
 		std::copy(m_buffer.cbegin(), m_buffer.cend(), std::ostream_iterator <char>(std::cerr));
+		std::cerr << std::endl;
 
 		std::string_view buffer_end(m_fsm.p, m_fsm.pe - m_fsm.p);
 		std::cerr
