@@ -141,6 +141,16 @@ namespace vcf2multialign {
 		std::cerr
 		<< "Unexpected character '" << *current_character << "' at " << m_lineno << ':' << (current_character - m_line_start)
 		<< ", state " << current_state << '.' << std::endl;
+
+		std::cerr
+		<< "** Buffer contents from the start:" << std::endl;
+		std::copy(m_buffer.cbegin(), m_buffer.cend(), std::ostream_iterator <char>(std::cerr));
+
+		std::string_view buffer_end(m_fsm.p, m_fsm.pe - m_fsm.p);
+		std::cerr
+		<< "** Buffer contents starting from m_fsm.p:" << std::endl
+		<< buffer_end << std::endl;
+
 		abort();
 	}
 	
