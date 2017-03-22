@@ -394,7 +394,7 @@ namespace vcf2multialign {
 			
 			# FIXME: add actions.
 			info_key	= (alnum | '_') +;
-			info_str	= (alnum | [_.]) +;
+			info_str	= (alnum | [+-_.]) +;
 			info_val	= info_str (',' info_str)*;
 			info_part	= info_key ('=' info_val)?;
 			info		= (info_part (';' info_part)*);
