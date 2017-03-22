@@ -294,7 +294,7 @@ namespace vcf2multialign {
 						if (m_overlapping_alts.insert(lineno).second)
 						{
 							std::cerr << "Overlapping alternatives on line " << lineno
-							<< " for sample " << sample_no << ':' << chr_idx
+							<< " for sample " << sample_no << ':' << (int) chr_idx
 							<< " (and possibly others); skipping when needed." << std::endl;
 						}
 						
