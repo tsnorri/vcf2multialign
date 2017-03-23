@@ -159,7 +159,7 @@ namespace {
 				return false;
 			}))
 			{
-				throw std::runtime_error("Unable to read the first variant");
+				v2m::fail("Unable to read the first variant");
 			}
 		}
 		
@@ -246,8 +246,10 @@ namespace {
 			// Check if reference output was requested.
 			if (out_reference_fname)
 			{
-				if (m_haplotypes.cend() != m_haplotypes.find(v2m::REF_SAMPLE_NUMBER))
-					throw std::runtime_error("REF_SAMPLE_NUMBER already in use");
+				v2m::always_assert(
+					m_haplotypes.cend() == m_haplotypes.find(v2m::REF_SAMPLE_NUMBER),
+					"REF_SAMPLE_NUMBER already in use"
+				);
 				
 				auto it(m_haplotypes.emplace(
 					std::piecewise_construct,

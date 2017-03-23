@@ -79,8 +79,7 @@ namespace vcf2multialign {
 			heaviest_path_length(heaviest_path_length_),
 			lineno(lineno_)
 		{
-			if (! (start_pos <= end_pos))
-				throw std::runtime_error("Bad offset order");
+			always_assert(start_pos <= end_pos, "Bad offset order");
 		}
 		
 		variant_overlap(
@@ -98,8 +97,7 @@ namespace vcf2multialign {
 			lineno(lineno_),
 			alt_haplotypes(std::move(alts))
 		{
-			if (! (start_pos <= end_pos))
-				throw std::runtime_error("Bad offset order");
+			always_assert(start_pos <= end_pos, "Bad offset order");
 		}
 	};
 

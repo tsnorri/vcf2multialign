@@ -67,8 +67,7 @@ namespace vcf2multialign {
 	template <typename t_vector>
 	void vector_source <t_vector>::resize(std::size_t const size)
 	{
-		if (!m_allow_resize)
-			throw std::runtime_error("Trying to allocate more vectors than allowed");
+		always_assert(m_allow_resize, "Trying to allocate more vectors than allowed");
 		
 		// Fill from the beginning so that m_in_use slots in the end remain empty.
 		m_store.resize(size);

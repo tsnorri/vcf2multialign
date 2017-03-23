@@ -8,6 +8,7 @@
 
 #include <iostream>
 #include <iterator>
+#include <vcf2multialign/util.hh>
 #include <vcf2multialign/vector_source.hh>
 
 
@@ -104,7 +105,7 @@ namespace vcf2multialign {
 						else
 						{
 							if (2 * capacity < capacity)
-								throw std::runtime_error("Can't reserve more space.");
+								fail("Can't reserve more space.");
 							
 							// std::vector may reserve more than 2 * capacity (using reserve),
 							// sdsl::int_vector reserves the exact amount.
