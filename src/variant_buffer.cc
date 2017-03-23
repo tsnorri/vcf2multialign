@@ -47,9 +47,8 @@ namespace vcf2multialign {
 				variant_set::node_type node;	// Empty, insert does nothing.
 				if (! get_node_from_buffer(node))
 				{
-					// No handles in the buffer, create a new one.
-					m_d.m_factory.emplace();
-					node = m_d.m_factory.extract(m_d.m_factory.begin());
+					// No handles in the buffer, create a new one and retrieve it.
+					node = m_d.m_factory.extract(m_d.m_factory.emplace());
 				}
 				
 				// Copy the variant to node.
