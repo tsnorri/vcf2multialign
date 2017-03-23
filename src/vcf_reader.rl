@@ -173,6 +173,7 @@ namespace vcf2multialign {
 		m_lineno = m_last_header_lineno;
 		m_len = 0;
 		m_pos = 0;
+		m_fsm.eof = nullptr;
 	}
 	
 	
