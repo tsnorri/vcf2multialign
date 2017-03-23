@@ -268,9 +268,17 @@ namespace {
 			update_haplotypes(out_reference_fname);
 			if (0 == m_haplotypes.size())
 			{
-				auto const end_time(std::chrono::system_clock::now());
-				std::chrono::duration <double> elapsed_seconds(end_time - m_start_time);
-				std::cerr << "Sequence generation took " << (elapsed_seconds.count() / 60.0) << " minutes in total." << std::endl;
+				{
+					// Save the stream state.
+					boost::io::ios_flags_saver ifs(std::cerr);
+				
+					// Change FP notation.
+					std::cerr << std::fixed;
+
+					auto const end_time(std::chrono::system_clock::now());
+					std::chrono::duration <double> elapsed_seconds(end_time - m_start_time);
+					std::cerr << "Sequence generation took " << (elapsed_seconds.count() / 60.0) << " minutes in total." << std::endl;
+				}
 
 				// After calling cleanup *this is no longer valid.
 				//std::cerr << "Calling cleanup" << std::endl;
