@@ -36,7 +36,7 @@ On Linux the following libraries are required:
 3. Run `git submodule update --init --recursive`. This clones the missing submodules and updates their working tree.
 4. Create the file `local.mk`. `linux-static.local.mk` is provided as an example and may be copied with `cp linux-static.local.mk local.mk`
 5. Edit `local.mk` in the repository root to override build variables. Useful variables include `CC`, `CXX`, `RAGEL` and `GENGETOPT` for C and C++ compilers, gengetopt and Ragel respectively. `BOOST_INCLUDE` is used as preprocessor flags when Boost is required. `BOOST_LIBS` and `LIBDISPATCH_LIBS` are passed to the linker. See `common.mk` for additional variables.
-5. Run make with a suitable numer of parallel jobs, e.g. `make -j4`
+6. Run make with a suitable numer of parallel jobs, e.g. `make -j4`
 
 Useful make targets include:
 
@@ -52,4 +52,8 @@ Useful make targets include:
 
 ## Running
 
-Please see `src/vcf2multialign --help` for instructions.
+The tool takes a Variant Call Format file and a FASTA reference file as its inputs. It then proceeds to read the reference into memory and process the variant file. For each chromosome in the samples part of the VCF, a file is opened in the current working directory and a multiply-aligned haplotype sequence is output. Since the number of files opened may exceed user limits, the VCF is processed in multiple passes.
+
+The FASTA file should contain one sequence only. Currently the VCF parser accepts only a subset of all possible VCF files.
+
+Please see `src/vcf2multialign --help` for command line options.
