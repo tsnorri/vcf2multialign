@@ -4,7 +4,9 @@
  */
 
 #include <boost/format.hpp>
+#include <boost/io/ios_state.hpp>
 #include <cerrno>
+#include <chrono>
 #include <cmath>
 #include <cstring>
 #include <fcntl.h>
@@ -97,6 +99,9 @@ namespace {
 		v2m::vector_type									m_reference;
 		v2m::file_istream									m_vcf_stream;
 		v2m::vcf_reader										m_vcf_reader;
+		
+		std::chrono::time_point <std::chrono::system_clock>	m_start_time{};
+		std::chrono::time_point <std::chrono::system_clock>	m_round_start_time{};
 		
 		v2m::error_logger									m_error_logger;
 		
@@ -263,6 +268,10 @@ namespace {
 			update_haplotypes(out_reference_fname);
 			if (0 == m_haplotypes.size())
 			{
+				auto const end_time(std::chrono::system_clock::now());
+				std::chrono::duration <double> elapsed_seconds(end_time - m_start_time);
+				std::cerr << "Sequence generation took " << (elapsed_seconds.count() / 60.0) << " minutes in total." << std::endl;
+
 				// After calling cleanup *this is no longer valid.
 				//std::cerr << "Calling cleanup" << std::endl;
 				cleanup();
@@ -273,7 +282,24 @@ namespace {
 			
 			++m_current_round;
 			std::cerr << "Round " << m_current_round << '/' << m_total_rounds << std::endl;
+			m_round_start_time = std::chrono::system_clock::now();
+			auto const start_time(std::chrono::system_clock::to_time_t(m_round_start_time));
+			std::cerr << "Starting on " << std::ctime(&start_time) << std::flush;
 			m_variant_handler.process_variants(m_haplotypes);
+		}
+		
+		
+		void finish_round()
+		{
+			// Save the stream state.
+			boost::io::ios_flags_saver ifs(std::cerr);
+
+			// Change FP notation.
+			std::cerr << std::fixed;
+			
+			auto const end_time(std::chrono::system_clock::now());
+			std::chrono::duration <double> elapsed_seconds(end_time - m_round_start_time);
+			std::cerr << "Finished in " << (elapsed_seconds.count() / 60.0) << " minutes." << std::endl;
 		}
 
 		
@@ -353,7 +379,7 @@ namespace {
 					m_skipped_variants,
 					m_null_allele_seq,
 					m_error_logger,
-					[this](){ generate_sequences(); }
+					[this](){ finish_round(); generate_sequences(); }
 				);
 				
 				m_variant_handler = std::move(temp);
@@ -361,6 +387,7 @@ namespace {
 			}
 			
 			std::cerr << "Generating haplotype sequences…" << std::endl;
+			m_start_time = std::chrono::system_clock::now();
 			generate_sequences(out_reference_fname);
 		}
 	};
