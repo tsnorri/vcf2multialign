@@ -43,10 +43,8 @@ Useful make targets include:
 <dl>
 	<dt>all</dt>
 	<dd>Build everything</dd>
-	
 	<dt>clean</dt>
 	<dd>Remove build products except for dependencies (in the <code>lib</code> folder).</dd>
-	
 	<dt>clean-all</dt>
 	<dd>Remove all build products.</dd>
 </dl>
