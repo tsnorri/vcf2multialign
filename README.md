@@ -36,7 +36,7 @@ On Linux the following libraries are required:
 3. Run `git submodule update --init --recursive`. This clones the missing submodules and updates their working tree.
 4. Create the file `local.mk`. `linux-static.local.mk` is provided as an example and may be copied with `cp linux-static.local.mk local.mk`
 5. Edit `local.mk` in the repository root to override build variables. Useful variables include `CC`, `CXX`, `RAGEL` and `GENGETOPT` for C and C++ compilers, gengetopt and Ragel respectively. `BOOST_INCLUDE` is used as preprocessor flags when Boost is required. `BOOST_LIBS` and `LIBDISPATCH_LIBS` are passed to the linker. See `common.mk` for additional variables.
-5. Run make with a suitable numer of parallel jobs, e.g. `make -j4 BUILD_STYLE=release`
+5. Run make with a suitable numer of parallel jobs, e.g. `make -j4`
 
 Useful make targets include:
 
