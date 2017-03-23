@@ -201,6 +201,8 @@ namespace vcf2multialign {
 	template <typename t_other_string>
 	void variant_tpl <t_string>::copy_vectors(variant_tpl <t_other_string> const &other)
 	{
+		m_alts.clear();
+		m_id.clear();
 		m_alts.reserve(other.m_alts.size());
 		m_id.reserve(other.m_id.size());
 		
