@@ -33,6 +33,8 @@ namespace vcf2multialign {
 	
 	void variant_buffer::read_input()
 	{
+		m_d.m_previous_pos = 0;
+		
 		bool should_continue(false);
 		do
 		{
