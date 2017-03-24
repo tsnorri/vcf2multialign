@@ -99,6 +99,7 @@ namespace {
 		v2m::vector_type									m_reference;
 		v2m::file_istream									m_vcf_stream;
 		v2m::vcf_reader										m_vcf_reader;
+		v2m::file_ostream									m_ref_pos_stream;
 		
 		std::chrono::time_point <std::chrono::system_clock>	m_start_time{};
 		std::chrono::time_point <std::chrono::system_clock>	m_round_start_time{};
@@ -317,6 +318,7 @@ namespace {
 			char const *reference_fname,
 			char const *variants_fname,
 			char const *out_reference_fname,
+			char const *out_ref_pos_fname,
 			char const *report_fname,
 			bool const should_check_ref
 		)
@@ -334,6 +336,9 @@ namespace {
 					open_file_for_writing(report_fname, m_error_logger.output_stream(), m_should_overwrite_files);
 					m_error_logger.write_header();
 				}
+				
+				if (out_ref_pos_fname)
+					open_file_for_writing(out_ref_pos_fname, m_ref_pos_stream, m_should_overwrite_files);
 				
 				m_vcf_reader.set_stream(m_vcf_stream);
 				m_vcf_reader.read_header();
@@ -386,6 +391,7 @@ namespace {
 					m_parsing_queue,
 					m_vcf_reader,
 					m_reference,
+					m_ref_pos_stream,
 					m_skipped_variants,
 					m_null_allele_seq,
 					m_error_logger,
@@ -410,6 +416,7 @@ namespace vcf2multialign {
 		char const *reference_fname,
 		char const *variants_fname,
 		char const *out_reference_fname,
+		char const *out_ref_pos_fname,
 		char const *report_fname,
 		char const *null_allele_seq,
 		std::size_t const chunk_size,
@@ -437,6 +444,7 @@ namespace vcf2multialign {
 			reference_fname,
 			variants_fname,
 			out_reference_fname,
+			out_ref_pos_fname,
 			report_fname,
 			should_check_ref
 		);
