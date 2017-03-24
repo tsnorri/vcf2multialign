@@ -165,6 +165,7 @@ namespace vcf2multialign {
 	public:
 		void process_variants(haplotype_map &haplotypes);
 		variant_buffer &get_variant_buffer() { return m_variant_buffer; }
+		bit_string_file &ref_pos_file() { return m_ref_pos_file; }
 
 	protected:
 		virtual void handle_variant(variant &var);
