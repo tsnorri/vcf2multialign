@@ -395,7 +395,11 @@ namespace {
 					m_skipped_variants,
 					m_null_allele_seq,
 					m_error_logger,
-					[this](){ finish_round(); generate_sequences(); }
+					[this](){
+						m_variant_handler.ref_pos_file().close();
+						finish_round();
+						generate_sequences();
+					}
 				);
 				
 				m_variant_handler = std::move(temp);
