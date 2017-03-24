@@ -16,5 +16,5 @@ option	"overwrite"				-	"Overwrite output files"									flag	off
 option	"chunk-size"			-	"Number of samples to be processed simultaneously"			long	typestr = "size" default = "500"	optional
 option	"null-allele-seq"		-	"Sequence to be used for null alleles"						string	typestr = "seq"	default = "N"		optional
 option	"report-file"			-	"Write skipped variants to the given file"					string	typestr = "filename"				optional
-option	"ref-position-file"		-	"Write REF positions as a bit sequence to the given file"	string	typestr = "filename"				optional
+option	"ref-position-file"		-	"Write REF positions as a bit sequence to the given file"	string	typestr = "filename"				optional	hidden
 option	"no-check-ref"			-	"Omit comparing the reference to the REF column"			flag	off
