@@ -171,7 +171,7 @@ namespace vcf2multialign {
 
 		void fill_streams(haplotype_ptr_map &haplotypes, size_t const fill_amt) const;
 		void output_reference(std::size_t const output_start_pos, std::size_t const output_end_pos);
-		void process_overlap_stack(size_t const var_pos);
+		std::size_t process_overlap_stack(size_t const var_pos);
 	};
 }
 

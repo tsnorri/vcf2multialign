@@ -54,11 +54,12 @@ namespace vcf2multialign {
 	}
 
 	
-	void variant_handler::process_overlap_stack(size_t const var_pos)
+	std::size_t variant_handler::process_overlap_stack(size_t const var_pos)
 	{
+		std::size_t retval(0);
 		while (true)
 		{
-			// NOTE: for libc++, use p overlap_stack.c (not p overlap_stack).
+			// NOTE: for libc++, use p overlap_stack.c in the debugger (not p overlap_stack).
 			variant_overlap &vo(m_overlap_stack.top());
 			if (var_pos < vo.end_pos)
 				break;
@@ -67,6 +68,9 @@ namespace vcf2multialign {
 			// Check the current position and output from there.
 			auto const output_start_pos(vo.current_pos);
 			auto const output_end_pos(vo.end_pos);
+
+			// Return the end position of the last variant overlap.
+			retval = output_end_pos;
 			
 			// Output reference from 5' direction up to vo.end_pos.
 			output_reference(vo.current_pos, vo.end_pos);
@@ -158,6 +162,8 @@ namespace vcf2multialign {
 				break;
 			}
 		}
+
+		return retval;
 	}
 
 		
@@ -345,7 +351,7 @@ namespace vcf2multialign {
 		m_error_logger->flush();
 		std::cerr << "Filling with the reference…" << std::endl;
 		auto const ref_size(m_reference->size());
-		process_overlap_stack(ref_size);
+		auto const output_end_pos(process_overlap_stack(ref_size));
 		
 		char const *ref_begin(m_reference->data());
 		for (auto &kv : *m_all_haplotypes)
