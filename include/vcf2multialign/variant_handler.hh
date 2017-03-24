@@ -9,7 +9,6 @@
 #include <dispatch/dispatch.h>
 #include <map>
 #include <stack>
-#include <vcf2multialign/bit_string_file.hh>
 #include <vcf2multialign/error_logger.hh>
 #include <vcf2multialign/types.hh>
 #include <vcf2multialign/variant_buffer.hh>
@@ -115,9 +114,9 @@ namespace vcf2multialign {
 		std::function <void(void)>						m_finish_callback;
 		
 		error_logger									*m_error_logger{};
-		bit_string_file									m_ref_pos_file{};
 		
 		vector_type	const								*m_reference{};
+		file_ostream									*m_ref_pos_stream{};
 		
 		variant_buffer									m_variant_buffer;
 		overlap_stack_type								m_overlap_stack;
@@ -152,8 +151,8 @@ namespace vcf2multialign {
 			m_parsing_queue(parsing_queue),
 			m_finish_callback(finish_callback),
 			m_error_logger(&error_logger),
-			m_ref_pos_file(ref_pos_stream),
 			m_reference(&reference),
+			m_ref_pos_stream(&ref_pos_stream),
 			m_variant_buffer(vcf_reader_, main_queue, *this),
 			m_skipped_variants(&skipped_variants),
 			m_null_allele_seq(&null_allele)

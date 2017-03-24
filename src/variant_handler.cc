@@ -74,10 +74,6 @@ namespace vcf2multialign {
 			
 			// Output reference from 5' direction up to vo.end_pos.
 			output_reference(vo.current_pos, vo.end_pos);
-
-			// Output a bit string 1^(output_end_pos - output_start_pos).
-			if (m_ref_pos_file.is_open())
-				m_ref_pos_file.write_ones(output_end_pos - output_start_pos);
 			
 			// Add the amount output to the heaviest path length.
 			vo.heaviest_path_length += vo.end_pos - vo.current_pos;
@@ -115,10 +111,6 @@ namespace vcf2multialign {
 			{
 				auto const fill_amt(heaviest_path_length - vo.heaviest_path_length);
 				fill_streams(m_ref_haplotype_ptrs, fill_amt);
-
-				// Output a bit string 0^(output_end_pos - output_start_pos).
-				if (m_ref_pos_file.is_open())
-					m_ref_pos_file.write_zeros(output_end_pos - output_start_pos);
 			}
 
 			// Also fill the shorter alternatives.
@@ -243,10 +235,6 @@ namespace vcf2multialign {
 		
 		// Output reference from 5' direction up to var_pos.
 		output_reference(previous_variant.current_pos, var_pos);
-
-		// Output a bit string 1^(var_pos - previous_variant.current_pos).
-		if (m_ref_pos_file.is_open())
-			m_ref_pos_file.write_ones(var_pos - previous_variant.current_pos);
 		
 		// Add the amount output to the heaviest path length.
 		previous_variant.heaviest_path_length += var_pos - previous_variant.current_pos;
@@ -365,13 +353,6 @@ namespace vcf2multialign {
 		auto const ref_size(m_reference->size());
 		auto const output_end_pos(process_overlap_stack(ref_size));
 		
-		// Output a bit string 1^(ref_size - output_end_pos - 1).
-		if (m_ref_pos_file.is_open())
-		{
-			m_ref_pos_file.write_ones(ref_size - output_end_pos - 1);
-			m_ref_pos_file.flush();
-		}
-
 		char const *ref_begin(m_reference->data());
 		for (auto &kv : *m_all_haplotypes)
 		{
