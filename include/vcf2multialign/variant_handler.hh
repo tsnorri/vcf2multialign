@@ -116,7 +116,6 @@ namespace vcf2multialign {
 		error_logger									*m_error_logger{};
 		
 		vector_type	const								*m_reference{};
-		file_ostream									*m_ref_pos_stream{};
 		
 		variant_buffer									m_variant_buffer;
 		overlap_stack_type								m_overlap_stack;
@@ -141,7 +140,6 @@ namespace vcf2multialign {
 			dispatch_ptr <dispatch_queue_t> const &parsing_queue,
 			vcf_reader &vcf_reader_,
 			vector_type const &reference,
-			file_ostream &ref_pos_stream,
 			variant_set const &skipped_variants,
 			std::string const &null_allele,
 			error_logger &error_logger,
@@ -152,7 +150,6 @@ namespace vcf2multialign {
 			m_finish_callback(finish_callback),
 			m_error_logger(&error_logger),
 			m_reference(&reference),
-			m_ref_pos_stream(&ref_pos_stream),
 			m_variant_buffer(vcf_reader_, main_queue, *this),
 			m_skipped_variants(&skipped_variants),
 			m_null_allele_seq(&null_allele)

@@ -43,7 +43,6 @@ int main(int argc, char **argv)
 		args_info.variants_arg,
 		args_info.output_reference_arg,
 		args_info.report_file_arg,
-		args_info.ref_position_file_arg,
 		args_info.null_allele_seq_arg,
 		args_info.chunk_size_arg,
 		args_info.overwrite_flag,
