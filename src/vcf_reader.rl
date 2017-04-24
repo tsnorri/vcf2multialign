@@ -317,6 +317,10 @@ namespace vcf2multialign {
 				m_integer += fc - '0';
 			}
 			
+			action set_unknown_quality_value {
+				m_integer = std::numeric_limits <decltype(m_integer)>::max();
+			}
+			
 			action end_sample_field {
 				// Check that the current field is followed by another field, another sample or a new record.
 				switch (fc)
@@ -383,10 +387,15 @@ namespace vcf2multialign {
 				%{ HANDLE_STRING_END(&vc::set_alt, m_idx++, m_alt_is_complex); };
 			alt			= (alt_part (',' alt_part)*) >{ m_idx = 0; };
 			
-			qual		= (digit+)
+			qual_numeric	= (digit+)
 				>(start_integer)
 				$(update_integer)
 				%{ HANDLE_INTEGER_END(&vc::set_qual); };
+			qual_unknown	= '.'
+				$(set_unknown_quality_value)
+				%{ HANDLE_INTEGER_END(&vc::set_qual); };
+			
+			qual			= qual_numeric | qual_unknown;
 			
 			# FIXME: add actions.
 			filter_pass	= 'PASS';
