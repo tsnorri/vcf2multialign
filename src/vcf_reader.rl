@@ -339,7 +339,7 @@ namespace vcf2multialign {
 					{
 						always_assert(m_format.size() == m_format_idx, "Not all fields present in the sample");
 						
-						if(!cb(m_current_variant))
+						if (!cb(m_current_variant))
 						{
 							fhold;
 							fbreak;
