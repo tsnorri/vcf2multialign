@@ -403,11 +403,12 @@ namespace vcf2multialign {
 			filter		= (filter_pass | (filter_part (';' filter_part)*));
 			
 			# FIXME: add actions.
-			info_key	= (alnum | '_') +;
-			info_str	= (alnum | [+-_.]) +;
-			info_val	= info_str (',' info_str)*;
-			info_part	= info_key ('=' info_val)?;
-			info		= (info_part (';' info_part)*);
+			info_key		= (alnum | '_') +;
+			info_str		= (alnum | [+-_.]) +;
+			info_val		= info_str (',' info_str)*;
+			info_part		= info_key ('=' info_val)?;
+			info_missing	= '.';
+			info			= info_missing | (info_part (';' info_part)*);
 			
 			# FIXME: handle other formats.
 			format_gt	= ('GT') @{ m_format.emplace_back(format_field::GT); };
