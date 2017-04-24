@@ -205,6 +205,12 @@ namespace vcf2multialign {
 		}
 		
 		size_t const var_pos(var.zero_based_pos());
+		always_assert(var_pos < m_reference->size(), [this, lineno](){
+			std::cerr
+			<< "Variant position on line " << lineno
+			<< " greater than reference length (" << m_reference->size() << ")."
+			<< std::endl;
+		});
 		
 		auto const var_ref(var.ref());
 		auto const var_ref_size(var_ref.size());
