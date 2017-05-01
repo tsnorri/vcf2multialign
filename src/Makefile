@@ -27,4 +27,18 @@ cmdline.c : config.h
 
 # Use the name config.h since cmdline.c includes it automatically.
 config.h: Makefile ../.git
-	printf "#define CMDLINE_PARSER_VERSION \"0.2.1 %s\"" `git rev-parse --short --verify HEAD` > config.h
+	TAGS=`git tag -l --points-at HEAD`; \
+	HASH=`git rev-parse --short --verify HEAD`; \
+	VERSION="DEV"; \
+	if [ -n "$${TAGS}" ]; \
+	then \
+		for name in "$${TAGS}"; \
+		do \
+			if [[ "$${name}" == v* ]]; \
+			then \
+				VERSION="$${name:1}"; \
+				break; \
+			fi; \
+		done; \
+	fi; \
+	printf "#define CMDLINE_PARSER_VERSION \"%s %s\"\n" "$${VERSION}" "$${HASH}" > config.h
