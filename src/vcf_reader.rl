@@ -361,7 +361,9 @@ namespace vcf2multialign {
 			
 			id_string	= '<' alnum+ '>';
 			
-			chrom_id	= (alnum+)
+			chr			= graph;
+			
+			chrom_id	= (chr+)
 				>(start_string)
 				%{ HANDLE_STRING_END(&vc::set_chrom_id); };
 			
@@ -370,7 +372,7 @@ namespace vcf2multialign {
 				$(update_integer)
 				%{ HANDLE_INTEGER_END(&vc::set_pos); };
 			
-			id_part		= (([.] | alnum)+)
+			id_part		= (([.] | (chr - ';'))+)
 				>(start_string)
 				%{ HANDLE_STRING_END(&vc::set_id, m_idx++); };
 			id_rec		= (id_part (';' id_part)*) >{ m_idx = 0; };
@@ -399,12 +401,12 @@ namespace vcf2multialign {
 			
 			# FIXME: add actions.
 			filter_pass	= 'PASS';
-			filter_part	= alnum+;
+			filter_part	= (chr - ';')+;
 			filter		= (filter_pass | (filter_part (';' filter_part)*));
 			
 			# FIXME: add actions.
-			info_key		= (alnum | '_') +;
-			info_str		= (alnum | [+-_.]) +;
+			info_str		= (chr - [,;=]) +;
+			info_key		= info_str;
 			info_val		= info_str (',' info_str)*;
 			info_part		= info_key ('=' info_val)?;
 			info_missing	= '.';
