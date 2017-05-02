@@ -54,6 +54,7 @@ namespace vcf2multialign {
 		std::size_t					m_pos{0};
 		std::size_t					m_format_idx{0};
 		std::size_t					m_integer{0};				// Currently read from the input.
+		sv_type						m_alt_sv{sv_type::NONE};	// Current ALT structural variant type.
 		vcf_field					m_max_parsed_field{};
 		bool						m_gt_is_phased{false};		// Is the current GT phased.
 		bool						m_alt_is_complex{false};	// Is the current ALT “complex” (includes *).

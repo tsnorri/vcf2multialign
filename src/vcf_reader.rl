@@ -307,6 +307,11 @@ namespace vcf2multialign {
 				m_start = fpc;
 			}
 			
+			action start_alt {
+				m_start = fpc;
+				m_alt_sv = sv_type::NONE;
+			}
+			
 			action start_integer {
 				m_integer = 0;
 			}
@@ -383,10 +388,40 @@ namespace vcf2multialign {
 			
 			# FIXME: add breakends.
 			simple_alt	= ([ACGTN]+);
-			complex_alt	= ([*]+) %{ m_alt_is_complex = true; };
-			alt_part	= (simple_alt | complex_alt)
-				>(start_string)
-				%{ HANDLE_STRING_END(&vc::set_alt, m_idx++, m_alt_is_complex); };
+			complex_alt	= ([*]+) %{ m_alt_is_complex = true; };	# Use only '*' since a following definition has simple_alt | complex_alt.
+			
+			# Structural variants.
+			sv_alt_id_chr		= chr - [<>:];	# No angle brackets in SV identifiers.
+				
+			sv_alt_t_del		= 'DEL'			%{ m_alt_sv = sv_type::DEL; };
+			sv_alt_t_ins		= 'INS'			%{ m_alt_sv = sv_type::INS; };
+			sv_alt_t_dup		= 'DUP'			%{ m_alt_sv = sv_type::DUP; };
+			sv_alt_t_inv		= 'INV'			%{ m_alt_sv = sv_type::INV; };
+			sv_alt_t_cnv		= 'CNV'			%{ m_alt_sv = sv_type::CNV; };
+			sv_alt_t_dup_tandem	= 'DUP:TANDEM'	%{ m_alt_sv = sv_type::DUP_TANDEM; };
+			sv_alt_t_del_me		= 'DEL:ME'		%{ m_alt_sv = sv_type::DEL_ME; };
+			sv_alt_t_ins_me		= 'INS:ME'		%{ m_alt_sv = sv_type::INS_ME; };
+			
+			sv_alt_predef		= (
+									sv_alt_t_del |
+									sv_alt_t_ins |
+									sv_alt_t_dup |
+									sv_alt_t_inv |
+									sv_alt_t_cnv |
+									sv_alt_t_dup_tandem |
+									sv_alt_t_del_me |
+									sv_alt_t_ins_me
+								);
+			
+			sv_alt_subtype		= sv_alt_id_chr+;
+			sv_alt				= ('<' sv_alt_predef (':' sv_alt_subtype)* '>');
+			
+			alt_part	= (simple_alt | complex_alt | sv_alt)
+				>(start_alt)
+				%{
+					m_current_variant.set_alt_sv_type(m_alt_sv, m_idx);
+					HANDLE_STRING_END(&vc::set_alt, m_idx++, m_alt_is_complex);
+				};
 			alt			= (alt_part (',' alt_part)*) >{ m_idx = 0; };
 			
 			qual_numeric	= (digit+)
@@ -471,6 +506,7 @@ namespace vcf2multialign {
 					m_format_idx = 0;
 					m_sample_idx = 0;
 					m_alt_is_complex = false;
+					m_alt_sv = sv_type::NONE;
 					++m_lineno;
 					m_current_variant.reset();
 					m_current_variant.set_lineno(m_lineno);
