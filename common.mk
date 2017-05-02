@@ -21,3 +21,9 @@ LDFLAGS			= $(LIBDISPATCH_LIBS) $(BOOST_LIBS)
 
 %.cc: %.rl
 	$(RAGEL) -L -C -G2 -o $@ $<
+
+%.dot: %.rl
+	$(RAGEL) -V -p -o $@ $<
+
+%.pdf: %.dot
+	$(DOT) -Tpdf $< > $@

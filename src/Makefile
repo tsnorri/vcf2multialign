@@ -17,7 +17,7 @@ OBJECTS		=	check_overlapping_non_nested_variants.o \
 all: vcf2multialign
 
 clean:
-	$(RM) $(OBJECTS) vcf2multialign cmdline.c cmdline.h version.h
+	$(RM) $(OBJECTS) vcf2multialign cmdline.c cmdline.h version.h vcf_reader.pdf
 
 vcf2multialign: $(OBJECTS)
 	$(CXX) -o $@ $(OBJECTS) $(LDFLAGS)
