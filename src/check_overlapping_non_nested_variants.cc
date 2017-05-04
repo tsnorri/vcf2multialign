@@ -80,6 +80,48 @@ namespace {
 			bad_overlap_side.erase(range.first, range.second);
 		}
 	}
+	
+	
+	bool can_handle_variant_alts(
+		v2m::transient_variant const &var,
+		v2m::sv_handling const sv_handling_method
+	)
+	{
+		if (v2m::sv_handling::DISCARD == sv_handling_method)
+		{
+			for (auto const svt : var.alt_sv_types())
+			{
+				if (v2m::sv_type::NONE == svt)
+					return true;
+			}
+			
+		}
+		else
+		{
+			// Keep.
+			for (auto const svt : var.alt_sv_types())
+			{
+				switch (svt)
+				{
+					// These structural variant types are currently handled.
+					case v2m::sv_type::NONE:
+					case v2m::sv_type::DEL:
+					case v2m::sv_type::DEL_ME:
+						return true;
+						
+					case v2m::sv_type::INS:
+					case v2m::sv_type::DUP:
+					case v2m::sv_type::INV:
+					case v2m::sv_type::CNV:
+					case v2m::sv_type::DUP_TANDEM:
+					case v2m::sv_type::INS_ME:
+						break;
+				}
+			}
+		}
+
+		return false;
+	}
 }
 
 
@@ -87,6 +129,7 @@ namespace vcf2multialign {
 
 	size_t check_overlapping_non_nested_variants(
 		vcf_reader &reader,
+		sv_handling const sv_handling_method,
 		variant_set /* out */ &skipped_variants,
 		error_logger &error_logger
 	)
@@ -104,12 +147,22 @@ namespace vcf2multialign {
 		size_t conflict_count(0);
 		
 		reader.reset();
-		reader.set_parsed_fields(vcf_field::REF);
+		reader.set_parsed_fields(vcf_field::ALT);
 		bool should_continue(false);
 		do {
 			reader.fill_buffer();
 			should_continue = reader.parse(
-				[&last_position, &end_positions, &conflict_counts, &bad_overlaps, &i, &conflict_count]
+				[
+					&skipped_variants,
+					&error_logger,
+					&last_position,
+					&end_positions,
+					&conflict_counts,
+					&bad_overlaps,
+					&i,
+					&conflict_count,
+					sv_handling_method
+				]
 				(v2m::transient_variant const &var)
 				-> bool
 			{
@@ -117,58 +170,68 @@ namespace vcf2multialign {
 				auto const pos(var.zero_based_pos());
 
 				always_assert(last_position <= pos, "Positions not in increasing order");
-
+				
 				auto const end(pos + var.ref().size());
 				auto const var_lineno(var.lineno());
-
-				// Try to find an end position that is greater than var's position.
-				auto it(end_positions.upper_bound(pos));
-				auto const end_it(end_positions.cend());
-
-				// If not found, add the current end position to end_positions
-				// and skip the remaining checks.
-				if (end_it == it)
+				
+				// First check that there is at least one ALT that can be handled.
+				if (!can_handle_variant_alts(var, sv_handling_method))
 				{
-					end_positions.emplace(
-						std::piecewise_construct,
-						std::forward_as_tuple(end),
-						std::forward_as_tuple(pos, var_lineno)
-					);
-					goto loop_end;
+					skipped_variants.insert(var_lineno);
+					error_logger.log_no_supported_alts(var_lineno);
+					goto loop_end_2;
 				}
-			
-				do
-				{
-					// Proper nesting since the current starting position must be greater
-					// than the previous one.
-					auto const other_end(it->first);
-					if (end <= other_end)
-						break;
-				
-					// Check if the potentially conflicting variant is in fact inside this one.
-					auto const other_lineno(it->second.lineno);
-					auto const other_pos(it->second.pos);
-					if (pos == other_pos)
-						goto loop_end_2;
-				
-					++conflict_count;
-					
-					// Convert starting to 1-based to get ranges like [x, y] (instead of [x, y)).
-					std::cerr
-					<< "Variant on line " << var_lineno << " conflicts with line " << other_lineno
-					<< " ([" << 1 + pos << ", " << end << "] vs. [" << 1 + other_pos << ", " << other_end << "])." << std::endl;
-				
-					{
-						auto const res(bad_overlaps.insert(overlap_map::value_type(other_lineno, var_lineno)));
-						always_assert(res.second, "Unable to insert");
-					}
 
-					++conflict_counts.left[other_lineno];
-					++conflict_counts.left[var_lineno];
+				{
+					// Try to find an end position that is greater than var's position.
+					auto it(end_positions.upper_bound(pos));
+					auto const end_it(end_positions.cend());
+
+					// If not found, add the current end position to end_positions
+					// and skip the remaining checks.
+					if (end_it == it)
+					{
+						end_positions.emplace(
+							std::piecewise_construct,
+							std::forward_as_tuple(end),
+							std::forward_as_tuple(pos, var_lineno)
+						);
+						goto loop_end;
+					}
+			
+					do
+					{
+						// Proper nesting since the current starting position must be greater
+						// than the previous one.
+						auto const other_end(it->first);
+						if (end <= other_end)
+							break;
 				
-				loop_end_2:
-					++it;
-				} while (end_it != it);
+						// Check if the potentially conflicting variant is in fact inside this one.
+						auto const other_lineno(it->second.lineno);
+						auto const other_pos(it->second.pos);
+						if (pos == other_pos)
+							goto loop_end_3;
+				
+						++conflict_count;
+					
+						// Convert starting to 1-based to get ranges like [x, y] (instead of [x, y)).
+						std::cerr
+						<< "Variant on line " << var_lineno << " conflicts with line " << other_lineno
+						<< " ([" << 1 + pos << ", " << end << "] vs. [" << 1 + other_pos << ", " << other_end << "])." << std::endl;
+				
+						{
+							auto const res(bad_overlaps.insert(overlap_map::value_type(other_lineno, var_lineno)));
+							always_assert(res.second, "Unable to insert");
+						}
+
+						++conflict_counts.left[other_lineno];
+						++conflict_counts.left[var_lineno];
+				
+					loop_end_3:
+						++it;
+					} while (end_it != it);
+				}
 			
 				// Add the end position.
 				end_positions.emplace(
@@ -180,6 +243,7 @@ namespace vcf2multialign {
 			loop_end:
 				last_position = pos;
 			
+			loop_end_2:
 				++i;
 				if (0 == i % 100000)
 					std::cerr << "Handled " << i << " variants…" << std::endl;
