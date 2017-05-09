@@ -66,7 +66,8 @@ namespace vcf2multialign {
 		CNV,
 		DUP_TANDEM,
 		DEL_ME,
-		INS_ME
+		INS_ME,
+		UNKNOWN
 	};
 	
 	char const *to_string(sv_type const svt);

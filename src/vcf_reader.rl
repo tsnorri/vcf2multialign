@@ -392,15 +392,18 @@ namespace vcf2multialign {
 			
 			# Structural variants.
 			sv_alt_id_chr		= chr - [<>:];	# No angle brackets in SV identifiers.
-				
-			sv_alt_t_del		= 'DEL'			%{ m_alt_sv = sv_type::DEL; };
-			sv_alt_t_ins		= 'INS'			%{ m_alt_sv = sv_type::INS; };
-			sv_alt_t_dup		= 'DUP'			%{ m_alt_sv = sv_type::DUP; };
-			sv_alt_t_inv		= 'INV'			%{ m_alt_sv = sv_type::INV; };
-			sv_alt_t_cnv		= 'CNV'			%{ m_alt_sv = sv_type::CNV; };
-			sv_alt_t_dup_tandem	= 'DUP:TANDEM'	%{ m_alt_sv = sv_type::DUP_TANDEM; };
-			sv_alt_t_del_me		= 'DEL:ME'		%{ m_alt_sv = sv_type::DEL_ME; };
-			sv_alt_t_ins_me		= 'INS:ME'		%{ m_alt_sv = sv_type::INS_ME; };
+			
+			# Only set UNKNOWN when entering any state of sv_alt_t_unknown (instead of the final state exiting transitions).
+			# Otherwise the type will be set first to e.g. CNV and immediately to UNKNOWN:
+			sv_alt_t_del		= 'DEL'				% (sv_t, 2)	%{ m_alt_sv = sv_type::DEL; };
+			sv_alt_t_ins		= 'INS'				% (sv_t, 2)	%{ m_alt_sv = sv_type::INS; };
+			sv_alt_t_dup		= 'DUP'				% (sv_t, 2)	%{ m_alt_sv = sv_type::DUP; };
+			sv_alt_t_inv		= 'INV'				% (sv_t, 2)	%{ m_alt_sv = sv_type::INV; };
+			sv_alt_t_cnv		= 'CNV'				% (sv_t, 2)	%{ m_alt_sv = sv_type::CNV; };
+			sv_alt_t_dup_tandem	= 'DUP:TANDEM'		% (sv_t, 2)	%{ m_alt_sv = sv_type::DUP_TANDEM; };
+			sv_alt_t_del_me		= 'DEL:ME'			% (sv_t, 2)	%{ m_alt_sv = sv_type::DEL_ME; };
+			sv_alt_t_ins_me		= 'INS:ME'			% (sv_t, 2)	%{ m_alt_sv = sv_type::INS_ME; };
+			sv_alt_t_unknown	= sv_alt_id_chr+	% (sv_t, 1)	$~{ m_alt_sv = sv_type::UNKNOWN; };
 			
 			sv_alt_predef		= (
 									sv_alt_t_del |
@@ -410,7 +413,8 @@ namespace vcf2multialign {
 									sv_alt_t_cnv |
 									sv_alt_t_dup_tandem |
 									sv_alt_t_del_me |
-									sv_alt_t_ins_me
+									sv_alt_t_ins_me |
+									sv_alt_t_unknown
 								);
 			
 			sv_alt_subtype		= sv_alt_id_chr+;

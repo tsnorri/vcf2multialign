@@ -238,6 +238,7 @@ namespace vcf2multialign {
 					case sv_type::CNV:
 					case sv_type::DUP_TANDEM:
 					case sv_type::INS_ME:
+					case sv_type::UNKNOWN:
 						m_error_logger->log_skipped_structural_variant(lineno, i, alt_svt);
 						break;
 					

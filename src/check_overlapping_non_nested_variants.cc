@@ -115,6 +115,7 @@ namespace {
 					case v2m::sv_type::CNV:
 					case v2m::sv_type::DUP_TANDEM:
 					case v2m::sv_type::INS_ME:
+					case v2m::sv_type::UNKNOWN:
 						break;
 				}
 			}

@@ -38,8 +38,11 @@ namespace vcf2multialign {
 			case sv_type::INS_ME:
 				return "INS:ME";
 				
-			default:
+			case sv_type::UNKNOWN:
 				return "(unknown)";
+				
+			default:
+				return "(unexpected value)";
 		}
 	}
 }
