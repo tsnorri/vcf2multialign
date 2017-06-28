@@ -1,7 +1,7 @@
 # Build a mostly static binary.
 
-CC					= gcc-6
-CXX					= g++-6
+CC					= gcc-7
+CXX					= g++-7
 MKDIR				= mkdir
 GENGETOPT			= gengetopt
 RAGEL				= ragel
