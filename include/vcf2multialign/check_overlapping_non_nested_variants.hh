@@ -14,6 +14,7 @@
 namespace vcf2multialign {
 	size_t check_overlapping_non_nested_variants(
 		vcf_reader &reader,
+		sv_handling const sv_handling_method,
 		variant_set /* out */ &skipped_variants,
 		error_logger &error_logger
 	);

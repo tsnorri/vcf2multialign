@@ -132,6 +132,7 @@ namespace vcf2multialign {
 		alt_map											m_alt_haplotypes;
 		
 		std::string const								*m_null_allele_seq{};
+		sv_handling										m_sv_handling_method{};
 		std::size_t										m_i{0};
 		
 	public:
@@ -140,6 +141,7 @@ namespace vcf2multialign {
 			dispatch_ptr <dispatch_queue_t> const &parsing_queue,
 			vcf_reader &vcf_reader_,
 			vector_type const &reference,
+			sv_handling const sv_handling_method,
 			variant_set const &skipped_variants,
 			std::string const &null_allele,
 			error_logger &error_logger,
@@ -152,7 +154,8 @@ namespace vcf2multialign {
 			m_reference(&reference),
 			m_variant_buffer(vcf_reader_, main_queue, *this),
 			m_skipped_variants(&skipped_variants),
-			m_null_allele_seq(&null_allele)
+			m_null_allele_seq(&null_allele),
+			m_sv_handling_method(sv_handling_method)
 		{
 		}
 		
@@ -166,6 +169,8 @@ namespace vcf2multialign {
 		virtual void handle_variant(variant &var);
 		virtual void finish();
 
+		bool check_alt_seq(std::string const &alt) const;
+		void fill_valid_alts(variant const &var);
 		void fill_streams(haplotype_ptr_map &haplotypes, size_t const fill_amt) const;
 		void output_reference(std::size_t const output_start_pos, std::size_t const output_end_pos);
 		std::size_t process_overlap_stack(size_t const var_pos);

@@ -42,6 +42,15 @@ namespace vcf2multialign {
 	}
 	
 	
+	void variant_base::set_alt_sv_type(sv_type const svt, std::size_t const pos)
+	{
+		if (! (pos < m_alt_sv_types.size()))
+			m_alt_sv_types.resize(pos + 1);
+		
+		m_alt_sv_types[pos] = svt;
+	}
+	
+	
 	void transient_variant::reset()
 	{
 		superclass::reset();

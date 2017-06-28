@@ -307,6 +307,11 @@ namespace vcf2multialign {
 				m_start = fpc;
 			}
 			
+			action start_alt {
+				m_start = fpc;
+				m_alt_sv = sv_type::NONE;
+			}
+			
 			action start_integer {
 				m_integer = 0;
 			}
@@ -361,7 +366,9 @@ namespace vcf2multialign {
 			
 			id_string	= '<' alnum+ '>';
 			
-			chrom_id	= (alnum+)
+			chr			= graph;
+			
+			chrom_id	= (chr+)
 				>(start_string)
 				%{ HANDLE_STRING_END(&vc::set_chrom_id); };
 			
@@ -370,7 +377,7 @@ namespace vcf2multialign {
 				$(update_integer)
 				%{ HANDLE_INTEGER_END(&vc::set_pos); };
 			
-			id_part		= (([.] | alnum)+)
+			id_part		= (([.] | (chr - ';'))+)
 				>(start_string)
 				%{ HANDLE_STRING_END(&vc::set_id, m_idx++); };
 			id_rec		= (id_part (';' id_part)*) >{ m_idx = 0; };
@@ -381,10 +388,44 @@ namespace vcf2multialign {
 			
 			# FIXME: add breakends.
 			simple_alt	= ([ACGTN]+);
-			complex_alt	= ([*]+) %{ m_alt_is_complex = true; };
-			alt_part	= (simple_alt | complex_alt)
-				>(start_string)
-				%{ HANDLE_STRING_END(&vc::set_alt, m_idx++, m_alt_is_complex); };
+			complex_alt	= ([*]+) %{ m_alt_is_complex = true; };	# Use only '*' since a following definition has simple_alt | complex_alt.
+			
+			# Structural variants.
+			sv_alt_id_chr		= chr - [<>:];	# No angle brackets in SV identifiers.
+			
+			# Only set UNKNOWN when entering any state of sv_alt_t_unknown (instead of the final state exiting transitions).
+			# Otherwise the type will be set first to e.g. CNV and immediately to UNKNOWN:
+			sv_alt_t_del		= 'DEL'				% (sv_t, 2)	%{ m_alt_sv = sv_type::DEL; };
+			sv_alt_t_ins		= 'INS'				% (sv_t, 2)	%{ m_alt_sv = sv_type::INS; };
+			sv_alt_t_dup		= 'DUP'				% (sv_t, 2)	%{ m_alt_sv = sv_type::DUP; };
+			sv_alt_t_inv		= 'INV'				% (sv_t, 2)	%{ m_alt_sv = sv_type::INV; };
+			sv_alt_t_cnv		= 'CNV'				% (sv_t, 2)	%{ m_alt_sv = sv_type::CNV; };
+			sv_alt_t_dup_tandem	= 'DUP:TANDEM'		% (sv_t, 2)	%{ m_alt_sv = sv_type::DUP_TANDEM; };
+			sv_alt_t_del_me		= 'DEL:ME'			% (sv_t, 2)	%{ m_alt_sv = sv_type::DEL_ME; };
+			sv_alt_t_ins_me		= 'INS:ME'			% (sv_t, 2)	%{ m_alt_sv = sv_type::INS_ME; };
+			sv_alt_t_unknown	= sv_alt_id_chr+	% (sv_t, 1)	$~{ m_alt_sv = sv_type::UNKNOWN; };
+			
+			sv_alt_predef		= (
+									sv_alt_t_del |
+									sv_alt_t_ins |
+									sv_alt_t_dup |
+									sv_alt_t_inv |
+									sv_alt_t_cnv |
+									sv_alt_t_dup_tandem |
+									sv_alt_t_del_me |
+									sv_alt_t_ins_me |
+									sv_alt_t_unknown
+								);
+			
+			sv_alt_subtype		= sv_alt_id_chr+;
+			sv_alt				= ('<' sv_alt_predef (':' sv_alt_subtype)* '>');
+			
+			alt_part	= (simple_alt | complex_alt | sv_alt)
+				>(start_alt)
+				%{
+					m_current_variant.set_alt_sv_type(m_alt_sv, m_idx);
+					HANDLE_STRING_END(&vc::set_alt, m_idx++, m_alt_is_complex);
+				};
 			alt			= (alt_part (',' alt_part)*) >{ m_idx = 0; };
 			
 			qual_numeric	= (digit+)
@@ -399,12 +440,12 @@ namespace vcf2multialign {
 			
 			# FIXME: add actions.
 			filter_pass	= 'PASS';
-			filter_part	= alnum+;
+			filter_part	= (chr - ';')+;
 			filter		= (filter_pass | (filter_part (';' filter_part)*));
 			
 			# FIXME: add actions.
-			info_key		= (alnum | '_') +;
-			info_str		= (alnum | [+-_.]) +;
+			info_str		= (chr - [,;=]) +;
+			info_key		= info_str;
 			info_val		= info_str (',' info_str)*;
 			info_part		= info_key ('=' info_val)?;
 			info_missing	= '.';
@@ -469,6 +510,7 @@ namespace vcf2multialign {
 					m_format_idx = 0;
 					m_sample_idx = 0;
 					m_alt_is_complex = false;
+					m_alt_sv = sv_type::NONE;
 					++m_lineno;
 					m_current_variant.reset();
 					m_current_variant.set_lineno(m_lineno);
