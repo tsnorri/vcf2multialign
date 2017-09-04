@@ -179,18 +179,6 @@ namespace vcf2multialign {
 				if (!can_handle_variant_alts(var, sv_handling_method))
 				{
 					skipped_variants.insert(var_lineno);
-					continue;
-				}
-
-				// Try to find an end position that is greater than var's position.
-				auto it(end_positions.upper_bound(pos));
-				auto const end_it(end_positions.cend());
-
-				// If not found, add the current end position to end_positions
-				// and skip the remaining checks.
-				if (end_it == it)
-				{
-					skipped_variants.insert(var_lineno);
 					error_logger.log_no_supported_alts(var_lineno);
 					goto loop_end_2;
 				}
