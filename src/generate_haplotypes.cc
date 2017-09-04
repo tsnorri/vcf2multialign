@@ -318,7 +318,7 @@ namespace {
 			char const *variants_fname,
 			char const *out_reference_fname,
 			char const *report_fname,
-			sv_handling const sv_handling_method,
+			v2m::sv_handling const sv_handling_method,
 			bool const should_check_ref
 		)
 		{

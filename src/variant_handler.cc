@@ -3,6 +3,7 @@
  This code is licensed under MIT license (see LICENSE for details).
  */
 
+#include <boost/range/combine.hpp>
 #include <vcf2multialign/dispatch_fn.hh>
 #include <vcf2multialign/util.hh>
 #include <vcf2multialign/variant_handler.hh>
@@ -165,8 +166,91 @@ namespace vcf2multialign {
 
 		return retval;
 	}
-
+	
+	
+	bool variant_handler::check_alt_seq(std::string const &alt) const
+	{
+		for (auto const c : alt)
+		{
+			if (! ('A' == c || 'C' == c || 'G' == c || 'T' == c || 'N' == c))
+				return false;
+		}
 		
+		return true;
+	}
+	
+	
+	void variant_handler::fill_valid_alts(variant const &var)
+	{
+		// Check that the alt sequence is something that can be handled.
+		m_valid_alts.clear();
+		std::size_t i(0);
+		auto const lineno(var.lineno());
+		
+		if (sv_handling::DISCARD == m_sv_handling_method)
+		{
+			for (auto const &ref : boost::combine(var.alts(), var.alt_sv_types()))
+			{
+				++i;
+				
+				auto const alt_svt(ref.get <1>());
+				if (sv_type::NONE != alt_svt)
+					continue;
+				
+				auto const &alt(ref.get <0>());
+				if (!check_alt_seq(alt))
+				{
+					m_error_logger->log_invalid_alt_seq(lineno, i, alt);
+					continue;
+				}
+				
+				m_valid_alts.emplace(i);
+			}
+		}
+		else
+		{
+			for (auto const &ref : boost::combine(var.alts(), var.alt_sv_types()))
+			{
+				++i;
+				
+				auto const alt_svt(ref.get <1>());
+				switch (alt_svt)
+				{
+					case sv_type::NONE:
+					{
+						auto const &alt(ref.get <0>());
+						if (check_alt_seq(alt))
+							m_valid_alts.emplace(i);
+						else
+							m_error_logger->log_invalid_alt_seq(lineno, i, alt);
+						
+						break;
+					}
+					
+					case sv_type::DEL:
+					case sv_type::DEL_ME:
+						m_valid_alts.emplace(i);
+						break;
+					
+					case sv_type::INS:
+					case sv_type::DUP:
+					case sv_type::INV:
+					case sv_type::CNV:
+					case sv_type::DUP_TANDEM:
+					case sv_type::INS_ME:
+					case sv_type::UNKNOWN:
+						m_error_logger->log_skipped_structural_variant(lineno, i, alt_svt);
+						break;
+					
+					default:
+						fail("Unexpected structural variant type.");
+						break;
+				}
+			}
+		}
+	}
+	
+	
 	void variant_handler::handle_variant(variant &var)
 	{
 		m_skipped_samples.clear();
@@ -178,31 +262,9 @@ namespace vcf2multialign {
 			return;
 		
 		// Preprocess the ALT field to check that it can be handled.
-		{
-			// Check that the alt sequence is something that can be handled.
-			m_valid_alts.clear();
-			std::size_t i(0);
-			for (auto const &alt : var.alts())
-			{
-				++i;
-				for (auto const c : alt)
-				{
-					if (! ('A' == c || 'C' == c || 'G' == c || 'T' == c || 'N' == c))
-					{
-						std::cerr << "Unable to handle ALT field " << alt << " on line " << lineno << '.' << std::endl;
-						goto loop_end;
-					}
-				}
-				
-				m_valid_alts.emplace(i);
-				
-			loop_end:
-				;
-			}
-			
-			if (m_valid_alts.empty())
-				return;
-		}
+		fill_valid_alts(var);
+		if (m_valid_alts.empty())
+			return;
 		
 		size_t const var_pos(var.zero_based_pos());
 		always_assert(var_pos < m_reference->size(), [this, lineno](){
@@ -215,6 +277,7 @@ namespace vcf2multialign {
 		auto const var_ref(var.ref());
 		auto const var_ref_size(var_ref.size());
 		auto const var_alts(var.alts());
+		auto const var_alt_sv_types(var.alt_sv_types());
 		
 		// If var is beyond previous_variant.end_pos, handle the variants on the stack
 		// until a containing variant is found or the bottom of the stack is reached.
@@ -251,10 +314,27 @@ namespace vcf2multialign {
 		
 		// Find haplotypes that have the variant.
 		// First make sure that all valid alts are listed in m_alt_haplotypes.
+		std::string const empty_alt("");
 		for (auto const alt_idx : m_valid_alts)
 		{
-			auto const &alt_str(var_alts[alt_idx - 1]);
-			m_alt_haplotypes[alt_str];
+			switch (var_alt_sv_types[alt_idx - 1])
+			{
+				case sv_type::NONE:
+				{
+					auto const &alt_str(var_alts[alt_idx - 1]);
+					m_alt_haplotypes[alt_str];
+					break;
+				}
+				
+				case sv_type::DEL:
+				case sv_type::DEL_ME:
+					m_alt_haplotypes[empty_alt];
+					break;
+				
+				default:
+					fail("Unexpected structural variant type.");
+					break;
+			}
 		}
 		m_alt_haplotypes[*m_null_allele_seq];
 				
@@ -272,14 +352,30 @@ namespace vcf2multialign {
 				auto const alt_idx(gt.alt);
 				auto const is_phased(gt.is_phased);
 				always_assert(0 == chr_idx || is_phased, "Variant file not phased");
-
+				
 				if (0 != alt_idx && 0 != m_valid_alts.count(alt_idx))
 				{
 					auto &ref_ptrs(m_ref_haplotype_ptrs.find(sample_no)->second); // Has nodes for every sample_no.
-
+					
 					std::string const *alt_ptr{m_null_allele_seq};
 					if (NULL_ALLELE != alt_idx)
-						alt_ptr = &var_alts[alt_idx - 1];
+					{
+						switch (var_alt_sv_types[alt_idx - 1])
+						{
+							case sv_type::NONE:
+								alt_ptr = &var_alts[alt_idx - 1];
+								break;
+								
+							case sv_type::DEL:
+							case sv_type::DEL_ME:
+								alt_ptr = &empty_alt;
+								break;
+								
+							default:
+								fail("Unexpected structural variant type.");
+								break;
+						}
+					}
 					
 					haplotype_ptr_map &alt_ptrs_by_sample(m_alt_haplotypes[*alt_ptr]);
 					auto it(alt_ptrs_by_sample.find(sample_no));

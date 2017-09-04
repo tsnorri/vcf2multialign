@@ -1,12 +1,13 @@
 /*
- Copyright (c) 2017 Tuukka Norri
- This code is licensed under MIT license (see LICENSE for details).
- */
+Copyright (c) 2017 Tuukka Norri
+This code is licensed under MIT license (see LICENSE for details).
+*/
 
 #include <cstdlib>
 #include <iostream>
 #include <unistd.h>
 #include <vcf2multialign/generate_haplotypes.hh>
+#include <vcf2multialign/util.hh>
 
 #ifdef __linux__
 #include <pthread_workqueue.h>
@@ -19,20 +20,20 @@ namespace v2m	= vcf2multialign;
 
 
 namespace {
-	sv_handling sv_handling_method(enum_structural_variants const sva)
+	v2m::sv_handling sv_handling_method(enum_structural_variants const sva)
 	{
 		switch (sva)
 		{
 			case structural_variants_arg_discard:
-				return sv_handling::KEEP;
+				return v2m::sv_handling::DISCARD;
 				
 			case structural_variants_arg_keep:
-				return sv_handling::DISCARD;
+				return v2m::sv_handling::KEEP;
 				
 			case structural_variants__NULL:
 			default:
-				fail("Unexpected value for structural variant handling.");
-				return 0;
+				v2m::fail("Unexpected value for structural variant handling.");
+				return v2m::sv_handling::KEEP; // Not reached.
 		}
 	}
 }

@@ -12,10 +12,14 @@
 #include <vector>
 
 
+#ifdef __GNUC__
+#	if __GNUC__ < 7
 // XXX Hack.
 namespace std {
 	using std::experimental::string_view;
 }
+#	endif
+#endif
 
 
 namespace vcf2multialign {

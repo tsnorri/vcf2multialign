@@ -4,6 +4,7 @@
  */
 
 #include <cstddef>
+#include <vcf2multialign/types.hh>
 
 
 namespace vcf2multialign {

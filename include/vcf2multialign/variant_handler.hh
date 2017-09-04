@@ -169,6 +169,8 @@ namespace vcf2multialign {
 		virtual void handle_variant(variant &var);
 		virtual void finish();
 
+		bool check_alt_seq(std::string const &alt) const;
+		void fill_valid_alts(variant const &var);
 		void fill_streams(haplotype_ptr_map &haplotypes, size_t const fill_amt) const;
 		void output_reference(std::size_t const output_start_pos, std::size_t const output_end_pos);
 		std::size_t process_overlap_stack(size_t const var_pos);
