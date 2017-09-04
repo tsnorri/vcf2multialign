@@ -7,14 +7,23 @@ usage		"vcf2multialign --reference=filename.fa --variants=filename.vcf [...]"
 description
 "The sequences will be written into text files created in the current working directory. The files will be named “sample_id-chr_idx” as listed in the variant file. Dashes “-” will be output when needed to make the sequences aligned.
 
-To output more sequences in one pass, please adjust the maximum number of open files per process with “ulimit -n” and increase the chunk size."
+To output more sequences in one pass, please adjust the maximum number of open files per process with “ulimit -n” and increase the chunk size.
 
-option	"reference"				r	"Reference FASTA file path"							string	typestr = "filename"														required
-option	"variants"				a	"Variant call file path"							string	typestr = "filename"														required
-option	"output-reference"		-	"Output multiply-aligned reference"					string	typestr = "filename"														optional
-option	"overwrite"				-	"Overwrite output files"							flag	off
-option	"chunk-size"			-	"Number of samples to be processed simultaneously"	long	typestr = "size" default = "500"											optional
-option	"null-allele-seq"		-	"Sequence to be used for null alleles"				string	typestr = "seq"	default = "N"												optional
-option	"report-file"			-	"Write skipped variants to the given file"			string	typestr = "filename"														optional
-option	"no-check-ref"			-	"Omit comparing the reference to the REF column"	flag	off
-option	"structural-variants"	-	"Structural variant handling"								typestr = "mode"	values = "discard", "keep" default = "discard"	enum	optional
+Instead of writing each complete haplotype sequence, the variants may also be compressed such that as many variants as possible are packed into a single sequence. The number of generated sequences depends on the amount of padding requested around each variant. For example, consider two variants a and b that are within padding distance of each other. If two individuals A and B both have variant b but only A has variant a, two sequenes will be generated, one with both variants and one with only variant b."
+
+section "Input and output options"
+option	"reference"				r	"Reference FASTA file path"													string	typestr = "filename"														required
+option	"variants"				a	"Variant call file path"													string	typestr = "filename"														required
+option	"output-reference"		-	"Output multiply-aligned reference"											string	typestr = "filename"														optional
+option	"overwrite"				-	"Overwrite output files"													flag	off
+option	"chunk-size"			-	"Number of samples to be processed in one pass"								long	typestr = "size" default = "500"											optional
+option	"report-file"			-	"Write skipped variants to the given file"									string	typestr = "filename"														optional
+
+section "Input processing"
+option	"null-allele-seq"		-	"Sequence to be used for null alleles"										string	typestr = "seq"	default = "N"												optional
+option	"no-check-ref"			-	"Omit comparing the reference to the REF column"							flag	off
+option	"structural-variants"	-	"Structural variant handling"														typestr = "mode"	values = "discard", "keep" default = "discard"	enum	optional
+
+section "Variant compression"
+option	"compress-variants"		-	"Compress the variants into minimum number of sequences as described above"	flag	off
+option	"variant-padding"		-	"Padding radius for each variant"											int		typestr = "radius"	default = "0"	dependon = "compress-variants"			optional

@@ -16,8 +16,10 @@ namespace vcf2multialign {
 		char const *report_fname,
 		char const *null_allele_seq,
 		std::size_t const chunk_size,
+		std::size_t const variant_padding,
 		sv_handling const sv_handling_method,
 		bool const should_overwrite_files,
-		bool const should_check_ref
+		bool const should_check_ref,
+		bool const should_compress_variants
 	 );
 }

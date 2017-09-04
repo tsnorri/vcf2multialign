@@ -5,6 +5,7 @@ include ../common.mk
 
 OBJECTS		=	check_overlapping_non_nested_variants.o \
 				cmdline.o \
+				compress_variants.o \
 				error_logger.o \
 				generate_haplotypes.o \
 				main.o \

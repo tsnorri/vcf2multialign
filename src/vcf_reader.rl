@@ -394,7 +394,7 @@ namespace vcf2multialign {
 			sv_alt_id_chr		= chr - [<>:];	# No angle brackets in SV identifiers.
 			
 			# Only set UNKNOWN when entering any state of sv_alt_t_unknown (instead of the final state exiting transitions).
-			# Otherwise the type will be set first to e.g. CNV and immediately to UNKNOWN:
+			# Otherwise the type will be set first to e.g. CNV and immediately to UNKNOWN.
 			sv_alt_t_del		= 'DEL'				% (sv_t, 2)	%{ m_alt_sv = sv_type::DEL; };
 			sv_alt_t_ins		= 'INS'				% (sv_t, 2)	%{ m_alt_sv = sv_type::INS; };
 			sv_alt_t_dup		= 'DUP'				% (sv_t, 2)	%{ m_alt_sv = sv_type::DUP; };

@@ -276,12 +276,12 @@ namespace {
 				
 					// Change FP notation.
 					std::cerr << std::fixed;
-
+					
 					auto const end_time(std::chrono::system_clock::now());
 					std::chrono::duration <double> elapsed_seconds(end_time - m_start_time);
 					std::cerr << "Sequence generation took " << (elapsed_seconds.count() / 60.0) << " minutes in total." << std::endl;
 				}
-
+				
 				// After calling cleanup *this is no longer valid.
 				//std::cerr << "Calling cleanup" << std::endl;
 				cleanup();
@@ -318,8 +318,10 @@ namespace {
 			char const *variants_fname,
 			char const *out_reference_fname,
 			char const *report_fname,
+			std::size_t const variant_padding,
 			v2m::sv_handling const sv_handling_method,
-			bool const should_check_ref
+			bool const should_check_ref,
+			bool const should_compress_variants
 		)
 		{
 			// Open the files.
@@ -339,6 +341,7 @@ namespace {
 				m_vcf_reader.set_stream(m_vcf_stream);
 				m_vcf_reader.read_header();
 				
+				// FIXME: Move output file opening in case variant compression is requested.
 				auto const &sample_names(m_vcf_reader.sample_names());
 				m_sample_names_it = sample_names.cbegin();
 				m_sample_names_end = sample_names.cend();
@@ -382,6 +385,12 @@ namespace {
 				}
 			}
 			
+			// Check if variant compression was requested.
+			if (should_compress_variants)
+			{
+				// FIXME: compress the variants.
+			}
+			
 			// Replace the placeholder variant_handler.
 			{
 				v2m::variant_handler temp(
@@ -417,9 +426,11 @@ namespace vcf2multialign {
 		char const *report_fname,
 		char const *null_allele_seq,
 		std::size_t const chunk_size,
+		std::size_t const variant_padding,
 		sv_handling const sv_handling_method,
 		bool const should_overwrite_files,
-		bool const should_check_ref
+		bool const should_check_ref,
+		bool const should_compress_variants
 	)
 	{
 		dispatch_ptr <dispatch_queue_t> main_queue(dispatch_get_main_queue(), true);
@@ -443,8 +454,10 @@ namespace vcf2multialign {
 			variants_fname,
 			out_reference_fname,
 			report_fname,
+			variant_padding,
 			sv_handling_method,
-			should_check_ref
+			should_check_ref,
+			should_compress_variants
 		);
 		
 		// Calls pthread_exit.
