@@ -6,6 +6,7 @@
 #ifndef VCF2MULTIALIGN_COMPRESS_VARIANTS_HH
 #define VCF2MULTIALIGN_COMPRESS_VARIANTS_HH
 
+#include <boost/container/vector.hpp>
 #include <map>
 #include <utility>
 #include <vector>
@@ -89,7 +90,7 @@ namespace vcf2multialign {
 	};
 
 
-	typedef std::vector <std::map <std::size_t, variant_sequence>> range_map;
+	typedef boost::container::vector <std::map <std::size_t, variant_sequence>> range_map;
 	
 	
 	void compress_variants(

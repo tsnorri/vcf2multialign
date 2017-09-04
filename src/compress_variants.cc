@@ -3,6 +3,7 @@
  This code is licensed under MIT license (see LICENSE for details).
  */
 
+#include <boost/container/list.hpp>
 #include <list>
 #include <vcf2multialign/compress_variants.hh>
 #include <vcf2multialign/variant_buffer.hh>
@@ -10,7 +11,7 @@
 
 namespace vcf2multialign {
 	
-	typedef std::map <std::size_t, std::list <variant_sequence>> subsequence_map;
+	typedef std::map <std::size_t, boost::container::list <variant_sequence>> subsequence_map;
 	
 
 	// Check whether prepared_sequences already contains seq.
@@ -170,7 +171,7 @@ namespace vcf2multialign {
 		for (auto &kv : prepared_sequences)
 		{
 			auto &vec(kv.second);
-			vec.sort([](variant_sequence &a, variant_sequence &b) {
+			vec.sort([](variant_sequence const &a, variant_sequence const &b) {
 				return (a.length() > b.length());
 			});
 		}
@@ -197,11 +198,12 @@ namespace vcf2multialign {
 				}
 				
 				auto next_seq_it(list.begin());
+				auto const start_pos(next_seq_it->start_pos());
 				end_pos = next_seq_it->end_pos();
 				
 				// Move the range to the current list.
-				auto const st(dst.emplace_hint(dst.cend(), std::move(*next_seq_it)));
-				assert(st.second);
+				auto const st(dst.emplace_hint(dst.cend(), start_pos, std::move(*next_seq_it)));
+				assert(st->first);
 				list.erase(next_seq_it);
 			}
 		}
