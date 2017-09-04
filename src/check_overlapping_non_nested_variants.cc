@@ -80,6 +80,38 @@ namespace {
 			bad_overlap_side.erase(range.first, range.second);
 		}
 	}
+	
+	
+	bool can_handle_variant_alts(
+		v2m::transient_variant const &var,
+		sv_handling const sv_handling_method
+	)
+	{
+		if (sv_handling::DISCARD == sv_handling_method)
+		{
+			for (auto const svt : var.alt_sv_types())
+			{
+				if (sv_type::NONE == svt)
+					return true;
+			}
+			
+		}
+		else
+		{
+			// Keep.
+			for (auto const svt : var.alt_sv_types())
+			{
+				switch (svt)
+				{
+					case sv_type::NONE:
+					case sv_type::DEL:
+						return true;
+				}
+			}
+		}
+
+		return false;
+	}
 }
 
 
@@ -87,6 +119,7 @@ namespace vcf2multialign {
 
 	size_t check_overlapping_non_nested_variants(
 		vcf_reader &reader,
+		sv_handling const sv_handling_method,
 		variant_set /* out */ &skipped_variants,
 		error_logger &error_logger
 	)
@@ -104,7 +137,7 @@ namespace vcf2multialign {
 		size_t conflict_count(0);
 		
 		reader.reset();
-		reader.set_parsed_fields(vcf_field::REF);
+		reader.set_parsed_fields(vcf_field::ALT);
 		bool should_continue(false);
 		do {
 			reader.fill_buffer();
@@ -117,9 +150,16 @@ namespace vcf2multialign {
 				auto const pos(var.zero_based_pos());
 
 				always_assert(last_position <= pos, "Positions not in increasing order");
-
+				
 				auto const end(pos + var.ref().size());
 				auto const var_lineno(var.lineno());
+				
+				// First check that there is at least one variant that can be handled.
+				if (!can_handle_variant_alts(var, sv_handling_method))
+				{
+					skipped_variants.insert(var_lineno);
+					continue;
+				}
 
 				// Try to find an end position that is greater than var's position.
 				auto it(end_positions.upper_bound(pos));

@@ -318,6 +318,7 @@ namespace {
 			char const *variants_fname,
 			char const *out_reference_fname,
 			char const *report_fname,
+			sv_handling const sv_handling_method,
 			bool const should_check_ref
 		)
 		{
@@ -361,10 +362,12 @@ namespace {
 			}
 			
 			// List variants that conflict, i.e. overlap but are not nested.
+			// Also mark structural variants that cannot be handled.
 			{
 				std::cerr << "Checking overlapping variants…" << std::endl;
 				auto const conflict_count(v2m::check_overlapping_non_nested_variants(
 					m_vcf_reader,
+					sv_handling_method,
 					m_skipped_variants,
 					m_error_logger
 				));
@@ -386,6 +389,7 @@ namespace {
 					m_parsing_queue,
 					m_vcf_reader,
 					m_reference,
+					sv_handling_method,
 					m_skipped_variants,
 					m_null_allele_seq,
 					m_error_logger,
@@ -413,6 +417,7 @@ namespace vcf2multialign {
 		char const *report_fname,
 		char const *null_allele_seq,
 		std::size_t const chunk_size,
+		sv_handling const sv_handling_method,
 		bool const should_overwrite_files,
 		bool const should_check_ref
 	)
@@ -438,6 +443,7 @@ namespace vcf2multialign {
 			variants_fname,
 			out_reference_fname,
 			report_fname,
+			sv_handling_method,
 			should_check_ref
 		);
 		

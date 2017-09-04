@@ -9,11 +9,12 @@ description
 
 To output more sequences in one pass, please adjust the maximum number of open files per process with “ulimit -n” and increase the chunk size."
 
-option	"reference"				r	"Reference FASTA file path"							string	typestr = "filename"				required
-option	"variants"				a	"Variant call file path"							string	typestr = "filename"				required
-option	"output-reference"		-	"Output multiply-aligned reference"					string	typestr = "filename"				optional
+option	"reference"				r	"Reference FASTA file path"							string	typestr = "filename"									required
+option	"variants"				a	"Variant call file path"							string	typestr = "filename"									required
+option	"output-reference"		-	"Output multiply-aligned reference"					string	typestr = "filename"									optional
 option	"overwrite"				-	"Overwrite output files"							flag	off
-option	"chunk-size"			-	"Number of samples to be processed simultaneously"	long	typestr = "size" default = "500"	optional
-option	"null-allele-seq"		-	"Sequence to be used for null alleles"				string	typestr = "seq"	default = "N"		optional
-option	"report-file"			-	"Write skipped variants to the given file"			string	typestr = "filename"				optional
+option	"chunk-size"			-	"Number of samples to be processed simultaneously"	long	typestr = "size" default = "500"						optional
+option	"null-allele-seq"		-	"Sequence to be used for null alleles"				string	typestr = "seq"	default = "N"							optional
+option	"report-file"			-	"Write skipped variants to the given file"			string	typestr = "filename"									optional
 option	"no-check-ref"			-	"Omit comparing the reference to the REF column"	flag	off
+option	"structural-variants"	-	"Structural variant handling"								values = "discard", "keep"	default = "discard"	enum	optional
