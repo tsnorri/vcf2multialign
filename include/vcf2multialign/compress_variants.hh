@@ -21,6 +21,8 @@ namespace vcf2multialign {
 
 	class variant_sequence
 	{
+		friend std::ostream &operator<<(std::ostream &, variant_sequence const &);
+
 	protected:
 		variant_sequence_id				m_seq_id{};
 		std::size_t						m_start_pos_1{0};
@@ -87,6 +89,7 @@ namespace vcf2multialign {
 		void add_alt(std::size_t const zero_based_pos, uint8_t const alt_idx)
 		{
 			m_alt_indices[zero_based_pos] = alt_idx;
+			m_end_pos = zero_based_pos;
 		}
 	
 		bool assign_id(variant_sequence_id const &seq_id)
@@ -99,6 +102,7 @@ namespace vcf2multialign {
 		}
 	};
 
+	std::ostream &operator<<(std::ostream &stream, variant_sequence const &seq);
 
 	typedef boost::container::vector <std::map <std::size_t, variant_sequence>> range_map;
 	

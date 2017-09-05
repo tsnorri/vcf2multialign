@@ -12,7 +12,24 @@
 namespace vcf2multialign {
 	
 	typedef std::map <std::size_t, boost::container::list <variant_sequence>> subsequence_map;
+
 	
+	std::ostream &operator<<(std::ostream &stream, variant_sequence const &seq)
+	{
+		stream
+		<< "Start: " << seq.start_pos()
+		<< " end: " << seq.end_pos()
+		<< " length: " << seq.length()
+		<< " sample: " << seq.sample_no()
+		<< " chr: " << (int) seq.chr_idx()
+		<< " sequence:";
+
+		for (auto const &kv : seq.m_alt_indices)
+			stream << " (" << kv.first << ", " << (int) kv.second << ")";
+
+		return stream;
+	}
+
 
 	// Check whether prepared_sequences already contains seq.
 	bool contains_sequence(
@@ -40,9 +57,10 @@ namespace vcf2multialign {
 		subsequence_map &prepared_sequences
 	)
 	{
-		if (!contains_sequence(prepared_sequences, seq))
+		auto const start_pos(seq.start_pos());
+		if (!(0 == start_pos || contains_sequence(prepared_sequences, seq)))
 		{
-			auto &vec(prepared_sequences[seq.start_pos()]);
+			auto &vec(prepared_sequences[start_pos]);
 			auto &dst(vec.emplace_back(seq.seq_id()));
 			
 			using std::swap;
@@ -221,6 +239,18 @@ namespace vcf2multialign {
 		subsequence_map prepared_sequences;
 		
 		create_subsequences(reader, error_logger, skipped_variants, padding_amt, prepared_sequences);
+
+		{
+			for (auto const &kv : prepared_sequences)
+			{
+				auto const key(kv.first);
+				auto const &list(kv.second);
+				std::cerr << "Key: " << key << std::endl;
+				for (auto const &item : list)
+					std::cerr << "\t" << item << std::endl;
+			}
+		}
+
 		assign_ranges_greedy(prepared_sequences, compressed_ranges);
 	}
 }
