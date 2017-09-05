@@ -337,20 +337,21 @@ namespace vcf2multialign {
 			}
 		}
 		m_alt_haplotypes[*m_null_allele_seq];
-				
+		
 		for (auto const &kv : *m_all_haplotypes)
 		{
 			auto const sample_no(kv.first);
 
-			// Get the sample.
-			auto const sample(var.sample(sample_no));
-			
-			// Handle the genotype.
-			uint8_t chr_idx(0);
-			for (auto const gt : sample.get_genotype())
-			{
-				auto const alt_idx(gt.alt);
-				auto const is_phased(gt.is_phased);
+			auto cb = [
+				this,
+				sample_no,
+				lineno,
+				&var_alts,
+				&var_alt_sv_types,
+				&empty_alt
+			](
+				uint8_t const chr_idx, std::size_t const alt_idx, bool const is_phased
+			) {
 				always_assert(0 == chr_idx || is_phased, "Variant file not phased");
 				
 				if (0 != alt_idx && 0 != m_valid_alts.count(alt_idx))
@@ -413,8 +414,9 @@ namespace vcf2multialign {
 					++m_non_ref_totals.total_count;
 					++m_counts_by_alt[alt_idx].total_count;
 				}
-				++chr_idx;
-			}
+			};
+			
+			m_delegate->enumerate_genotype(var, sample_no, cb);
 		}
 		
 		// Report errors if needed.
@@ -465,7 +467,7 @@ namespace vcf2multialign {
 			}
 		}
 		
-		m_finish_callback();
+		m_delegate->finish();
 	}
 	
 	
@@ -494,7 +496,7 @@ namespace vcf2multialign {
 		
 		auto &reader(m_variant_buffer.reader());
 		reader.reset();
-		reader.set_parsed_fields(vcf_field::ALL);
+		m_delegate->set_parsed_fields(reader);
 		
 		dispatch_async_f <decltype(m_variant_buffer), &variant_buffer::read_input>(*m_parsing_queue, &m_variant_buffer);
 

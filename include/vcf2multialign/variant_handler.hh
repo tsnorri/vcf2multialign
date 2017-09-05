@@ -100,9 +100,44 @@ namespace vcf2multialign {
 			always_assert(start_pos <= end_pos, "Bad offset order");
 		}
 	};
-
 	
-	class variant_handler : public variant_buffer_delegate
+	
+	struct variant_handler_delegate
+	{
+		virtual ~variant_handler_delegate() {}
+		
+		virtual void finish() {}
+		
+		virtual void set_parsed_fields(vcf_reader &reader)
+		{
+			reader.set_parsed_fields(vcf_field::ALL);
+		}
+		
+		virtual void enumerate_genotype(
+			variant &var,
+			std::size_t const sample_no,
+			std::function <void(uint8_t, std::size_t, bool)> const &cb
+		)
+		{
+			// Get the sample.
+			auto const sample(var.sample(sample_no));
+			
+			// Handle the genotype.
+			uint8_t chr_idx(0);
+			for (auto const gt : sample.get_genotype())
+			{
+				auto const alt_idx(gt.alt);
+				auto const is_phased(gt.is_phased);
+				
+				cb(chr_idx, alt_idx, is_phased);
+				
+				++chr_idx;
+			}
+		}
+	};
+	
+	
+	class variant_handler : public variant_buffer_delegate, public variant_handler_delegate
 	{
 	protected:
 		typedef std::stack <variant_overlap>			overlap_stack_type;
@@ -111,8 +146,8 @@ namespace vcf2multialign {
 	protected:
 		dispatch_ptr <dispatch_queue_t>					m_main_queue{};
 		dispatch_ptr <dispatch_queue_t>					m_parsing_queue{};
-		std::function <void(void)>						m_finish_callback;
 		
+		variant_handler_delegate						*m_delegate{this};
 		error_logger									*m_error_logger{};
 		
 		vector_type	const								*m_reference{};
@@ -144,12 +179,10 @@ namespace vcf2multialign {
 			sv_handling const sv_handling_method,
 			variant_set const &skipped_variants,
 			std::string const &null_allele,
-			error_logger &error_logger,
-			std::function <void(void)> finish_callback
+			error_logger &error_logger
 		):
 			m_main_queue(main_queue),
 			m_parsing_queue(parsing_queue),
-			m_finish_callback(finish_callback),
 			m_error_logger(&error_logger),
 			m_reference(&reference),
 			m_variant_buffer(vcf_reader_, main_queue, *this),
@@ -164,6 +197,7 @@ namespace vcf2multialign {
 	public:
 		void process_variants(haplotype_map &haplotypes);
 		variant_buffer &get_variant_buffer() { return m_variant_buffer; }
+		void set_delegate(variant_handler_delegate &delegate) { m_delegate = &delegate; }
 
 	protected:
 		virtual void handle_variant(variant &var);

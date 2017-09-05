@@ -213,7 +213,7 @@ namespace vcf2multialign {
 	void compress_variants(
 		vcf_reader &reader,
 		error_logger &error_logger,
-		variant_set &skipped_variants,
+		variant_set const &skipped_variants,
 		std::size_t const padding_amt,
 		range_map &compressed_ranges
 	)

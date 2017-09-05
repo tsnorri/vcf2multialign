@@ -50,6 +50,16 @@ namespace vcf2multialign {
 		variant_sequence_id const &seq_id() const { return m_seq_id; }
 		std::size_t sample_no() const { return m_seq_id.first; }
 		uint8_t chr_idx() const { return m_seq_id.second; }
+		
+		bool get_alt(std::size_t const zero_based_pos, uint8_t &alt_idx) const
+		{
+			auto it(m_alt_indices.find(zero_based_pos));
+			if (m_alt_indices.cend() == it)
+				return false;
+			
+			alt_idx = it->second;
+			return true;
+		}
 	
 		void set_start_pos(std::size_t const zero_based_pos) { m_start_pos_1 = 1 + zero_based_pos; }
 	
@@ -96,7 +106,7 @@ namespace vcf2multialign {
 	void compress_variants(
 		vcf_reader &reader,
 		error_logger &error_logger,
-		variant_set &skipped_variants,
+		variant_set const &skipped_variants,
 		std::size_t const padding_amt,
 		range_map &compressed_ranges
 	);
