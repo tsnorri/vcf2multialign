@@ -105,7 +105,7 @@ namespace vcf2multialign {
 			auto node(variants.extract(variants.cbegin()));
 			auto &value(node.value());
 	
-			// Process input.
+			// Process the input.
 			m_d.m_delegate->handle_variant(value);
 	
 			// Return the node.

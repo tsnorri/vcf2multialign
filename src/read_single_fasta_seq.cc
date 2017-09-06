@@ -30,7 +30,7 @@ namespace {
 			v2m::vector_source <v2m::vector_type> &vs
 		)
 		{
-			std::cerr << "Read sequence of length " << seq_length << std::endl;
+			std::cerr << "read sequence of length " << seq_length << '.' << std::endl;
 			
 			// Use ADL.
 			using std::swap;
@@ -78,7 +78,7 @@ namespace vcf2multialign {
 		callback cb(reference);
 		fasta_reader reader;
 		
-		std::cerr << "Reading reference FASTA into memory…" << std::endl;
+		std::cerr << "Reading reference FASTA into memory… " << std::flush;
 		reader.read_from_stream(ref_fasta_stream, vs, cb);
 	}
 }

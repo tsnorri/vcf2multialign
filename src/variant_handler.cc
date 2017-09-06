@@ -342,81 +342,81 @@ namespace vcf2multialign {
 		{
 			auto const sample_no(kv.first);
 
-			auto cb = [
-				this,
-				sample_no,
-				lineno,
-				&var_alts,
-				&var_alt_sv_types,
-				&empty_alt
-			](
-				uint8_t const chr_idx, std::size_t const alt_idx, bool const is_phased
-			) {
-				always_assert(0 == chr_idx || is_phased, "Variant file not phased");
-				
-				if (0 != alt_idx && 0 != m_valid_alts.count(alt_idx))
-				{
-					auto &ref_ptrs(m_ref_haplotype_ptrs.find(sample_no)->second); // Has nodes for every sample_no.
+			m_delegate->enumerate_genotype(var, sample_no,
+				[
+					this,
+					sample_no,
+					lineno,
+					&var_alts,
+					&var_alt_sv_types,
+					&empty_alt
+				](
+					uint8_t const chr_idx, std::size_t const alt_idx, bool const is_phased
+				) {
+					always_assert(0 == chr_idx || is_phased, "Variant file not phased");
 					
-					std::string const *alt_ptr{m_null_allele_seq};
-					if (NULL_ALLELE != alt_idx)
+					if (0 != alt_idx && 0 != m_valid_alts.count(alt_idx))
 					{
-						switch (var_alt_sv_types[alt_idx - 1])
+						auto &ref_ptrs(m_ref_haplotype_ptrs.find(sample_no)->second); // Has nodes for every sample_no.
+						
+						std::string const *alt_ptr{m_null_allele_seq};
+						if (NULL_ALLELE != alt_idx)
 						{
-							case sv_type::NONE:
-								alt_ptr = &var_alts[alt_idx - 1];
-								break;
-								
-							case sv_type::DEL:
-							case sv_type::DEL_ME:
-								alt_ptr = &empty_alt;
-								break;
-								
-							default:
-								fail("Unexpected structural variant type.");
-								break;
-						}
-					}
-					
-					haplotype_ptr_map &alt_ptrs_by_sample(m_alt_haplotypes[*alt_ptr]);
-					auto it(alt_ptrs_by_sample.find(sample_no));
-					if (alt_ptrs_by_sample.end() == it)
-					{
-						it = alt_ptrs_by_sample.emplace(
-							std::piecewise_construct,
-							std::forward_as_tuple(sample_no),
-							std::forward_as_tuple(ref_ptrs.size(), nullptr)
-						).first;
-					}
-					auto &alt_ptrs(it->second);
-					
-					if (ref_ptrs[chr_idx])
-					{
-						// Use ADL.
-						using std::swap;
-						swap(alt_ptrs[chr_idx], ref_ptrs[chr_idx]);
-						++m_non_ref_totals.handled_count;
-						++m_counts_by_alt[alt_idx].handled_count;
-					}
-					else
-					{
-						if (m_overlapping_alts.insert(lineno).second)
-						{
-							std::cerr << "Overlapping alternatives on line " << lineno
-							<< " for sample " << sample_no << ':' << (int) chr_idx
-							<< " (and possibly others); skipping when needed." << std::endl;
+							switch (var_alt_sv_types[alt_idx - 1])
+							{
+								case sv_type::NONE:
+									alt_ptr = &var_alts[alt_idx - 1];
+									break;
+									
+								case sv_type::DEL:
+								case sv_type::DEL_ME:
+									alt_ptr = &empty_alt;
+									break;
+									
+								default:
+									fail("Unexpected structural variant type.");
+									break;
+							}
 						}
 						
-						if (m_error_logger->is_logging_errors())
-							m_skipped_samples.emplace_back(sample_no, alt_idx, chr_idx);
+						haplotype_ptr_map &alt_ptrs_by_sample(m_alt_haplotypes[*alt_ptr]);
+						auto it(alt_ptrs_by_sample.find(sample_no));
+						if (alt_ptrs_by_sample.end() == it)
+						{
+							it = alt_ptrs_by_sample.emplace(
+								std::piecewise_construct,
+								std::forward_as_tuple(sample_no),
+								std::forward_as_tuple(ref_ptrs.size(), nullptr)
+							).first;
+						}
+						auto &alt_ptrs(it->second);
+						
+						if (ref_ptrs[chr_idx])
+						{
+							// Use ADL.
+							using std::swap;
+							swap(alt_ptrs[chr_idx], ref_ptrs[chr_idx]);
+							++m_non_ref_totals.handled_count;
+							++m_counts_by_alt[alt_idx].handled_count;
+						}
+						else
+						{
+							if (m_overlapping_alts.insert(lineno).second)
+							{
+								std::cerr << "Overlapping alternatives on line " << lineno
+								<< " for sample " << sample_no << ':' << (int) chr_idx
+								<< " (and possibly others); skipping when needed." << std::endl;
+							}
+							
+							if (m_error_logger->is_logging_errors())
+								m_skipped_samples.emplace_back(sample_no, alt_idx, chr_idx);
+						}
+						
+						++m_non_ref_totals.total_count;
+						++m_counts_by_alt[alt_idx].total_count;
 					}
-					
-					++m_non_ref_totals.total_count;
-					++m_counts_by_alt[alt_idx].total_count;
 				}
-			};
-			
-			m_delegate->enumerate_genotype(var, sample_no, cb);
+			);
 		}
 		
 		// Report errors if needed.

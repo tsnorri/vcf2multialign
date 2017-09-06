@@ -132,7 +132,7 @@ namespace {
 		void set_generate_context(generate_context &ctx) { m_generate_context = &ctx; }
 		virtual void prepare_sample_names() = 0;
 		virtual std::size_t sample_count() const = 0;
-		virtual void compress_variants(std::size_t const padding_amt) = 0;
+		virtual void compress_variants(std::size_t const padding_amt, bool const output_ref) = 0;
 		virtual void update_haplotypes(v2m::haplotype_map &haplotypes, char const *out_reference_fname) = 0;
 		void update_haplotypes_with_ref(v2m::haplotype_map &haplotypes, char const *out_reference_fname);
 		void finish() override;
@@ -148,8 +148,8 @@ namespace {
 		
 	public:
 		void prepare_sample_names() override;
-		std::size_t sample_count() const override;
-		void compress_variants(std::size_t const padding_amt) override { assert(0); }
+		std::size_t sample_count() const override { return m_sample_count; }
+		void compress_variants(std::size_t const padding_amt, bool const output_ref) override { assert(0); }
 		void update_haplotypes(v2m::haplotype_map &haplotypes, char const *out_reference_fname) override;
 	};
 	
@@ -159,11 +159,12 @@ namespace {
 	protected:
 		v2m::range_map	m_compressed_ranges{};
 		std::size_t		m_sample_idx{0};
+		bool			m_output_ref{false};
 		
 	public:
 		void prepare_sample_names() override {}
-		std::size_t sample_count() const override;
-		void compress_variants(std::size_t const padding_amt) override;
+		std::size_t sample_count() const override { return m_compressed_ranges.size(); }
+		void compress_variants(std::size_t const padding_amt, bool const output_ref) override;
 		
 		void update_haplotypes(
 			v2m::haplotype_map &haplotypes,
@@ -313,6 +314,7 @@ namespace {
 		void generate_sequences(char const *out_reference_fname = nullptr)
 		{
 			// Open files for the samples. If no files were opened, exit.
+			m_haplotypes.clear();
 			m_genotype_delegate->update_haplotypes(
 				m_haplotypes,
 				out_reference_fname
@@ -429,10 +431,7 @@ namespace {
 			
 			// Check if variant compression was requested.
 			if (should_compress_variants)
-			{
-				std::cerr << "Compressing variants…" << std::endl;
-				m_genotype_delegate->compress_variants(variant_padding);
-			}
+				m_genotype_delegate->compress_variants(variant_padding, nullptr != out_reference_fname);
 			
 			// Prepare sample names for enumeration and calculate rounds.
 			{
@@ -560,12 +559,6 @@ void all_genotypes_handling_delegate::prepare_sample_names()
 }
 
 
-std::size_t all_genotypes_handling_delegate::sample_count() const
-{
-	return m_sample_count;
-}
-
-
 void all_genotypes_handling_delegate::update_haplotypes(
 	v2m::haplotype_map &haplotypes,
 	char const *out_reference_fname
@@ -575,8 +568,6 @@ void all_genotypes_handling_delegate::update_haplotypes(
 	auto const chunk_size(m_generate_context->chunk_size());
 	auto const should_overwrite_files(m_generate_context->should_overwrite_files());
 	
-	haplotypes.clear();
-
 	size_t i(0);
 	while (m_sample_names_it != m_sample_names_end)
 	{
@@ -604,19 +595,15 @@ void all_genotypes_handling_delegate::update_haplotypes(
 }
 
 
-std::size_t compressed_genotypes_handling_delegate::sample_count() const
+void compressed_genotypes_handling_delegate::compress_variants(std::size_t const padding_amt, bool const output_ref)
 {
-	return m_compressed_ranges.size();
-}
-
-
-void compressed_genotypes_handling_delegate::compress_variants(std::size_t const padding_amt)
-{
+	m_output_ref = output_ref;
 	v2m::compress_variants(
 		m_generate_context->vcf_reader(),
 		m_generate_context->error_logger(),
 		m_generate_context->skipped_variants(),
 		padding_amt,
+		output_ref,
 		m_compressed_ranges
 	);
 }
@@ -628,15 +615,17 @@ void compressed_genotypes_handling_delegate::update_haplotypes(
 )
 {
 	auto const chunk_size(m_generate_context->chunk_size());
+	auto const limit(m_compressed_ranges.size() - (m_output_ref ? 1 : 0));
 	
 	for (std::size_t i(0); i < chunk_size; ++i)
 	{
-		if (m_compressed_ranges.size() == m_sample_idx)
+		if (limit == m_sample_idx)
 			break;
 		
-		auto it(find_or_create_haplotype(haplotypes, m_sample_idx, 1));
+		auto const sample_id(1 + m_sample_idx);
+		auto it(find_or_create_haplotype(haplotypes, sample_id, 1));
 		auto &haplotype_vec(it->second);
-		auto const fname(boost::str(boost::format("%u") % m_sample_idx));
+		auto const fname(boost::str(boost::format("%u") % sample_id));
 		open_file_for_writing(fname.c_str(), haplotype_vec[0].output_stream, m_generate_context->should_overwrite_files());
 		
 		++m_sample_idx;
@@ -665,13 +654,21 @@ void compressed_genotypes_handling_delegate::enumerate_genotype(
 		return;
 	}
 	
+	// Find the variant_sequence that starts after the current position.
+	// If the found sequence is the first one, output REF.
 	auto const pos(var.pos());
 	auto it(sample_map.upper_bound(pos));
-	--it;
+	if (sample_map.cbegin() == it)
+	{
+		cb(0, 0, true);
+		return;
+	}
 	
-	// it now points to the correct variant_sequence.
+	// Make it point to the variant_sequence that starts before the current position.
+	--it;
 	uint8_t alt_idx(0);
+	auto const lineno(var.lineno());
 	auto const &var_seq(it->second);
-	var_seq.get_alt(pos - 1, alt_idx); // Takes a zero-based pos.
+	var_seq.get_alt(lineno, alt_idx);	// alt_idx remains zero if get_alt returns false.
 	cb(0, alt_idx, true);
 }

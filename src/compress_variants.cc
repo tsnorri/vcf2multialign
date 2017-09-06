@@ -54,13 +54,13 @@ namespace vcf2multialign {
 	// Move seq to prepared_sequences if it hasn't been already added.
 	void check_and_copy_seq_to_set(
 		variant_sequence &seq,
-		subsequence_map &prepared_sequences
+		subsequence_map &prepared_sequences // std::map <std::size_t, boost::container::list <variant_sequence>> subsequence_map
 	)
 	{
-		auto const start_pos(seq.start_pos());
+		auto const start_pos(seq.start_pos_1());
 		if (!(0 == start_pos || contains_sequence(prepared_sequences, seq)))
 		{
-			auto &vec(prepared_sequences[start_pos]);
+			auto &vec(prepared_sequences[start_pos - 1]);
 			auto &dst(vec.emplace_back(seq.seq_id()));
 			
 			using std::swap;
@@ -79,8 +79,14 @@ namespace vcf2multialign {
 	)
 	{
 		if (seq.assign_id(seq_id))
+		{
 			seq.set_start_pos(zero_based_pos);
-		else if (padding_amt < zero_based_pos - seq.end_pos())
+			return;
+		}
+		
+		auto const end_pos(seq.end_pos());
+		assert(end_pos <= zero_based_pos);
+		if (padding_amt < zero_based_pos - end_pos)
 		{
 			check_and_copy_seq_to_set(seq, prepared_sequences);
 			seq.reset();
@@ -121,54 +127,58 @@ namespace vcf2multialign {
 				]
 				(transient_variant const &var)
 				-> bool
-			{
-				auto const lineno(var.lineno());
-				if (0 != skipped_variants.count(lineno))
-					return true;
-				
-				// Verify that the positions are in increasing order.
-				auto const pos(var.zero_based_pos());
-				
-				always_assert(last_position <= pos, "Positions not in increasing order");
-				
-				auto const end(pos + var.ref().size());
-				auto const var_lineno(var.lineno());
-				
-				for (auto const &kv : reader.sample_names())
 				{
-					auto const sample_no(kv.second);
-					auto const &sample(var.sample(sample_no));
-				
-					// Handle the genotype.
-					uint8_t chr_idx(0);
-					for (auto const gt : sample.get_genotype())
-					{
-						auto const alt_idx(gt.alt);
-						auto const is_phased(gt.is_phased);
-						always_assert(0 == chr_idx || is_phased, "Variant file not phased");
-						
-						// If the current variant references an ALT column value in a chromosome, add the
-						// ALT index to the corresponding sequence.
-						if (alt_idx)
-						{
-							variant_sequence_id seq_id(sample_no, chr_idx);
-							variant_sequence &seq(variant_sequences[seq_id]);
-							check_variant_sequence(seq, seq_id, pos, padding_amt, prepared_sequences);
-							seq.add_alt(pos, alt_idx);
-						}
-						
-						++chr_idx;
-					}
-				}
+					auto const lineno(var.lineno());
+					if (0 != skipped_variants.count(lineno))
+						return true;
 					
-				last_position = pos;
+					// Verify that the positions are in increasing order.
+					auto const pos(var.zero_based_pos());
+					
+					always_assert(last_position <= pos, "Positions not in increasing order");
+					
+					auto const end(pos + var.ref().size());
+					auto const var_lineno(var.lineno());
+					
+					for (auto const &kv : reader.sample_names())
+					{
+						auto const sample_no(kv.second);
+						auto const &sample(var.sample(sample_no));
+					
+						// Handle the genotype.
+						uint8_t chr_idx(0);
+						for (auto const gt : sample.get_genotype())
+						{
+							auto const alt_idx(gt.alt);
+							auto const is_phased(gt.is_phased);
+							always_assert(0 == chr_idx || is_phased, "Variant file not phased");
+							
+							// If the current variant references an ALT column value in a chromosome, add the
+							// ALT index to the corresponding sequence.
+							if (alt_idx)
+							{
+								variant_sequence_id seq_id(sample_no, chr_idx);
+								variant_sequence &seq(variant_sequences[seq_id]);
+								
+								// First check if the previous variant is beyond the padding distance.
+								check_variant_sequence(seq, seq_id, pos, padding_amt, prepared_sequences);
+								
+								seq.add_alt(var_lineno, pos, alt_idx);
+							}
+							
+							++chr_idx;
+						}
+					}
+						
+					last_position = pos;
+					
+					++i;
+					if (0 == i % 100000)
+						std::cerr << "Handled " << i << " variants…" << std::endl;
 				
-				++i;
-				if (0 == i % 100000)
-					std::cerr << "Handled " << i << " variants…" << std::endl;
-			
-				return true;
-			});
+					return true;
+				}
+			);
 		} while (should_continue);
 		
 		// Add the remaining ranges.
@@ -180,11 +190,28 @@ namespace vcf2multialign {
 	}
 	
 	
+	void print_prepared_sequences(subsequence_map const &prepared_sequences)
+	{
+		for (auto const &kv : prepared_sequences)
+		{
+			auto const key(kv.first);
+			auto const &list(kv.second);
+			std::cerr << "Key: " << key << std::endl;
+			for (auto const &item : list)
+				std::cerr << "\t" << item << std::endl;
+		}
+	}
+	
+	
 	void assign_ranges_greedy(
 		subsequence_map &prepared_sequences,
-		range_map &compressed_ranges
+		range_map &compressed_ranges,
+		std::size_t const padding_amt,
+		bool const output_ref
 	)
 	{
+		//print_prepared_sequences(prepared_sequences);
+
 		// Sort each range vector.
 		for (auto &kv : prepared_sequences)
 		{
@@ -194,36 +221,53 @@ namespace vcf2multialign {
 			});
 		}
 		
+		//std::cerr << "Sorted the range vectors." << std::endl;
+		//print_prepared_sequences(prepared_sequences);
+
+		std::size_t compressed_idx(0);
+
+		// If reference is to be output, add an empty compressed range for it.
+		static_assert(0 == REF_SAMPLE_NUMBER);
+		if (output_ref)
+		{
+			compressed_ranges.emplace_back();
+			++compressed_idx;
+		}
+		
 		// Assign ranges to sequence identifiers in a greedy manner.
-		// prepared_sequences is indexed with 1-based start positions while 
+		// prepared_sequences is indexed with 1-based start positions while
 		while (prepared_sequences.size())
 		{
 			std::size_t end_pos(0);
-			auto &dst(compressed_ranges.emplace_back());
 			
+			// For some reason retrieving reference from emplace_back causes problems.
+			compressed_ranges.emplace_back();
+			auto &dst(*compressed_ranges.rbegin());
+			
+			//std::cerr << "Assigning the following sequences to compressed sequence " << compressed_idx << ':' << std::endl;
 			while (true)
 			{
 				// Find the list which contains ranges that start from end_pos.
-				auto next(prepared_sequences.upper_bound(end_pos));
-				if (prepared_sequences.cend() == next)
+				auto next_it(prepared_sequences.lower_bound(end_pos));
+				if (prepared_sequences.cend() == next_it)
 					break;
 				
-				auto &list(next->second);
-				if (0 == list.size())
-				{
-					prepared_sequences.erase(next);
-					continue;
-				}
-				
-				auto next_seq_it(list.begin());
+				auto &list(next_it->second);
+				assert(list.size());
+				auto const next_seq_it(list.cbegin());
 				auto const start_pos(next_seq_it->start_pos());
-				end_pos = next_seq_it->end_pos();
+				end_pos = next_seq_it->end_pos() + padding_amt;
 				
 				// Move the range to the current list.
-				auto const st(dst.emplace_hint(dst.cend(), start_pos, std::move(*next_seq_it)));
-				assert(st->first);
+				//std::cerr << '\t' << (*next_seq_it) << std::endl;
+				dst.emplace_hint(dst.cend(), start_pos, std::move(*next_seq_it));
+				
 				list.erase(next_seq_it);
+				if (0 == list.size())
+					prepared_sequences.erase(next_it);
 			}
+			
+			++compressed_idx;
 		}
 	}
 	
@@ -233,24 +277,17 @@ namespace vcf2multialign {
 		error_logger &error_logger,
 		variant_set const &skipped_variants,
 		std::size_t const padding_amt,
+		bool const output_ref,
 		range_map &compressed_ranges
 	)
 	{
 		subsequence_map prepared_sequences;
 		
+		std::cerr << "Compressing variants… " << std::endl;
 		create_subsequences(reader, error_logger, skipped_variants, padding_amt, prepared_sequences);
-
-		{
-			for (auto const &kv : prepared_sequences)
-			{
-				auto const key(kv.first);
-				auto const &list(kv.second);
-				std::cerr << "Key: " << key << std::endl;
-				for (auto const &item : list)
-					std::cerr << "\t" << item << std::endl;
-			}
-		}
-
-		assign_ranges_greedy(prepared_sequences, compressed_ranges);
+		
+		std::cerr << "Assigning variant ranges to new haplotype sequences… " << std::flush;
+		assign_ranges_greedy(prepared_sequences, compressed_ranges, padding_amt, output_ref);
+		std::cerr << "expressing variants with " << compressed_ranges.size() << " sequences." << std::endl;
 	}
 }
