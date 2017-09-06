@@ -9,7 +9,9 @@ description
 
 To output more sequences in one pass, please adjust the maximum number of open files per process with “ulimit -n” and increase the chunk size.
 
-Instead of writing each complete haplotype sequence, the variants may also be compressed such that as many variants as possible are packed into a single sequence. The number of generated sequences depends on the amount of padding requested around each variant. For example, consider two variants a and b that are within padding distance of each other. If two individuals A and B both have variant b but only A has variant a, two sequenes will be generated, one with both variants and one with only variant b."
+Instead of writing each complete haplotype sequence, the variants may also be compressed such that as many variants as possible are packed into a single sequence. The number of generated sequences depends on the amount of padding requested around each variant. For example, consider two variants a and b that are within padding distance of each other. If two individuals A and B both have variant b but only A has variant a, two sequenes will be generated, one with both variants and one with only variant b. If a and b are not within padding distance of each other, only one sequence with both variants will be generated.
+
+Since the compressed sequences are not written to disk, variant compression can require a lot of memory."
 
 section "Input and output options"
 option	"reference"				r	"Reference FASTA file path"													string	typestr = "filename"														required
