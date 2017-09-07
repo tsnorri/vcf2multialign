@@ -73,6 +73,7 @@ namespace vcf2multialign {
 	void check_variant_sequence(
 		variant_sequence &seq,
 		variant_sequence_id const &seq_id,
+		std::size_t const lineno,
 		std::size_t const zero_based_pos,
 		std::size_t const padding_amt,
 		subsequence_map &prepared_sequences
@@ -89,7 +90,9 @@ namespace vcf2multialign {
 #ifndef NDEBUG
 		if (! (end_pos <= zero_based_pos))
 		{
-			std::cerr << seq << std::endl;
+			std::cerr << "lineno: " << lineno << std::endl;
+			std::cerr << "zero_based_pos: " << zero_based_pos << std::endl;
+			std::cerr << "seq: " << seq << std::endl;
 			assert(0);
 		}
 #endif
@@ -169,7 +172,7 @@ namespace vcf2multialign {
 								variant_sequence &seq(variant_sequences[seq_id]);
 								
 								// First check if the previous variant is beyond the padding distance.
-								check_variant_sequence(seq, seq_id, pos, padding_amt, prepared_sequences);
+								check_variant_sequence(seq, seq_id, var_lineno, pos, padding_amt, prepared_sequences);
 								
 								seq.add_alt(var_lineno, pos, alt_idx);
 							}
