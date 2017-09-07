@@ -85,7 +85,15 @@ namespace vcf2multialign {
 		}
 		
 		auto const end_pos(seq.end_pos());
-		assert(end_pos <= zero_based_pos);
+		
+#ifndef NDEBUG
+		if (! (end_pos <= zero_based_pos))
+		{
+			std::cerr << seq << std::endl;
+			assert(0);
+		}
+#endif
+		
 		if (padding_amt < zero_based_pos - end_pos)
 		{
 			check_and_copy_seq_to_set(seq, prepared_sequences);
