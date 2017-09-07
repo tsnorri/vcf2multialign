@@ -4,6 +4,7 @@
 # 
 
 import argparse
+import codecs
 import os
 import sys
 
@@ -22,55 +23,75 @@ def chars(fp, bufsize = 4096):
 	for chunk in chunks(fp, bufsize):
 		for char in chunk:
 			yield char
+
+
+def handle_ref_input(src, offset, length):
+	"""Find the offset of the given gene in the reference input."""
+	src.seek(0, 0)
+	i = 0
+	j = 0
+	outputting = False
+	for char in chars(src):
+		if char != '-':
+			if i == offset:
+				return j
+			i += 1
+		j += 1
+	return None
+
+
+def write_sequence(src, dst, fname, file_offset, length):
+	k = 0
+	src.seek(file_offset, 0)
+	for char in chars(src):
+		if '-' == char:
+			continue
+
+		dst.write(char)
+		k += 1
+		if k == length:
+			break
 			
 
-def handle_file(input, input_is_reference, offset, length, output, found_offset = None):
-	k = 0
-	if input_is_reference:
-		i = 0
-		j = 0
-		outputting = False
-		for char in chars(input):
-			if char != '-':
-				if i == offset:
-					if found_offset is not None:
-						found_offset(j)
-					outputting = True
-				i += 1
-				
-				if outputting:
-					output.write(char)
-					k += 1
-					if k == length:
-						break
-			j += 1
-	else:
-		input.seek(offset, 0)
-		for char in chars(input):
-			output.write(char)
-			k += 1
-			if k == length:
-				break
+def handle_files(ref_input, co_ordinate_input, seq_file_names):
+	write_flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
+	for line in co_ordinate_input:
+		fields = line.strip().split("\t")
+		fields = fields[0:6]
+		(chrom, chrom_start, chrom_end, name, score, strand) = fields
+		chrom_start = int(chrom_start)
+		chrom_end = int(chrom_end)
+		length = chrom_end - chrom_start
+		print("Handling sequence '%s'…" % name, file = sys.stderr)
+
+		# Find the offset from the reference file.
+		file_offset = handle_ref_input(ref_input, chrom_start, length)
+		print("Found the requested substring at file offset %d" % file_offset, file = sys.stderr)
+
+		# Handle the source files.
+		fd = os.open("%s.fa" % name, write_flags)
+		with os.fdopen(fd, 'w') as dst:
+			for fname in seq_file_names:
+				with open(fname, 'r') as src:
+					print("\tHandling source file '%s'…" % fname, file = sys.stderr)
+					dst.write(">%s\n" % fname)
+					write_sequence(src, dst, fname, file_offset, length)
+					dst.write("\n")
 
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser("Extract subsequences from vcf2multialign output.")
-	parser.add_argument('--input', type = argparse.FileType('rU'), required = True)
-	parser.add_argument("--input-is-reference", action = 'store_true', default = False)
-	parser.add_argument('--offset', type = int, required = True)
-	parser.add_argument('--length', type = int, required = True)
+	parser.add_argument('--aligned-reference', type = argparse.FileType('rU'), required = True)
+	parser.add_argument('--extracted-co-ordinates', type = argparse.FileType('rU'), required = True)
+	parser.add_argument('source-files', nargs = '*')
 	args = parser.parse_args()
 
-	if args.offset < 0:
-		parser.error("Offset has to be non-negative.")
-	if args.length <= 0:
-		parser.error("Length must be positive.")
+	# Output UTF-8, https://stackoverflow.com/a/4374457/856976
+	#sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
+	#sys.stderr = codecs.getwriter("utf-8")(sys.stderr.detach())
 
-	handle_file(
-		args.input,
-		args.input_is_reference,
-		args.offset,
-		args.length,
-		sys.stdout,
-		lambda n: print("Found the requested substring at file offset %d" % n, file = sys.stderr)
+	handle_files(
+		args.aligned_reference,
+		args.extracted_co_ordinates,
+		vars(args)['source-files'],
 	)
