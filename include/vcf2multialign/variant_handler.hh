@@ -42,21 +42,6 @@ namespace vcf2multialign {
 	> alt_map;
 	
 	
-	struct skipped_sample
-	{
-		std::size_t	sample_no{0};
-		uint8_t		alt_idx{0};
-		uint8_t		chr_idx{0};
-		
-		skipped_sample(std::size_t const sample_no_, uint8_t const alt_idx_, uint8_t const chr_idx_):
-			sample_no(sample_no_),
-			alt_idx(alt_idx_),
-			chr_idx(chr_idx_)
-		{
-		}
-	};
-	
-	
 	struct variant_overlap
 	{
 		size_t	start_pos{0};

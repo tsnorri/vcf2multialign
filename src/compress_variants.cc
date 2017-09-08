@@ -70,10 +70,9 @@ namespace vcf2multialign {
 	
 	
 	// Move variant_seq to prepared_sequences if there are no variants in the padding distance.
-	void check_variant_sequence(
+	bool check_variant_sequence(
 		variant_sequence &seq,
 		variant_sequence_id const &seq_id,
-		std::size_t const lineno,
 		std::size_t const zero_based_pos,
 		std::size_t const padding_amt,
 		subsequence_map &prepared_sequences
@@ -82,20 +81,12 @@ namespace vcf2multialign {
 		if (seq.assign_id(seq_id))
 		{
 			seq.set_start_pos(zero_based_pos);
-			return;
+			return true;
 		}
 		
 		auto const end_pos(seq.end_pos());
-		
-#ifndef NDEBUG
 		if (! (end_pos <= zero_based_pos))
-		{
-			std::cerr << "lineno: " << lineno << std::endl;
-			std::cerr << "zero_based_pos: " << zero_based_pos << std::endl;
-			std::cerr << "seq: " << seq << std::endl;
-			assert(0);
-		}
-#endif
+			return false;
 		
 		if (padding_amt < zero_based_pos - end_pos)
 		{
@@ -103,6 +94,8 @@ namespace vcf2multialign {
 			seq.reset();
 			seq.set_start_pos(zero_based_pos);
 		}
+		
+		return true;
 	}
 	
 	
@@ -120,6 +113,10 @@ namespace vcf2multialign {
 		// Variant sequences by sample number.
 		std::map <variant_sequence_id, variant_sequence> variant_sequences;
 		
+		std::vector <skipped_sample> skipped_samples;	// In current variant.
+		std::map <uint8_t, sample_count> counts_by_alt;	// In current variant.
+		sample_count non_ref_totals;					// In current variant.
+		
 		reader.reset();
 		reader.set_parsed_fields(vcf_field::ALL);
 		bool should_continue(false);
@@ -134,11 +131,19 @@ namespace vcf2multialign {
 					&prepared_sequences,
 					&last_position,
 					&i,
-					&variant_sequences
+					&variant_sequences,
+					&skipped_samples,
+					&counts_by_alt,
+					&non_ref_totals
 				]
 				(transient_variant const &var)
 				-> bool
 				{
+					bool emitted_overlap_warning(false);
+					skipped_samples.clear();
+					counts_by_alt.clear();
+					non_ref_totals.reset();
+					
 					auto const lineno(var.lineno());
 					if (0 != skipped_variants.count(lineno))
 						return true;
@@ -172,9 +177,29 @@ namespace vcf2multialign {
 								variant_sequence &seq(variant_sequences[seq_id]);
 								
 								// First check if the previous variant is beyond the padding distance.
-								check_variant_sequence(seq, seq_id, var_lineno, pos, padding_amt, prepared_sequences);
+								if (check_variant_sequence(seq, seq_id, pos, padding_amt, prepared_sequences))
+								{
+									seq.add_alt(var_lineno, pos, alt_idx);
+									++non_ref_totals.handled_count;
+									++counts_by_alt[alt_idx].handled_count;
+								}
+								else
+								{
+									auto const sample_no(seq.sample_no());
+									auto const chr_idx(seq.chr_idx());
+
+									if (!emitted_overlap_warning)
+									{
+										emitted_overlap_warning = true;
+										log_overlapping_alternatives(lineno, sample_no, chr_idx);
+									}
+									
+									if (error_logger.is_logging_errors())
+										skipped_samples.emplace_back(sample_no, alt_idx, chr_idx);
+								}
 								
-								seq.add_alt(var_lineno, pos, alt_idx);
+								++non_ref_totals.total_count;
+								++counts_by_alt[alt_idx].total_count;
 							}
 							
 							++chr_idx;
@@ -182,6 +207,13 @@ namespace vcf2multialign {
 					}
 						
 					last_position = pos;
+					
+					// Report warnings if needed.
+					if (error_logger.is_logging_errors())
+					{
+						for (auto const &s : skipped_samples)
+							error_logger.log_overlapping_alternative(lineno, s.sample_no, s.chr_idx, counts_by_alt[s.alt_idx], non_ref_totals);
+					}
 					
 					++i;
 					if (0 == i % 100000)

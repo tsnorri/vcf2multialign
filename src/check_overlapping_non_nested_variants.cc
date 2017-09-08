@@ -172,7 +172,9 @@ namespace vcf2multialign {
 
 				always_assert(last_position <= pos, "Positions not in increasing order");
 				
-				auto const end(pos + var.ref().size());
+				auto const var_ref(var.ref());
+				auto const var_ref_size(var_ref.size());
+				auto const end(pos + var_ref_size);
 				auto const var_lineno(var.lineno());
 				
 				// First check that there is at least one variant that can be handled.

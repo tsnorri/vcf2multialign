@@ -4,6 +4,7 @@
  */
 
 #include <experimental/optional>
+#include <iostream>
 #include <vcf2multialign/error_logger.hh>
 
 
@@ -78,6 +79,14 @@ namespace {
 
 
 namespace vcf2multialign {
+	
+	void log_overlapping_alternatives(std::size_t const lineno, std::size_t const sample_no, uint8_t const chr_idx)
+	{
+		std::cerr << "Overlapping alternatives on line " << lineno
+		<< " for sample " << sample_no << ':' << (int) chr_idx
+		<< " (and possibly others); skipping when needed." << std::endl;
+	}
+		
 	
 	void error_logger::write_header()
 	{

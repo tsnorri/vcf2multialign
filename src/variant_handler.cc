@@ -357,8 +357,6 @@ namespace vcf2multialign {
 					
 					if (0 != alt_idx && 0 != m_valid_alts.count(alt_idx))
 					{
-						auto &ref_ptrs(m_ref_haplotype_ptrs.find(sample_no)->second); // Has nodes for every sample_no.
-						
 						std::string const *alt_ptr{m_null_allele_seq};
 						if (NULL_ALLELE != alt_idx)
 						{
@@ -381,6 +379,8 @@ namespace vcf2multialign {
 						
 						haplotype_ptr_map &alt_ptrs_by_sample(m_alt_haplotypes[*alt_ptr]);
 						auto it(alt_ptrs_by_sample.find(sample_no));
+						auto &ref_ptrs(m_ref_haplotype_ptrs.find(sample_no)->second); // Has nodes for every sample_no.
+						
 						if (alt_ptrs_by_sample.end() == it)
 						{
 							it = alt_ptrs_by_sample.emplace(
@@ -401,12 +401,9 @@ namespace vcf2multialign {
 						}
 						else
 						{
+							// Check if an error message was already emitted for this line.
 							if (m_overlapping_alts.insert(lineno).second)
-							{
-								std::cerr << "Overlapping alternatives on line " << lineno
-								<< " for sample " << sample_no << ':' << (int) chr_idx
-								<< " (and possibly others); skipping when needed." << std::endl;
-							}
+								log_overlapping_alternatives(lineno, sample_no, chr_idx);
 							
 							if (m_error_logger->is_logging_errors())
 								m_skipped_samples.emplace_back(sample_no, alt_idx, chr_idx);
@@ -419,7 +416,7 @@ namespace vcf2multialign {
 			);
 		}
 		
-		// Report errors if needed.
+		// Report warnings if needed.
 		if (m_error_logger->is_logging_errors())
 		{
 			for (auto const &s : m_skipped_samples)

@@ -16,6 +16,7 @@ namespace vcf2multialign {
 	typedef std::vector <char> vector_type;
 	typedef std::set <std::size_t> variant_set;
 	
+	
 	struct sample_count
 	{
 		std::size_t handled_count{0};
@@ -23,6 +24,22 @@ namespace vcf2multialign {
 		
 		void reset() { handled_count = 0; total_count = 0; }
 	};
+	
+	
+	struct skipped_sample
+	{
+		std::size_t	sample_no{0};
+		uint8_t		alt_idx{0};
+		uint8_t		chr_idx{0};
+		
+		skipped_sample(std::size_t const sample_no_, uint8_t const alt_idx_, uint8_t const chr_idx_):
+			sample_no(sample_no_),
+			alt_idx(alt_idx_),
+			chr_idx(chr_idx_)
+		{
+		}
+	};
+	
 	
 	typedef boost::iostreams::stream <boost::iostreams::file_descriptor_source>	file_istream;
 	typedef boost::iostreams::stream <boost::iostreams::file_descriptor_sink>	file_ostream;
