@@ -3,8 +3,8 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#ifndef VCF2MULTIALIGN_COMPRESS_VARIANTS_HH
-#define VCF2MULTIALIGN_COMPRESS_VARIANTS_HH
+#ifndef VCF2MULTIALIGN_SAMPLE_REDUCER_HH
+#define VCF2MULTIALIGN_SAMPLE_REDUCER_HH
 
 #include <boost/container/list.hpp>
 #include <boost/container/map.hpp>
@@ -111,20 +111,20 @@ namespace vcf2multialign {
 	typedef std::vector <std::map <std::size_t, variant_sequence>> range_map;
 	
 	
-	struct variant_compressor_delegate : public virtual variant_processor_delegate
+	struct sample_reducer_delegate : public virtual variant_processor_delegate
 	{
 		virtual vcf_reader::sample_name_map const &sample_names() const = 0;
 	};
 	
 	
-	class variant_compressor
+	class sample_reducer
 	{
 	protected:
 		typedef std::map <std::size_t, boost::container::list <variant_sequence>> subsequence_map;
 
 	protected:
 		range_map											*m_compressed_ranges{};
-		variant_compressor_delegate							*m_delegate{};
+		sample_reducer_delegate							*m_delegate{};
 		std::map <variant_sequence_id, variant_sequence>	m_variant_sequences;	// Variant sequences by sample number.
 		subsequence_map										m_prepared_sequences;
 		std::size_t											m_padding_amt{};
@@ -132,7 +132,7 @@ namespace vcf2multialign {
 		bool												m_output_ref{};
 		
 	public:
-		variant_compressor(
+		sample_reducer(
 			range_map			&compressed_ranges,
 			std::size_t const	padding_amt,
 			bool const			output_ref
@@ -143,7 +143,7 @@ namespace vcf2multialign {
 		{
 		}
 		
-		void set_delegate(variant_compressor_delegate &delegate) { m_delegate = &delegate; }
+		void set_delegate(sample_reducer_delegate &delegate) { m_delegate = &delegate; }
 		range_map &compressed_ranges() { return *m_compressed_ranges; }
 		
 		void prepare();

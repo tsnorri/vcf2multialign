@@ -5,7 +5,7 @@
 
 #include <boost/container/list.hpp>
 #include <list>
-#include <vcf2multialign/compress_variants.hh>
+#include <vcf2multialign/sample_reducer.hh>
 
 
 namespace vcf2multialign {
@@ -28,7 +28,7 @@ namespace vcf2multialign {
 	
 	
 	// Check whether prepared_sequences already contains seq.
-	bool variant_compressor::prepared_contains_sequence(variant_sequence const &seq) const
+	bool sample_reducer::prepared_contains_sequence(variant_sequence const &seq) const
 	{
 		auto it(m_prepared_sequences.find(seq.start_pos()));
 		if (m_prepared_sequences.cend() == it)
@@ -45,7 +45,7 @@ namespace vcf2multialign {
 	
 	
 	// Move seq to prepared_sequences if it hasn't been already added.
-	void variant_compressor::check_and_copy_seq_to_prepared(variant_sequence &seq)
+	void sample_reducer::check_and_copy_seq_to_prepared(variant_sequence &seq)
 	{
 		auto const start_pos(seq.start_pos_1());
 		if (!(0 == start_pos || prepared_contains_sequence(seq)))
@@ -60,7 +60,7 @@ namespace vcf2multialign {
 	
 	
 	// Move variant_seq to prepared_sequences if there are no variants in the padding distance.
-	bool variant_compressor::check_variant_sequence(
+	bool sample_reducer::check_variant_sequence(
 		variant_sequence &seq,
 		variant_sequence_id const &seq_id,
 		std::size_t const zero_based_pos
@@ -88,7 +88,7 @@ namespace vcf2multialign {
 	
 	
 	// Create subsequences.
-	void variant_compressor::handle_variant(variant &var)
+	void sample_reducer::handle_variant(variant &var)
 	{
 		// Verify that the positions are in increasing order.
 		auto const lineno(var.lineno());
@@ -147,13 +147,13 @@ namespace vcf2multialign {
 	}
 	
 	
-	void variant_compressor::prepare()
+	void sample_reducer::prepare()
 	{
 		m_last_position = 0;
 	}
 	
 	
-	void variant_compressor::finish()
+	void sample_reducer::finish()
 	{
 		// Add the remaining ranges.
 		for (auto &kv : m_variant_sequences)
@@ -166,7 +166,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void variant_compressor::print_prepared_sequences()
+	void sample_reducer::print_prepared_sequences()
 	{
 		for (auto const &kv : m_prepared_sequences)
 		{
@@ -179,7 +179,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void variant_compressor::assign_ranges_greedy()
+	void sample_reducer::assign_ranges_greedy()
 	{
 		//print_prepared_sequences(prepared_sequences);
 
@@ -244,7 +244,7 @@ namespace vcf2multialign {
 	
 	
 #if 0
-	void compress_variants(
+	void reduce_samples(
 		vcf_reader &reader,
 		error_logger &error_logger,
 		variant_set const &skipped_variants,
@@ -254,7 +254,7 @@ namespace vcf2multialign {
 		range_map &compressed_ranges
 	)
 	{
-		variant_compressor compressor(sv_handling, error_logger);
+		sample_reducer compressor(sv_handling, error_logger);
 		
 		subsequence_map prepared_sequences;
 		

@@ -14,10 +14,10 @@
 #include <iostream>
 #include <map>
 #include <vcf2multialign/check_overlapping_non_nested_variants.hh>
-#include <vcf2multialign/compress_variants.hh>
 #include <vcf2multialign/dispatch_fn.hh>
 #include <vcf2multialign/generate_haplotypes.hh>
 #include <vcf2multialign/read_single_fasta_seq.hh>
+#include <vcf2multialign/sample_reducer.hh>
 #include <vcf2multialign/sequence_writer.hh>
 #include <vcf2multialign/types.hh>
 #include <vcf2multialign/variant_handler.hh>
@@ -81,7 +81,7 @@ namespace {
 		std::size_t											m_current_round{0};
 		std::size_t											m_total_rounds{0};
 		bool												m_should_overwrite_files{false};
-		bool												m_should_compress_variants{false};
+		bool												m_should_reduce_samples{false};
 	
 	public:
 		generate_context(
@@ -92,7 +92,7 @@ namespace {
 			v2m::sv_handling const sv_handling_method,
 			std::size_t const chunk_size,
 			bool const should_overwrite_files,
-			bool const should_compress_variants
+			bool const should_reduce_samples
 		):
 			m_variant_handler(
 				std::move(main_queue),
@@ -107,7 +107,7 @@ namespace {
 			m_sv_handling_method(sv_handling_method),
 			m_chunk_size(chunk_size),
 			m_should_overwrite_files(should_overwrite_files),
-			m_should_compress_variants(should_compress_variants)
+			m_should_reduce_samples(should_reduce_samples)
 		{
 			finish_init(out_reference_fname);
 		}
@@ -275,7 +275,7 @@ namespace {
 	
 	
 	class vh_delegate :
-		public v2m::variant_compressor_delegate,
+		public v2m::sample_reducer_delegate,
 		public v2m::sequence_writer_delegate,
 		public virtual v2m::variant_handler_delegate,
 		public virtual vh_generate_context_helper
@@ -309,7 +309,7 @@ namespace {
 	class compress_vh_delegate : public vh_stats <true>, public vh_delegate
 	{
 	protected:
-		v2m::variant_compressor		m_variant_compressor;
+		v2m::sample_reducer		m_sample_reducer;
 		
 	public:
 		compress_vh_delegate(
@@ -319,9 +319,9 @@ namespace {
 			bool const				output_ref
 		):
 			vh_delegate(ctx),
-			m_variant_compressor(compressed_ranges, padding_amt, output_ref)
+			m_sample_reducer(compressed_ranges, padding_amt, output_ref)
 		{
-			m_variant_compressor.set_delegate(*this);
+			m_sample_reducer.set_delegate(*this);
 		}
 		
 		virtual void prepare(v2m::vcf_reader &reader) override;
@@ -476,7 +476,7 @@ namespace {
 		if (out_reference_fname)
 			m_out_reference_fname.emplace(out_reference_fname);
 		
-		if (m_should_compress_variants)
+		if (m_should_reduce_samples)
 			m_genotype_delegate.reset(new compressed_genotypes_handling_delegate(out_reference_fname != nullptr));
 		else
 			m_genotype_delegate.reset(new all_genotypes_handling_delegate);
@@ -900,23 +900,23 @@ namespace {
 	void compress_vh_delegate::prepare(v2m::vcf_reader &reader)
 	{
 		reader.set_parsed_fields(v2m::vcf_field::ALL);
-		m_variant_compressor.prepare();
+		m_sample_reducer.prepare();
 	}
 	
 	
 	void compress_vh_delegate::handle_variant(v2m::variant &var)
 	{
 		vh_stats <true>::handle_variant(var);
-		m_variant_compressor.handle_variant(var);
+		m_sample_reducer.handle_variant(var);
 	}
 
 
 	void compress_vh_delegate::finish()
 	{
-		m_variant_compressor.finish();
+		m_sample_reducer.finish();
 
 		auto &ctx(*m_ctx);
-		std::unique_ptr <v2m::variant_handler_delegate> delegate(new read_compressed_vh_delegate(ctx, m_variant_compressor.compressed_ranges()));
+		std::unique_ptr <v2m::variant_handler_delegate> delegate(new read_compressed_vh_delegate(ctx, m_sample_reducer.compressed_ranges()));
 		ctx.set_variant_handler_delegate(std::move(delegate));
 		// *this is now invalid b.c. set_variant_handler_delegate replaced the unique_ptr contents that held it.
 		ctx.prepare_sample_names_and_generate_sequences();
@@ -1054,7 +1054,7 @@ namespace vcf2multialign {
 		sv_handling const sv_handling_method,
 		bool const should_overwrite_files,
 		bool const should_check_ref,
-		bool const should_compress_variants
+		bool const should_reduce_samples
 	)
 	{
 		dispatch_ptr <dispatch_queue_t> main_queue(dispatch_get_main_queue(), true);
@@ -1073,7 +1073,7 @@ namespace vcf2multialign {
 			sv_handling_method,
 			chunk_size,
 			should_overwrite_files,
-			should_compress_variants
+			should_reduce_samples
 		));
 			
 		ctx->load_and_generate(

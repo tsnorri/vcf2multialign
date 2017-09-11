@@ -75,7 +75,7 @@ int main(int argc, char **argv)
 		sv_handling_method(args_info.structural_variants_arg),
 		args_info.overwrite_flag,
 		!args_info.no_check_ref_flag,
-		args_info.compress_variants_flag
+		args_info.reduce_samples_flag
 	);
 		
 	cmdline_parser_free(&args_info);
