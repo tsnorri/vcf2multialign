@@ -149,6 +149,7 @@ namespace vcf2multialign {
 	
 	void sample_reducer::prepare()
 	{
+		std::cerr << "Reducing samples… " << std::endl;
 		m_last_position = 0;
 	}
 	
@@ -181,6 +182,7 @@ namespace vcf2multialign {
 	
 	void sample_reducer::assign_ranges_greedy()
 	{
+		std::cerr << "Assigning variant ranges to new haplotype sequences… " << std::flush;
 		//print_prepared_sequences(prepared_sequences);
 
 		// Sort each range vector.
@@ -240,30 +242,7 @@ namespace vcf2multialign {
 			
 			++compressed_idx;
 		}
+		
+		std::cerr << "expressing variants with " << m_compressed_ranges->size() << " sequences." << std::endl;
 	}
-	
-	
-#if 0
-	void reduce_samples(
-		vcf_reader &reader,
-		error_logger &error_logger,
-		variant_set const &skipped_variants,
-		v2m::sv_handling const sv_handling,
-		std::size_t const padding_amt,
-		bool const output_ref,
-		range_map &compressed_ranges
-	)
-	{
-		sample_reducer compressor(sv_handling, error_logger);
-		
-		subsequence_map prepared_sequences;
-		
-		std::cerr << "Compressing variants… " << std::endl;
-		create_subsequences(reader, error_logger, skipped_variants, padding_amt, prepared_sequences);
-		
-		std::cerr << "Assigning variant ranges to new haplotype sequences… " << std::flush;
-		assign_ranges_greedy(prepared_sequences, compressed_ranges, padding_amt, output_ref);
-		std::cerr << "expressing variants with " << compressed_ranges.size() << " sequences." << std::endl;
-	}
-#endif
 }
