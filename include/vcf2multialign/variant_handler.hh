@@ -17,117 +17,23 @@
 
 
 namespace vcf2multialign {
-
-	enum { REF_SAMPLE_NUMBER = 0 };
-	
-	struct haplotype
-	{
-		size_t current_pos{0};
-		file_ostream output_stream;
-	};
-	
-	typedef std::map <
-		std::size_t,				// Sample (line) number
-		std::vector <haplotype>		// All haplotype sequences
-	> haplotype_map;
-
-	typedef std::map <
-		std::size_t,				// Sample (line) number
-		std::vector <haplotype *>	// Haplotype sequences by chromosome index
-	> haplotype_ptr_map;
-	
-	typedef std::map <
-		std::string,				// ALT
-		haplotype_ptr_map
-	> alt_map;
-	
-	
-	struct variant_overlap
-	{
-		size_t	start_pos{0};
-		size_t	current_pos{0};
-		size_t	end_pos{0};
-		size_t	heaviest_path_length{0};
-		size_t	lineno{0};
-		alt_map	alt_haplotypes;
-		
-		variant_overlap(
-			size_t const start_pos_,
-			size_t const current_pos_,
-			size_t const end_pos_,
-			size_t const heaviest_path_length_,
-			size_t const lineno_
-		):
-			start_pos(start_pos_),
-			current_pos(current_pos_),
-			end_pos(end_pos_),
-			heaviest_path_length(heaviest_path_length_),
-			lineno(lineno_)
-		{
-			always_assert(start_pos <= end_pos, "Bad offset order");
-		}
-		
-		variant_overlap(
-			size_t const start_pos_,
-			size_t const current_pos_,
-			size_t const end_pos_,
-			size_t const heaviest_path_length_,
-			size_t const lineno_,
-			alt_map &alts
-		):
-			start_pos(start_pos_),
-			current_pos(current_pos_),
-			end_pos(end_pos_),
-			heaviest_path_length(heaviest_path_length_),
-			lineno(lineno_),
-			alt_haplotypes(std::move(alts))
-		{
-			always_assert(start_pos <= end_pos, "Bad offset order");
-		}
-	};
-	
 	
 	struct variant_handler_delegate
 	{
 		virtual ~variant_handler_delegate() {}
 		
-		virtual void finish() {}
-		
-		virtual void set_parsed_fields(vcf_reader &reader)
+		virtual void prepare(vcf_reader &reader)
 		{
 			reader.set_parsed_fields(vcf_field::ALL);
 		}
 		
-		virtual void enumerate_genotype(
-			variant &var,
-			std::size_t const sample_no,
-			std::function <void(uint8_t, std::size_t, bool)> const &cb
-		)
-		{
-			// Get the sample.
-			auto const sample(var.sample(sample_no));
-			
-			// Handle the genotype.
-			uint8_t chr_idx(0);
-			for (auto const gt : sample.get_genotype())
-			{
-				auto const alt_idx(gt.alt);
-				auto const is_phased(gt.is_phased);
-				
-				cb(chr_idx, alt_idx, is_phased);
-				
-				++chr_idx;
-			}
-		}
+		virtual void finish() {}
+		virtual void handle_variant(variant &var) {};
 	};
 	
 	
 	class variant_handler : public variant_buffer_delegate, public variant_handler_delegate
 	{
-	protected:
-		typedef std::stack <variant_overlap>			overlap_stack_type;
-		typedef std::vector <size_t>					sample_number_vector;
-
 	protected:
 		dispatch_ptr <dispatch_queue_t>					m_main_queue{};
 		dispatch_ptr <dispatch_queue_t>					m_parsing_queue{};
@@ -138,22 +44,12 @@ namespace vcf2multialign {
 		vector_type	const								*m_reference{};
 		
 		variant_buffer									m_variant_buffer;
-		overlap_stack_type								m_overlap_stack;
-		
 		variant_set const								*m_skipped_variants{};
-		variant_set										m_overlapping_alts{};
-		haplotype_ptr_map								m_ref_haplotype_ptrs;			// Haplotypes to which the reference sequence is to be output.
 		std::set <size_t>								m_valid_alts;
-		std::vector <skipped_sample>					m_skipped_samples;				// In current variant.
-		std::map <uint8_t, sample_count>				m_counts_by_alt;				// In current variant.
-		sample_count									m_non_ref_totals;				// In current variant.
 		
-		haplotype_map									*m_all_haplotypes{};
-		alt_map											m_alt_haplotypes;
-		
-		std::string const								*m_null_allele_seq{};
 		sv_handling										m_sv_handling_method{};
 		std::size_t										m_i{0};
+		bool											m_check_alts{true};
 		
 	public:
 		variant_handler(
@@ -163,7 +59,6 @@ namespace vcf2multialign {
 			vector_type const &reference,
 			sv_handling const sv_handling_method,
 			variant_set const &skipped_variants,
-			std::string const &null_allele,
 			error_logger &error_logger
 		):
 			m_main_queue(main_queue),
@@ -172,7 +67,6 @@ namespace vcf2multialign {
 			m_reference(&reference),
 			m_variant_buffer(vcf_reader_, main_queue, *this),
 			m_skipped_variants(&skipped_variants),
-			m_null_allele_seq(&null_allele),
 			m_sv_handling_method(sv_handling_method)
 		{
 		}
@@ -180,19 +74,26 @@ namespace vcf2multialign {
 		variant_handler() = default;
 		
 	public:
-		void process_variants(haplotype_map &haplotypes);
 		variant_buffer &get_variant_buffer() { return m_variant_buffer; }
 		void set_delegate(variant_handler_delegate &delegate) { m_delegate = &delegate; }
+		bool is_valid_alt(uint8_t const alt_idx) const { return 0 < m_valid_alts.count(alt_idx); }
+		std::set <size_t> const &valid_alts() const { return m_valid_alts; }
+		
+		void process_variants();
+		void enumerate_genotype(
+			variant &var,
+			std::size_t const sample_no,
+			std::function <void(uint8_t, std::size_t, bool)> const &cb
+		);
+		
 
 	protected:
-		virtual void handle_variant(variant &var);
-		virtual void finish();
-
+		virtual void handle_variant(variant &var) override;
+		virtual void finish() override;
+		
 		bool check_alt_seq(std::string const &alt) const;
 		void fill_valid_alts(variant const &var);
-		void fill_streams(haplotype_ptr_map &haplotypes, size_t const fill_amt) const;
-		void output_reference(std::size_t const output_start_pos, std::size_t const output_end_pos);
-		std::size_t process_overlap_stack(size_t const var_pos);
+		void set_check_alts(bool const should_check) { m_check_alts = should_check; }
 	};
 }
 

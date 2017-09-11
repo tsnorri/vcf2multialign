@@ -6,13 +6,15 @@
 #ifndef VCF2MULTIALIGN_COMPRESS_VARIANTS_HH
 #define VCF2MULTIALIGN_COMPRESS_VARIANTS_HH
 
+#include <boost/container/list.hpp>
 #include <boost/container/map.hpp>
 #include <boost/container/vector.hpp>
 #include <map>
 #include <utility>
+#include <vcf2multialign/variant.hh>
+#include <vcf2multialign/variant_processor_delegate.hh>
+#include <vcf2multialign/vcf_reader.hh>
 #include <vector>
-#include <vcf2multialign/error_logger.hh>
-#include <vcf2multialign/variant_handler.hh>
 
 
 namespace vcf2multialign {
@@ -109,14 +111,56 @@ namespace vcf2multialign {
 	typedef std::vector <std::map <std::size_t, variant_sequence>> range_map;
 	
 	
-	void compress_variants(
-		vcf_reader &reader,
-		error_logger &error_logger,
-		variant_set const &skipped_variants,
-		std::size_t const padding_amt,
-		bool const output_ref,
-		range_map &compressed_ranges
-	);
+	struct variant_compressor_delegate : public virtual variant_processor_delegate
+	{
+		virtual vcf_reader::sample_name_map const &sample_names() const = 0;
+	};
+	
+	
+	class variant_compressor
+	{
+	protected:
+		typedef std::map <std::size_t, boost::container::list <variant_sequence>> subsequence_map;
+
+	protected:
+		range_map											*m_compressed_ranges{};
+		variant_compressor_delegate							*m_delegate{};
+		std::map <variant_sequence_id, variant_sequence>	m_variant_sequences;	// Variant sequences by sample number.
+		subsequence_map										m_prepared_sequences;
+		std::size_t											m_padding_amt{};
+		std::size_t											m_last_position{};
+		bool												m_output_ref{};
+		
+	public:
+		variant_compressor(
+			range_map			&compressed_ranges,
+			std::size_t const	padding_amt,
+			bool const			output_ref
+		):
+			m_compressed_ranges(&compressed_ranges),
+			m_padding_amt(padding_amt),
+			m_output_ref(output_ref)
+		{
+		}
+		
+		void set_delegate(variant_compressor_delegate &delegate) { m_delegate = &delegate; }
+		range_map &compressed_ranges() { return *m_compressed_ranges; }
+		
+		void prepare();
+		void handle_variant(variant &var);
+		void finish();
+		
+	protected:
+		bool prepared_contains_sequence(variant_sequence const &seq) const;
+		void check_and_copy_seq_to_prepared(variant_sequence &seq);
+		bool check_variant_sequence(
+			variant_sequence &seq,
+			variant_sequence_id const &seq_id,
+			std::size_t const zero_based_pos
+		);
+		void assign_ranges_greedy();
+		void print_prepared_sequences();
+	};
 }
 
 #endif

@@ -10,6 +10,7 @@ OBJECTS		=	check_overlapping_non_nested_variants.o \
 				generate_haplotypes.o \
 				main.o \
 				read_single_fasta_seq.o \
+				sequence_writer.o \
 				types.o \
 				variant_buffer.o \
 				variant_handler.o \

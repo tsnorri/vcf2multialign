@@ -6,13 +6,9 @@
 #include <boost/container/list.hpp>
 #include <list>
 #include <vcf2multialign/compress_variants.hh>
-#include <vcf2multialign/variant_buffer.hh>
 
 
 namespace vcf2multialign {
-	
-	typedef std::map <std::size_t, boost::container::list <variant_sequence>> subsequence_map;
-
 	
 	std::ostream &operator<<(std::ostream &stream, variant_sequence const &seq)
 	{
@@ -29,16 +25,13 @@ namespace vcf2multialign {
 
 		return stream;
 	}
-
-
+	
+	
 	// Check whether prepared_sequences already contains seq.
-	bool contains_sequence(
-		subsequence_map const &prepared_sequences,
-		variant_sequence const &seq
-	)
+	bool variant_compressor::prepared_contains_sequence(variant_sequence const &seq) const
 	{
-		auto it(prepared_sequences.find(seq.start_pos()));
-		if (prepared_sequences.cend() == it)
+		auto it(m_prepared_sequences.find(seq.start_pos()));
+		if (m_prepared_sequences.cend() == it)
 			return false;
 		
 		for (auto const &other_seq : it->second)
@@ -52,15 +45,12 @@ namespace vcf2multialign {
 	
 	
 	// Move seq to prepared_sequences if it hasn't been already added.
-	void check_and_copy_seq_to_set(
-		variant_sequence &seq,
-		subsequence_map &prepared_sequences // std::map <std::size_t, boost::container::list <variant_sequence>> subsequence_map
-	)
+	void variant_compressor::check_and_copy_seq_to_prepared(variant_sequence &seq)
 	{
 		auto const start_pos(seq.start_pos_1());
-		if (!(0 == start_pos || contains_sequence(prepared_sequences, seq)))
+		if (!(0 == start_pos || prepared_contains_sequence(seq)))
 		{
-			auto &vec(prepared_sequences[start_pos - 1]);
+			auto &vec(m_prepared_sequences[start_pos - 1]);
 			auto &dst(vec.emplace_back(seq.seq_id()));
 			
 			using std::swap;
@@ -70,12 +60,10 @@ namespace vcf2multialign {
 	
 	
 	// Move variant_seq to prepared_sequences if there are no variants in the padding distance.
-	bool check_variant_sequence(
+	bool variant_compressor::check_variant_sequence(
 		variant_sequence &seq,
 		variant_sequence_id const &seq_id,
-		std::size_t const zero_based_pos,
-		std::size_t const padding_amt,
-		subsequence_map &prepared_sequences
+		std::size_t const zero_based_pos
 	)
 	{
 		if (seq.assign_id(seq_id))
@@ -88,9 +76,9 @@ namespace vcf2multialign {
 		if (! (end_pos <= zero_based_pos))
 			return false;
 		
-		if (padding_amt < zero_based_pos - end_pos)
+		if (m_padding_amt < zero_based_pos - end_pos)
 		{
-			check_and_copy_seq_to_set(seq, prepared_sequences);
+			check_and_copy_seq_to_prepared(seq);
 			seq.reset();
 			seq.set_start_pos(zero_based_pos);
 		}
@@ -99,143 +87,88 @@ namespace vcf2multialign {
 	}
 	
 	
-	void create_subsequences(
-		vcf_reader &reader,
-		error_logger &error_logger,
-		variant_set const &skipped_variants,
-		std::size_t const padding_amt,
-		subsequence_map &prepared_sequences
-	)
+	// Create subsequences.
+	void variant_compressor::handle_variant(variant &var)
 	{
-		size_t last_position(0);
-		size_t i(0);
+		// Verify that the positions are in increasing order.
+		auto const lineno(var.lineno());
+		auto const pos(var.zero_based_pos());
+		auto const end(pos + var.ref().size());
 		
-		// Variant sequences by sample number.
-		std::map <variant_sequence_id, variant_sequence> variant_sequences;
+		always_assert(m_last_position <= pos, "Positions not in increasing order");
 		
-		std::vector <skipped_sample> skipped_samples;	// In current variant.
-		std::map <uint8_t, sample_count> counts_by_alt;	// In current variant.
-		sample_count non_ref_totals;					// In current variant.
-		
-		reader.reset();
-		reader.set_parsed_fields(vcf_field::ALL);
-		bool should_continue(false);
-		do {
-			reader.fill_buffer();
-			should_continue = reader.parse(
+		for (auto const &kv : m_delegate->sample_names())
+		{
+			auto const sample_no(kv.second);
+			
+			// Handle the genotype.
+			m_delegate->enumerate_genotype(var, sample_no,
 				[
-					&reader,
-					&error_logger,
-					&skipped_variants,
-					&padding_amt,
-					&prepared_sequences,
-					&last_position,
-					&i,
-					&variant_sequences,
-					&skipped_samples,
-					&counts_by_alt,
-					&non_ref_totals
-				]
-				(transient_variant const &var)
-				-> bool
-				{
-					bool emitted_overlap_warning(false);
-					skipped_samples.clear();
-					counts_by_alt.clear();
-					non_ref_totals.reset();
-					
-					auto const lineno(var.lineno());
-					if (0 != skipped_variants.count(lineno))
-						return true;
-					
-					// Verify that the positions are in increasing order.
-					auto const pos(var.zero_based_pos());
-					
-					always_assert(last_position <= pos, "Positions not in increasing order");
-					
-					auto const end(pos + var.ref().size());
-					auto const var_lineno(var.lineno());
-					
-					for (auto const &kv : reader.sample_names())
+					this,
+					lineno,
+					pos,
+					end,
+					sample_no
+				](
+					uint8_t const chr_idx, std::size_t const alt_idx, bool const is_phased
+				) {
+					always_assert(0 == chr_idx || is_phased, "Variant file not phased");
+			
+					if (0 != alt_idx && m_delegate->is_valid_alt(alt_idx))
 					{
-						auto const sample_no(kv.second);
-						auto const &sample(var.sample(sample_no));
-					
-						// Handle the genotype.
-						uint8_t chr_idx(0);
-						for (auto const gt : sample.get_genotype())
+						// If the current variant references an ALT column value in a chromosome, add the
+						// ALT index to the corresponding sequence.
+						if (alt_idx)
 						{
-							auto const alt_idx(gt.alt);
-							auto const is_phased(gt.is_phased);
-							always_assert(0 == chr_idx || is_phased, "Variant file not phased");
-							
-							// If the current variant references an ALT column value in a chromosome, add the
-							// ALT index to the corresponding sequence.
-							if (alt_idx)
+							variant_sequence_id seq_id(sample_no, chr_idx);
+							variant_sequence &seq(m_variant_sequences[seq_id]);
+					
+							// First check if the previous variant is beyond the padding distance.
+							if (check_variant_sequence(seq, seq_id, pos))
 							{
-								variant_sequence_id seq_id(sample_no, chr_idx);
-								variant_sequence &seq(variant_sequences[seq_id]);
-								
-								// First check if the previous variant is beyond the padding distance.
-								if (check_variant_sequence(seq, seq_id, pos, padding_amt, prepared_sequences))
-								{
-									seq.add_alt(var_lineno, pos, alt_idx);
-									++non_ref_totals.handled_count;
-									++counts_by_alt[alt_idx].handled_count;
-								}
-								else
-								{
-									auto const sample_no(seq.sample_no());
-									auto const chr_idx(seq.chr_idx());
-
-									if (!emitted_overlap_warning)
-									{
-										emitted_overlap_warning = true;
-										log_overlapping_alternatives(lineno, sample_no, chr_idx);
-									}
-									
-									if (error_logger.is_logging_errors())
-										skipped_samples.emplace_back(sample_no, alt_idx, chr_idx);
-								}
-								
-								++non_ref_totals.total_count;
-								++counts_by_alt[alt_idx].total_count;
+								seq.add_alt(lineno, pos, alt_idx);
+								m_delegate->assigned_alt_to_sequence(alt_idx);
 							}
-							
-							++chr_idx;
+							else
+							{
+								auto const sample_no(seq.sample_no());
+								auto const chr_idx(seq.chr_idx());
+								m_delegate->found_overlapping_alt(lineno, alt_idx, sample_no, chr_idx);
+							}
+					
+							m_delegate->handled_alt(alt_idx);
 						}
 					}
-						
-					last_position = pos;
-					
-					// Report warnings if needed.
-					if (error_logger.is_logging_errors())
-					{
-						for (auto const &s : skipped_samples)
-							error_logger.log_overlapping_alternative(lineno, s.sample_no, s.chr_idx, counts_by_alt[s.alt_idx], non_ref_totals);
-					}
-					
-					++i;
-					if (0 == i % 100000)
-						std::cerr << "Handled " << i << " variants…" << std::endl;
-				
-					return true;
 				}
 			);
-		} while (should_continue);
-		
-		// Add the remaining ranges.
-		for (auto &kv : variant_sequences)
-		{
-			auto &seq(kv.second);
-			check_and_copy_seq_to_set(seq, prepared_sequences);
 		}
+			
+		m_last_position = pos;
 	}
 	
 	
-	void print_prepared_sequences(subsequence_map const &prepared_sequences)
+	void variant_compressor::prepare()
 	{
-		for (auto const &kv : prepared_sequences)
+		m_last_position = 0;
+	}
+	
+	
+	void variant_compressor::finish()
+	{
+		// Add the remaining ranges.
+		for (auto &kv : m_variant_sequences)
+		{
+			auto &seq(kv.second);
+			check_and_copy_seq_to_prepared(seq);
+		}
+		
+		assign_ranges_greedy();
+	}
+	
+	
+	void variant_compressor::print_prepared_sequences()
+	{
+		for (auto const &kv : m_prepared_sequences)
 		{
 			auto const key(kv.first);
 			auto const &list(kv.second);
@@ -246,17 +179,12 @@ namespace vcf2multialign {
 	}
 	
 	
-	void assign_ranges_greedy(
-		subsequence_map &prepared_sequences,
-		range_map &compressed_ranges,
-		std::size_t const padding_amt,
-		bool const output_ref
-	)
+	void variant_compressor::assign_ranges_greedy()
 	{
 		//print_prepared_sequences(prepared_sequences);
 
 		// Sort each range vector.
-		for (auto &kv : prepared_sequences)
+		for (auto &kv : m_prepared_sequences)
 		{
 			auto &vec(kv.second);
 			vec.sort([](variant_sequence const &a, variant_sequence const &b) {
@@ -271,35 +199,35 @@ namespace vcf2multialign {
 
 		// If reference is to be output, add an empty compressed range for it.
 		static_assert(0 == REF_SAMPLE_NUMBER);
-		if (output_ref)
+		if (m_output_ref)
 		{
-			compressed_ranges.emplace_back();
+			m_compressed_ranges->emplace_back();
 			++compressed_idx;
 		}
 		
 		// Assign ranges to sequence identifiers in a greedy manner.
 		// prepared_sequences is indexed with 1-based start positions while
-		while (prepared_sequences.size())
+		while (m_prepared_sequences.size())
 		{
 			std::size_t end_pos(0);
 			
 			// For some reason retrieving reference from emplace_back causes problems.
-			compressed_ranges.emplace_back();
-			auto &dst(*compressed_ranges.rbegin());
+			m_compressed_ranges->emplace_back();
+			auto &dst(*m_compressed_ranges->rbegin());
 			
 			//std::cerr << "Assigning the following sequences to compressed sequence " << compressed_idx << ':' << std::endl;
 			while (true)
 			{
 				// Find the list which contains ranges that start from end_pos.
-				auto next_it(prepared_sequences.lower_bound(end_pos));
-				if (prepared_sequences.cend() == next_it)
+				auto next_it(m_prepared_sequences.lower_bound(end_pos));
+				if (m_prepared_sequences.cend() == next_it)
 					break;
 				
 				auto &list(next_it->second);
 				assert(list.size());
 				auto const next_seq_it(list.cbegin());
 				auto const start_pos(next_seq_it->start_pos());
-				end_pos = next_seq_it->end_pos() + padding_amt;
+				end_pos = next_seq_it->end_pos() + m_padding_amt;
 				
 				// Move the range to the current list.
 				//std::cerr << '\t' << (*next_seq_it) << std::endl;
@@ -307,7 +235,7 @@ namespace vcf2multialign {
 				
 				list.erase(next_seq_it);
 				if (0 == list.size())
-					prepared_sequences.erase(next_it);
+					m_prepared_sequences.erase(next_it);
 			}
 			
 			++compressed_idx;
@@ -315,15 +243,19 @@ namespace vcf2multialign {
 	}
 	
 	
+#if 0
 	void compress_variants(
 		vcf_reader &reader,
 		error_logger &error_logger,
 		variant_set const &skipped_variants,
+		v2m::sv_handling const sv_handling,
 		std::size_t const padding_amt,
 		bool const output_ref,
 		range_map &compressed_ranges
 	)
 	{
+		variant_compressor compressor(sv_handling, error_logger);
+		
 		subsequence_map prepared_sequences;
 		
 		std::cerr << "Compressing variants… " << std::endl;
@@ -333,4 +265,5 @@ namespace vcf2multialign {
 		assign_ranges_greedy(prepared_sequences, compressed_ranges, padding_amt, output_ref);
 		std::cerr << "expressing variants with " << compressed_ranges.size() << " sequences." << std::endl;
 	}
+#endif
 }

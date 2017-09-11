@@ -6,6 +6,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <unistd.h>
+#include <vcf2multialign/dispatch_fn.hh>
 #include <vcf2multialign/generate_haplotypes.hh>
 #include <vcf2multialign/util.hh>
 
@@ -76,7 +77,10 @@ int main(int argc, char **argv)
 		!args_info.no_check_ref_flag,
 		args_info.compress_variants_flag
 	);
+		
+	cmdline_parser_free(&args_info);
 	
-	// Not reached b.c. pthread_exit() is eventually called in generate_haplotypes().
+	dispatch_main();
+	// Not reached b.c. pthread_exit() is eventually called in dispatch_main().
 	return EXIT_SUCCESS;
 }

@@ -40,9 +40,6 @@ namespace vcf2multialign {
 			sample_count const &non_ref_total_counts
 		);
 	};
-	
-	
-	void log_overlapping_alternatives(std::size_t const lineno, std::size_t const sample_no, uint8_t const chr_idx);
 }
 
 #endif

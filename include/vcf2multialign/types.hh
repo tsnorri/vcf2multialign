@@ -8,14 +8,19 @@
 
 #include <boost/iostreams/device/file_descriptor.hpp>
 #include <boost/iostreams/stream.hpp>
+#include <map>
 #include <set>
 #include <vector>
 
 
 namespace vcf2multialign {
+	enum { REF_SAMPLE_NUMBER = 0 };
+	
+	typedef boost::iostreams::stream <boost::iostreams::file_descriptor_source>	file_istream;
+	typedef boost::iostreams::stream <boost::iostreams::file_descriptor_sink>	file_ostream;
+	
 	typedef std::vector <char> vector_type;
 	typedef std::set <std::size_t> variant_set;
-	
 	
 	struct sample_count
 	{
@@ -25,24 +30,27 @@ namespace vcf2multialign {
 		void reset() { handled_count = 0; total_count = 0; }
 	};
 	
-	
-	struct skipped_sample
+	struct haplotype
 	{
-		std::size_t	sample_no{0};
-		uint8_t		alt_idx{0};
-		uint8_t		chr_idx{0};
-		
-		skipped_sample(std::size_t const sample_no_, uint8_t const alt_idx_, uint8_t const chr_idx_):
-			sample_no(sample_no_),
-			alt_idx(alt_idx_),
-			chr_idx(chr_idx_)
-		{
-		}
+		size_t current_pos{0};
+		file_ostream output_stream;
 	};
 	
+	typedef std::map <
+		std::size_t,				// Sample (line) number
+		std::vector <haplotype>		// All haplotype sequences
+	> haplotype_map;
+
+	typedef std::map <
+		std::size_t,				// Sample (line) number
+		std::vector <haplotype *>	// Haplotype sequences by chromosome index
+	> haplotype_ptr_map;
 	
-	typedef boost::iostreams::stream <boost::iostreams::file_descriptor_source>	file_istream;
-	typedef boost::iostreams::stream <boost::iostreams::file_descriptor_sink>	file_ostream;
+	typedef std::map <
+		std::string,				// ALT
+		haplotype_ptr_map
+	> alt_map;
+	
 	
 	enum class vcf_field : uint8_t {
 		CHROM	= 0,
