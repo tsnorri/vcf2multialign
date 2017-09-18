@@ -124,7 +124,7 @@ namespace vcf2multialign {
 
 	protected:
 		range_map											*m_compressed_ranges{};
-		sample_reducer_delegate							*m_delegate{};
+		sample_reducer_delegate								*m_delegate{};
 		std::map <variant_sequence_id, variant_sequence>	m_variant_sequences;	// Variant sequences by sample number.
 		subsequence_map										m_prepared_sequences;
 		std::size_t											m_padding_amt{};

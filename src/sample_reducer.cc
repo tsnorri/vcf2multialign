@@ -183,7 +183,7 @@ namespace vcf2multialign {
 	void sample_reducer::assign_ranges_greedy()
 	{
 		std::cerr << "Assigning variant ranges to new haplotype sequences… " << std::flush;
-		//print_prepared_sequences(prepared_sequences);
+		//print_prepared_sequences();
 
 		auto const padding_amt(m_allow_switch_to_ref ? 0 : m_padding_amt);
 
@@ -197,7 +197,7 @@ namespace vcf2multialign {
 		}
 		
 		//std::cerr << "Sorted the range vectors." << std::endl;
-		//print_prepared_sequences(prepared_sequences);
+		//print_prepared_sequences();
 
 		std::size_t compressed_idx(0);
 

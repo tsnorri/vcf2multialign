@@ -212,7 +212,9 @@ namespace {
 			std::size_t const variant_padding,
 			bool const allow_switch_to_ref
 		):
-			m_output_reference(output_reference)
+			m_variant_padding(variant_padding),
+			m_output_reference(output_reference),
+			m_allow_switch_to_ref(allow_switch_to_ref)
 		{
 		}
 		void process_first_phase() override;
