@@ -130,16 +130,19 @@ namespace vcf2multialign {
 		std::size_t											m_padding_amt{};
 		std::size_t											m_last_position{};
 		bool												m_output_ref{};
+		bool												m_allow_switch_to_ref{false};
 		
 	public:
 		sample_reducer(
 			range_map			&compressed_ranges,
 			std::size_t const	padding_amt,
-			bool const			output_ref
+			bool const			output_ref,
+			bool const			allow_switch_to_ref
 		):
 			m_compressed_ranges(&compressed_ranges),
 			m_padding_amt(padding_amt),
-			m_output_ref(output_ref)
+			m_output_ref(output_ref),
+			m_allow_switch_to_ref(allow_switch_to_ref)
 		{
 		}
 		

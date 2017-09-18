@@ -185,6 +185,8 @@ namespace vcf2multialign {
 		std::cerr << "Assigning variant ranges to new haplotype sequences… " << std::flush;
 		//print_prepared_sequences(prepared_sequences);
 
+		auto const padding_amt(m_allow_switch_to_ref ? 0 : m_padding_amt);
+
 		// Sort each range vector.
 		for (auto &kv : m_prepared_sequences)
 		{
@@ -229,7 +231,7 @@ namespace vcf2multialign {
 				assert(list.size());
 				auto const next_seq_it(list.cbegin());
 				auto const start_pos(next_seq_it->start_pos());
-				end_pos = next_seq_it->end_pos() + m_padding_amt;
+				end_pos = next_seq_it->end_pos() + padding_amt;
 				
 				// Move the range to the current list.
 				//std::cerr << '\t' << (*next_seq_it) << std::endl;

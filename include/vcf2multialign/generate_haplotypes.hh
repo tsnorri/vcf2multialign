@@ -20,6 +20,7 @@ namespace vcf2multialign {
 		sv_handling const sv_handling_method,
 		bool const should_overwrite_files,
 		bool const should_check_ref,
-		bool const should_reduce_samples
+		bool const should_reduce_samples,
+		bool const allow_switch_to_ref
 	 );
 }

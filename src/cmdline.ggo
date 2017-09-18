@@ -29,3 +29,4 @@ option	"structural-variants"	-	"Structural variant handling"														typest
 section "Sample reduction"
 option	"reduce-samples"		-	"Reduce the number of samples to a minimum as described above"				flag	off
 option	"variant-padding"		-	"Padding radius for each variant"											int		typestr = "radius"	default = "0"	dependon = "reduce-samples"			optional
+option	"allow-switch-to-ref"	-	"Construct the sequences so that reference padding around each subsequence is removed"	flag	off	dependon = "reduce-samples"

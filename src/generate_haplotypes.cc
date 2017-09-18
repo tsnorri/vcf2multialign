@@ -81,7 +81,6 @@ namespace {
 		std::size_t											m_current_round{0};
 		std::size_t											m_total_rounds{0};
 		bool												m_should_overwrite_files{false};
-		bool												m_should_reduce_samples{false};
 	
 	public:
 		generate_context(
@@ -91,8 +90,10 @@ namespace {
 			char const *null_allele_seq,
 			v2m::sv_handling const sv_handling_method,
 			std::size_t const chunk_size,
+			std::size_t const variant_padding,
 			bool const should_overwrite_files,
-			bool const should_reduce_samples
+			bool const should_reduce_samples,
+			bool const allow_switch_to_ref
 		):
 			m_variant_handler(
 				std::move(main_queue),
@@ -106,10 +107,14 @@ namespace {
 			m_null_allele_seq(null_allele_seq),
 			m_sv_handling_method(sv_handling_method),
 			m_chunk_size(chunk_size),
-			m_should_overwrite_files(should_overwrite_files),
-			m_should_reduce_samples(should_reduce_samples)
+			m_should_overwrite_files(should_overwrite_files)
 		{
-			finish_init(out_reference_fname);
+			finish_init(
+				out_reference_fname,
+				should_reduce_samples,
+				variant_padding,
+				allow_switch_to_ref
+			);
 		}
 	
 		generate_context(generate_context const &) = delete;
@@ -138,7 +143,6 @@ namespace {
 			char const *reference_fname,
 			char const *variants_fname,
 			char const *report_fname,
-			std::size_t const variant_padding,
 			bool const should_check_ref
 		);
 			
@@ -148,7 +152,12 @@ namespace {
 		void process_variants() { m_variant_handler.process_variants(); }
 	
 	protected:
-		void finish_init(char const *out_reference_fname);
+		void finish_init(
+			char const *out_reference_fname,
+			bool const should_reduce_samples,
+			std::size_t const variant_padding,
+			bool const allow_switch_to_ref
+		);
 		void check_ploidy();
 		void check_ref();
 	};
@@ -166,7 +175,7 @@ namespace {
 		void set_generate_context(generate_context &ctx) { m_generate_context = &ctx; }
 		void update_haplotypes_with_ref(v2m::haplotype_map &haplotypes);
 
-		virtual void process_first_phase(std::size_t const variant_padding) = 0;
+		virtual void process_first_phase() = 0;
 		virtual void prepare_sample_names() = 0;
 		virtual std::size_t sample_count() const = 0;
 		virtual void update_haplotypes(v2m::haplotype_map &haplotypes, bool const output_reference) = 0;
@@ -181,7 +190,7 @@ namespace {
 		std::size_t											m_sample_count{};
 		
 	public:
-		void process_first_phase(std::size_t const variant_padding) override;
+		void process_first_phase() override;
 		void prepare_sample_names() override;
 		std::size_t sample_count() const override { return m_sample_count; }
 		void update_haplotypes(v2m::haplotype_map &haplotypes, bool const output_reference) override;
@@ -193,11 +202,20 @@ namespace {
 	protected:
 		v2m::range_map	m_compressed_ranges{};
 		std::size_t		m_sample_idx{0};
-		bool			m_output_reference;
+		std::size_t		m_variant_padding{0};
+		bool			m_output_reference{};
+		bool			m_allow_switch_to_ref{};
 		
 	public:
-		compressed_genotypes_handling_delegate(bool output_reference): m_output_reference(output_reference) {}
-		void process_first_phase(std::size_t const variant_padding) override;
+		compressed_genotypes_handling_delegate(
+			bool output_reference,
+			std::size_t const variant_padding,
+			bool const allow_switch_to_ref
+		):
+			m_output_reference(output_reference)
+		{
+		}
+		void process_first_phase() override;
 		void prepare_sample_names() override {}
 		std::size_t sample_count() const override { return m_compressed_ranges.size(); }
 		void update_haplotypes(v2m::haplotype_map &haplotypes, bool const output_reference) override;
@@ -316,10 +334,11 @@ namespace {
 			class generate_context	&ctx,
 			v2m::range_map			&compressed_ranges,
 			std::size_t const		padding_amt,
-			bool const				output_ref
+			bool const				output_ref,
+			bool const				allow_switch_to_ref
 		):
 			vh_delegate(ctx),
-			m_sample_reducer(compressed_ranges, padding_amt, output_ref)
+			m_sample_reducer(compressed_ranges, padding_amt, output_ref, allow_switch_to_ref)
 		{
 			m_sample_reducer.set_delegate(*this);
 		}
@@ -471,13 +490,18 @@ namespace {
 	}
 	
 	
-	void generate_context::finish_init(char const *out_reference_fname)
+	void generate_context::finish_init(
+		char const *out_reference_fname,
+		bool const should_reduce_samples,
+		std::size_t const variant_padding,
+		bool const allow_switch_to_ref
+	)
 	{
 		if (out_reference_fname)
 			m_out_reference_fname.emplace(out_reference_fname);
 		
-		if (m_should_reduce_samples)
-			m_genotype_delegate.reset(new compressed_genotypes_handling_delegate(out_reference_fname != nullptr));
+		if (should_reduce_samples)
+			m_genotype_delegate.reset(new compressed_genotypes_handling_delegate(out_reference_fname != nullptr, variant_padding, allow_switch_to_ref));
 		else
 			m_genotype_delegate.reset(new all_genotypes_handling_delegate);
 	
@@ -635,7 +659,6 @@ namespace {
 		char const *reference_fname,
 		char const *variants_fname,
 		char const *report_fname,
-		std::size_t const variant_padding,
 		bool const should_check_ref
 	)
 	{
@@ -692,7 +715,7 @@ namespace {
 			}
 		}
 		
-		m_genotype_delegate->process_first_phase(variant_padding);
+		m_genotype_delegate->process_first_phase();
 	}
 	
 	
@@ -716,7 +739,7 @@ namespace {
 	}
 	
 	
-	void all_genotypes_handling_delegate::process_first_phase(std::size_t const variant_padding)
+	void all_genotypes_handling_delegate::process_first_phase()
 	{
 		std::unique_ptr <v2m::variant_handler_delegate> delegate(new all_genotypes_vh_delegate(*this->m_generate_context));
 		m_generate_context->set_variant_handler_delegate(std::move(delegate));
@@ -770,14 +793,15 @@ namespace {
 	}
 	
 	
-	void compressed_genotypes_handling_delegate::process_first_phase(std::size_t const variant_padding)
+	void compressed_genotypes_handling_delegate::process_first_phase()
 	{
 		std::unique_ptr <v2m::variant_handler_delegate> delegate(
 			new compress_vh_delegate(
 				*m_generate_context,
 				m_compressed_ranges,
-				variant_padding,
-				m_generate_context->has_out_reference_fname()
+				m_variant_padding,
+				m_generate_context->has_out_reference_fname(),
+				m_allow_switch_to_ref
 			)
 		);
 		m_generate_context->set_variant_handler_delegate(std::move(delegate));
@@ -1054,7 +1078,8 @@ namespace vcf2multialign {
 		sv_handling const sv_handling_method,
 		bool const should_overwrite_files,
 		bool const should_check_ref,
-		bool const should_reduce_samples
+		bool const should_reduce_samples,
+		bool const allow_switch_to_ref
 	)
 	{
 		dispatch_ptr <dispatch_queue_t> main_queue(dispatch_get_main_queue(), true);
@@ -1072,15 +1097,16 @@ namespace vcf2multialign {
 			null_allele_seq,
 			sv_handling_method,
 			chunk_size,
+			variant_padding,
 			should_overwrite_files,
-			should_reduce_samples
+			should_reduce_samples,
+			allow_switch_to_ref
 		));
 			
 		ctx->load_and_generate(
 			reference_fname,
 			variants_fname,
 			report_fname,
-			variant_padding,
 			should_check_ref
 		);
 	}
