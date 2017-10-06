@@ -4,3 +4,6 @@
 [submodule "lib/libpwq"]
 	path = lib/libpwq
 	url = https://github.com/mheily/libpwq.git
+[submodule "lib/lemon"]
+	path = lib/lemon
+	url = hg::http://lemon.cs.elte.hu/hg/lemon
