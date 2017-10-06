@@ -4,6 +4,9 @@ Create multiply-aligned haplotype sequences from a variant call file and a refer
 
 ## Build/Runtime Requirements
 
+- [git-remote-hg](https://github.com/felipec/git-remote-hg) (to clone Lemon)
+- [Lemon](http://lemon.cs.elte.hu/trac/lemon) (provided as a Git submodule)
+
 On Linux the following libraries are required:
 
 - [libdispatch](http://nickhutchinson.me/libdispatch/) (provided as a Git submodule)
