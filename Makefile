@@ -1,7 +1,7 @@
 include local.mk
 include common.mk
 
-DEPENDENCIES =
+DEPENDENCIES = lib/lemon/build/lemon/libemon.a
 ifeq ($(shell uname -s),Linux)
 	DEPENDENCIES    +=  lib/libdispatch/libdispatch-build/src/libdispatch.a
 	DEPENDENCIES    +=  lib/libpwq/libpwq-build/libpthread_workqueue.a
@@ -35,7 +35,6 @@ lib/libdispatch/libdispatch-build/src/libdispatch.a: lib/libpwq/libpwq-build/lib
 		-DBLOCKS_RUNTIME_LIBRARIES=""
 	$(MAKE) -C lib/libdispatch/libdispatch-build VERBOSE=1
 
-
 lib/libpwq/libpwq-build/libpthread_workqueue.a:
 	rm -rf lib/libpwq/libpwq-build && \
 	cd lib/libpwq && \
@@ -45,3 +44,13 @@ lib/libpwq/libpwq-build/libpthread_workqueue.a:
 	CXX="$(CXX)" \
 	cmake -DSTATIC_WORKQUEUE=ON ..
 	$(MAKE) -C lib/libpwq/libpwq-build VERBOSE=1
+
+lib/lemon/build/lemon/libemon.a:
+	rm -rf lib/lemon/build && \
+	cd lib/lemon && \
+	mkdir build && \
+	cd build && \
+	CC="$(CC)" \
+	CXX="$(CXX)" \
+	cmake ..
+	$(MAKE) -C lib/lemon/build VERBOSE=1
