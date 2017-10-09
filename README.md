@@ -27,7 +27,7 @@ On Linux the following libraries are required:
 
 1. `git clone https://github.com/tsnorri/vcf2multialign.git`
 2. `cd vcf2multialign`
-3. `git submodule update --init --recursive`
+3. `GIT_ALLOW_PROTOCOL=hg git submodule update --init --recursive`
 4. `cp linux-static.local.mk local.mk`
 5. Edit local.mk
 6. `make -j4`
@@ -36,7 +36,7 @@ On Linux the following libraries are required:
 
 1. Clone the repository with `git clone https://github.com/tsnorri/vcf2multialign.git`.
 2. Change the working directory with `cd vcf2multialign`.
-3. Run `git submodule update --init --recursive`. This clones the missing submodules and updates their working tree.
+3. Run `GIT_ALLOW_PROTOCOL=hg git submodule update --init --recursive`. This clones the missing submodules and updates their working tree. Lemon uses Mercurial which Git does not allow for submodule URLs by default.
 4. Create the file `local.mk`. `linux-static.local.mk` is provided as an example and may be copied with `cp linux-static.local.mk local.mk`
 5. Edit `local.mk` in the repository root to override build variables. Useful variables include `CC`, `CXX`, `RAGEL` and `GENGETOPT` for C and C++ compilers, gengetopt and Ragel respectively. `BOOST_INCLUDE` is used as preprocessor flags when Boost is required. `BOOST_LIBS` and `LIBDISPATCH_LIBS` are passed to the linker. See `common.mk` for additional variables.
 6. Run make with a suitable numer of parallel jobs, e.g. `make -j4`
