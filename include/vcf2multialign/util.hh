@@ -37,6 +37,10 @@ namespace vcf2multialign {
 			abort();
 		}
 	}
+	
+	
+	// Calculate the printed length of a UTF-8 string by checking the first two bits of each byte.
+	std::size_t strlen_utf8(std::string const &str);
 }
 
 #endif
