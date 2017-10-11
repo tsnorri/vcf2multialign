@@ -54,7 +54,7 @@ int main(int argc, char **argv)
 
 	std::ios_base::sync_with_stdio(false);	// Don't use C style IO after calling cmdline_parser.
 	std::cin.tie(nullptr);					// We don't require any input from the user.
-
+	
 #ifndef NDEBUG
 	std::cerr << "Assertions have been enabled." << std::endl;
 #endif
@@ -63,6 +63,9 @@ int main(int argc, char **argv)
 #ifdef __linux__
 	pthread_workqueue_init_np();
 #endif
+	
+	// Window size change is going to be handled later.
+	signal(SIGWINCH, SIG_IGN);
 
 	v2m::generate_haplotypes(
 		args_info.reference_arg,
