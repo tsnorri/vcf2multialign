@@ -15,10 +15,12 @@
 #include <map>
 #include <vcf2multialign/check_overlapping_non_nested_variants.hh>
 #include <vcf2multialign/dispatch_fn.hh>
+#include <vcf2multialign/find_subgraph_starting_points.hh>
 #include <vcf2multialign/generate_haplotypes.hh>
 #include <vcf2multialign/read_single_fasta_seq.hh>
 #include <vcf2multialign/sample_reducer.hh>
 #include <vcf2multialign/sequence_writer.hh>
+#include <vcf2multialign/status_logger.hh>
 #include <vcf2multialign/types.hh>
 #include <vcf2multialign/variant_handler.hh>
 
@@ -54,26 +56,33 @@ namespace {
 	{
 	protected:
 		typedef std::map <std::size_t, std::size_t> ploidy_map;
-	
+		
 	protected:
+		v2m::dispatch_ptr <dispatch_queue_t>				m_main_queue;
+		v2m::dispatch_ptr <dispatch_queue_t>				m_worker_queue;
 		v2m::variant_handler								m_variant_handler;
-	
+		
 		v2m::vector_type									m_reference;
 		v2m::file_istream									m_vcf_stream;
 		v2m::vcf_reader										m_vcf_reader;
-	
+		
 		std::unique_ptr <v2m::variant_handler_delegate>		m_variant_handler_delegate{};
 		std::unique_ptr <genotype_handling_delegate>		m_genotype_delegate{};
-	
+		
 		std::chrono::time_point <std::chrono::system_clock>	m_start_time{};
 		std::chrono::time_point <std::chrono::system_clock>	m_round_start_time{};
-	
+		
 		v2m::error_logger									m_error_logger;
-	
+		v2m::status_logger									m_status_logger;
+		
 		ploidy_map											m_ploidy;
 		v2m::haplotype_map									m_haplotypes;
 		v2m::variant_set									m_skipped_variants;
-	
+		v2m::variant_set									m_subgraph_starting_points;
+		
+		std::atomic_size_t									m_record_count{0};
+		std::atomic_size_t									m_current_record{0};
+		
 		boost::optional <std::string>						m_out_reference_fname;
 		std::string											m_null_allele_seq;
 		v2m::sv_handling									m_sv_handling_method;
@@ -81,10 +90,11 @@ namespace {
 		std::size_t											m_current_round{0};
 		std::size_t											m_total_rounds{0};
 		bool												m_should_overwrite_files{false};
-	
+		
 	public:
 		generate_context(
 			v2m::dispatch_ptr <dispatch_queue_t> &&main_queue,
+			v2m::dispatch_ptr <dispatch_queue_t> &&worker_queue,
 			v2m::dispatch_ptr <dispatch_queue_t> &&parsing_queue,
 			char const *out_reference_fname,
 			char const *null_allele_seq,
@@ -95,15 +105,18 @@ namespace {
 			bool const should_reduce_samples,
 			bool const allow_switch_to_ref
 		):
+			m_main_queue(std::move(main_queue)),
+			m_worker_queue(std::move(worker_queue)),
 			m_variant_handler(
-				std::move(main_queue),
-				std::move(parsing_queue),
+				m_worker_queue,
+				std::move(parsing_queue),	// We don't need to store this, so move.
 				m_vcf_reader,
 				m_reference,
 				sv_handling_method,
 				m_skipped_variants,
 				m_error_logger
 			),
+			m_status_logger(m_main_queue, &m_record_count, &m_current_record),
 			m_null_allele_seq(null_allele_seq),
 			m_sv_handling_method(sv_handling_method),
 			m_chunk_size(chunk_size),
@@ -514,7 +527,6 @@ namespace {
 	
 	void generate_context::check_ploidy()
 	{
-		size_t i(0);
 		m_vcf_reader.reset();
 		m_vcf_reader.set_parsed_fields(v2m::vcf_field::ALL);
 		
@@ -560,15 +572,12 @@ namespace {
 					if (!found_mismatch)
 					{
 						found_mismatch = true;
-						std::cerr << "Reference differs from the variant file on line " << lineno << " (and possibly others)." << std::endl;
+						// FIXME: logging.
+						//std::cerr << "Reference differs from the variant file on line " << lineno << " (and possibly others)." << std::endl;
 					}
 				
 					m_error_logger.log_ref_mismatch(lineno, diff_pos);
 				}
-				
-				++i;
-				if (0 == i % 100000)
-					std::cerr << "Handled " << i << " variants…" << std::endl;
 				
 				return true;
 			});
@@ -578,6 +587,8 @@ namespace {
 	
 	void generate_context::prepare_sample_names_and_generate_sequences()
 	{
+		assert(dispatch_get_current_queue() == *m_worker_queue);
+		
 		// Prepare sample names for enumeration and calculate rounds.
 		{
 			m_genotype_delegate->prepare_sample_names();
@@ -587,7 +598,10 @@ namespace {
 			m_total_rounds = std::ceil(1.0 * sample_count / m_chunk_size);
 		}
 		
-		std::cerr << "Generating haplotype sequences…" << std::endl;
+		v2m::dispatch_sync_fn(*m_main_queue, [this](){
+			std::cerr << "Generating haplotype sequences…" << std::endl;
+		});
+		
 		m_start_time = std::chrono::system_clock::now();
 		generate_sequences(m_out_reference_fname.operator bool());
 	}
@@ -596,6 +610,8 @@ namespace {
 	// Handle m_chunk_size samples.
 	void generate_context::generate_sequences(bool const output_reference)
 	{
+		assert(dispatch_get_current_queue() == *m_worker_queue);
+		
 		// Open files for the samples. If no files were opened, exit.
 		m_haplotypes.clear();
 		m_genotype_delegate->update_haplotypes(
@@ -606,7 +622,7 @@ namespace {
 		auto const haplotype_count(m_haplotypes.size());
 		if (0 == haplotype_count)
 		{
-			{
+			v2m::dispatch_sync_fn(*m_main_queue, [this](){
 				// Save the stream state.
 				boost::io::ios_flags_saver ifs(std::cerr);
 			
@@ -616,21 +632,27 @@ namespace {
 				auto const end_time(std::chrono::system_clock::now());
 				std::chrono::duration <double> elapsed_seconds(end_time - m_start_time);
 				std::cerr << "Sequence generation took " << (elapsed_seconds.count() / 60.0) << " minutes in total." << std::endl;
-			}
-			
-			// After calling cleanup *this is no longer valid.
-			//std::cerr << "Calling cleanup" << std::endl;
-			cleanup();
-			
-			//std::cerr << "Calling exit" << std::endl;
-			exit(EXIT_SUCCESS);
+				
+				m_status_logger.stop();
+				
+				// After calling cleanup *this is no longer valid.
+				//std::cerr << "Calling cleanup" << std::endl;
+				cleanup();
+				
+				//std::cerr << "Calling exit" << std::endl;
+				exit(EXIT_SUCCESS);
+			});
 		}
 		
 		++m_current_round;
-		std::cerr << "Round " << m_current_round << '/' << m_total_rounds << std::endl;
 		m_round_start_time = std::chrono::system_clock::now();
-		auto const start_time(std::chrono::system_clock::to_time_t(m_round_start_time));
-		std::cerr << "Starting on " << std::ctime(&start_time) << std::flush;
+		
+		v2m::dispatch_sync_fn(*m_main_queue, [this](){
+			auto const start_time(std::chrono::system_clock::to_time_t(m_round_start_time));
+			std::cerr << "Round " << m_current_round << '/' << m_total_rounds << std::endl;
+			std::cerr << "Starting on " << std::ctime(&start_time) << std::flush;
+		});
+
 		m_variant_handler.process_variants();
 		// Continue in m_variant_handler_delegate's finish().
 	}
@@ -638,15 +660,17 @@ namespace {
 	
 	void generate_context::finish_round()
 	{
-		// Save the stream state.
-		boost::io::ios_flags_saver ifs(std::cerr);
+		v2m::dispatch_sync_fn(*m_main_queue, [this](){
+			// Save the stream state.
+			boost::io::ios_flags_saver ifs(std::cerr);
 	
-		// Change FP notation.
-		std::cerr << std::fixed;
+			// Change FP notation.
+			std::cerr << std::fixed;
 		
-		auto const end_time(std::chrono::system_clock::now());
-		std::chrono::duration <double> elapsed_seconds(end_time - m_round_start_time);
-		std::cerr << "Finished in " << (elapsed_seconds.count() / 60.0) << " minutes." << std::endl;
+			auto const end_time(std::chrono::system_clock::now());
+			std::chrono::duration <double> elapsed_seconds(end_time - m_round_start_time);
+			std::cerr << "Finished in " << (elapsed_seconds.count() / 60.0) << " minutes." << std::endl;
+		});
 	}
 	
 	
@@ -685,39 +709,92 @@ namespace {
 			v2m::read_single_fasta_seq(ref_fasta_stream, m_reference);
 		}
 		
-		// Check ploidy from the first record.
+		// Check the ploidy from the first record in the worker queue.
+		// Update the status in the main queue by calling dispatch_sync.
 		std::cerr << "Checking ploidy…" << std::endl;
-		check_ploidy();
-		
-		// Compare REF to the reference vector.
-		if (should_check_ref)
-		{
-			std::cerr << "Comparing the REF column to the reference…" << std::endl;
-			check_ref();
-		}
-		
-		// List variants that conflict, i.e. overlap but are not nested.
-		// Also mark structural variants that cannot be handled.
-		{
-			std::cerr << "Checking overlapping variants…" << std::endl;
+		v2m::dispatch_async_fn(*m_worker_queue, [this, should_check_ref](){
+			check_ploidy();
+			
+			// Make the reader count the total number of rows.
+			m_vcf_reader.set_counter(&m_record_count);
+			
+			// Compare REF to the reference vector.
+			bool did_count(false);
+			if (should_check_ref)
+			{
+				v2m::dispatch_sync_fn(*m_main_queue, [this]() {
+					m_status_logger.log_message_counting("Comparing the REF column to the reference…");
+				});
+					
+				check_ref();
+				
+				v2m::dispatch_sync_fn(*m_main_queue, [this]() {
+					m_status_logger.update_count();
+					m_status_logger.finish_logging();
+				});
+				
+				did_count = true;
+			}
+				
+			// List variants that conflict, i.e. overlap but are not nested.
+			// Also mark structural variants that cannot be handled.
+			auto const msg("Checking overlapping variants…");
+			if (did_count)
+			{
+				m_vcf_reader.set_counter(&m_current_record);
+				v2m::dispatch_sync_fn(*m_main_queue, [this, msg](){
+					m_status_logger.log_message_progress_bar(msg);
+				});
+			}
+			else
+			{
+				v2m::dispatch_sync_fn(*m_main_queue, [this, msg](){
+					m_status_logger.log_message_counting(msg);
+				});
+			}
+			
 			auto const conflict_count(v2m::check_overlapping_non_nested_variants(
 				m_vcf_reader,
 				m_sv_handling_method,
 				m_skipped_variants,
 				m_error_logger
 			));
-	
-			auto const skipped_count(m_skipped_variants.size());
-			if (0 == skipped_count)
-				std::cerr << "Found no conflicting variants." << std::endl;
-			else
-			{
-				std::cerr << "Found " << conflict_count << " conflicts in total." << std::endl;
-				std::cerr << "Number of variants to be skipped: " << m_skipped_variants.size() << std::endl;
-			}
-		}
-		
-		m_genotype_delegate->process_first_phase();
+			
+			v2m::dispatch_sync_fn(*m_main_queue, [this, did_count, conflict_count]{
+				if (did_count)
+					m_status_logger.update_progress_bar();
+				else
+					m_status_logger.update_count();
+				
+				m_status_logger.finish_logging();
+				
+				auto const skipped_count(m_skipped_variants.size());
+				if (0 == skipped_count)
+					std::cerr << "Found no conflicting variants." << std::endl;
+				else
+				{
+					std::cerr << "Found " << conflict_count << " conflicts in total.\n";
+					std::cerr << "Number of variants to be skipped: " << m_skipped_variants.size() << std::endl;
+				}
+			});
+			
+			// Find subgraphs connected by single edges.
+			m_vcf_reader.set_counter(&m_current_record);
+			
+			v2m::dispatch_sync_fn(*m_main_queue, [this](){
+				m_status_logger.log_message_progress_bar("Finding subgraphs connected by single edges…");
+			});
+			
+			v2m::find_subgraph_starting_points(m_vcf_reader, m_skipped_variants, m_subgraph_starting_points);
+			
+			v2m::dispatch_sync_fn(*m_main_queue, [this](){
+				m_status_logger.update_progress_bar();
+				m_status_logger.finish_logging();
+				std::cerr << "Found " << m_subgraph_starting_points.size() << " possible starting points." << std::endl;
+			});
+			
+			m_genotype_delegate->process_first_phase();
+		});
 	}
 	
 	
@@ -857,6 +934,7 @@ namespace {
 	{
 		if (m_overlapping_alts.insert(lineno).second)
 		{
+			// FIXME: logging.
 			std::cerr << "Overlapping alternatives on line " << lineno
 			<< " for sample " << sample_no << ':' << (int) chr_idx
 			<< " (and possibly others); skipping when needed." << std::endl;
@@ -1085,6 +1163,10 @@ namespace vcf2multialign {
 	)
 	{
 		dispatch_ptr <dispatch_queue_t> main_queue(dispatch_get_main_queue(), true);
+		dispatch_ptr <dispatch_queue_t> worker_queue(
+			dispatch_queue_create("fi.iki.tsnorri.vcf2multialign.worker_queue", DISPATCH_QUEUE_SERIAL),
+			false
+		);
 		dispatch_ptr <dispatch_queue_t> parsing_queue(
 			dispatch_queue_create("fi.iki.tsnorri.vcf2multialign.parsing_queue", DISPATCH_QUEUE_SERIAL),
 			false
@@ -1094,6 +1176,7 @@ namespace vcf2multialign {
 		// The class deallocates itself in cleanup().
 		generate_context *ctx(new generate_context(
 			std::move(main_queue),
+			std::move(worker_queue),
 			std::move(parsing_queue),
 			out_reference_fname,
 			null_allele_seq,
