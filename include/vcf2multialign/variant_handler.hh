@@ -35,7 +35,6 @@ namespace vcf2multialign {
 	class variant_handler : public variant_buffer_delegate, public variant_handler_delegate
 	{
 	protected:
-		dispatch_ptr <dispatch_queue_t>					m_main_queue{};
 		dispatch_ptr <dispatch_queue_t>					m_parsing_queue{};
 		
 		variant_handler_delegate						*m_delegate{this};
@@ -53,7 +52,7 @@ namespace vcf2multialign {
 		
 	public:
 		variant_handler(
-			dispatch_ptr <dispatch_queue_t> const &main_queue,
+			dispatch_ptr <dispatch_queue_t> const &worker_queue,
 			dispatch_ptr <dispatch_queue_t> const &parsing_queue,
 			vcf_reader &vcf_reader_,
 			vector_type const &reference,
@@ -61,11 +60,10 @@ namespace vcf2multialign {
 			variant_set const &skipped_variants,
 			error_logger &error_logger
 		):
-			m_main_queue(main_queue),
 			m_parsing_queue(parsing_queue),
 			m_error_logger(&error_logger),
 			m_reference(&reference),
-			m_variant_buffer(vcf_reader_, main_queue, *this),
+			m_variant_buffer(vcf_reader_, worker_queue, *this),
 			m_skipped_variants(&skipped_variants),
 			m_sv_handling_method(sv_handling_method)
 		{

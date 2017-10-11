@@ -17,29 +17,28 @@
 
 namespace vcf2multialign { namespace detail {
 	
+	// A virtual destructor is required in dispatch_source_set_event_handler_fn.
+	class dispatch_fn_context_base
+	{
+	public:
+		virtual ~dispatch_fn_context_base() {}
+	};
+	
 	template <typename Fn>
-	class dispatch_fn_context
+	class dispatch_fn_context : public dispatch_fn_context_base
 	{
 	public:
 		typedef Fn function_type;
 		
 	protected:
 		function_type m_fn;
-		
-	public:
-		dispatch_fn_context(Fn &&fn):
-			m_fn(std::move(fn))
+	
+	protected:
+		static inline void do_call_fn(dispatch_fn_context &ctx)
 		{
-		}
-		
-		static void call_fn(void *dispatch_context)
-		{
-			assert(dispatch_context);
-			auto *ctx(reinterpret_cast <dispatch_fn_context *>(dispatch_context));
-			
 			try
 			{
-				ctx->m_fn();
+				ctx.m_fn();
 			}
 			catch (std::exception const &exc)
 			{
@@ -49,7 +48,35 @@ namespace vcf2multialign { namespace detail {
 			{
 				std::cerr << "Caught non-std::exception." << std::endl;
 			}
-			
+		}
+	
+	public:
+		dispatch_fn_context(Fn &&fn):
+			m_fn(std::move(fn))
+		{
+		}
+		
+		virtual ~dispatch_fn_context() {}
+		
+		static void cleanup(void *dispatch_context)
+		{
+			assert(dispatch_context);
+			auto *ctx(reinterpret_cast <dispatch_fn_context *>(dispatch_context));
+			delete ctx;
+		}
+		
+		static void call_fn_no_delete(void *dispatch_context)
+		{
+			assert(dispatch_context);
+			auto *ctx(reinterpret_cast <dispatch_fn_context *>(dispatch_context));
+			do_call_fn(*ctx);
+		}
+		
+		static void call_fn(void *dispatch_context)
+		{
+			assert(dispatch_context);
+			auto *ctx(reinterpret_cast <dispatch_fn_context *>(dispatch_context));
+			do_call_fn(*ctx);
 			delete ctx;
 		}
 	};
@@ -65,18 +92,40 @@ namespace vcf2multialign { namespace detail {
 
 
 namespace vcf2multialign {
-	
 	// Allow passing pointer-to-member-function to dispatch_async_f without std::function.
-	template <typename t_owner, void(t_owner::*t_fn)(void)>
-	void dispatch_async_f(dispatch_queue_t queue, t_owner *obj)
+	template <typename t_owner>
+	class dispatch_caller
 	{
-		dispatch_async_f(queue, obj, detail::call_member_function <t_owner, t_fn>);
-	}
-
-	template <typename t_owner, void(t_owner::*t_fn)()>
-	void dispatch_barrier_async_f(dispatch_queue_t queue, t_owner *obj)
+	protected:
+		t_owner	*m_owner{nullptr};
+		
+	public:
+		dispatch_caller(t_owner *owner): m_owner(owner) { assert(m_owner); }
+		
+		template <void(t_owner::*t_fn)()>
+		void async(dispatch_queue_t queue)
+		{
+			dispatch_async_f(queue, m_owner, detail::call_member_function <t_owner, t_fn>);
+		}
+		
+		template <void(t_owner::*t_fn)()>
+		void barrier_async(dispatch_queue_t queue)
+		{
+			dispatch_barrier_async_f(queue, m_owner, detail::call_member_function <t_owner, t_fn>);
+		}
+		
+		template <void(t_owner::*t_fn)()>
+		void source_set_event_handler(dispatch_source_t source)
+		{
+			dispatch_set_context(source, m_owner);
+			dispatch_source_set_event_handler_f(source, detail::call_member_function <t_owner, t_fn>);
+		}
+	};
+	
+	template <typename t_owner>
+	dispatch_caller <t_owner> dispatch(t_owner *owner)
 	{
-		dispatch_barrier_async_f(queue, obj, detail::call_member_function <t_owner, t_fn>);
+		return dispatch_caller <t_owner>(owner);
 	}
 	
 	template <typename Fn>
@@ -94,6 +143,38 @@ namespace vcf2multialign {
 		typedef detail::dispatch_fn_context <Fn> context_type;
 		auto *ctx(new context_type(std::move(fn)));
 		dispatch_barrier_async_f(queue, ctx, &context_type::call_fn);
+	}
+	
+	template <typename Fn>
+	void dispatch_sync_fn(dispatch_queue_t queue, Fn fn)
+	{
+		typedef detail::dispatch_fn_context <Fn> context_type;
+		auto *ctx(new context_type(std::move(fn)));
+		dispatch_sync_f(queue, ctx, &context_type::call_fn);
+	}
+	
+	template <typename Fn>
+	void dispatch_source_set_event_handler_fn(dispatch_source_t source, Fn fn)
+	{
+		typedef detail::dispatch_fn_context <Fn> context_type;
+		
+		// If the source has been cancelled, dispatch_get_context will return a dangling pointer.
+		assert(!dispatch_source_testcancel(source));
+		
+		{
+			// If there is an old context, deallocate it.
+			auto *dispatch_context(dispatch_get_context(source));
+			if (dispatch_context)
+			{
+				auto *ctx(reinterpret_cast <detail::dispatch_fn_context_base *>(dispatch_context));
+				delete ctx;
+			}
+		}
+		
+		auto *new_ctx(new context_type(std::move(fn)));
+		dispatch_set_context(source, new_ctx);
+		dispatch_source_set_event_handler_f(source, &context_type::call_fn_no_delete);
+		dispatch_source_set_cancel_handler_f(source, &context_type::cleanup);
 	}
 	
 	

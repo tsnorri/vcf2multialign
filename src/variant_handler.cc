@@ -163,6 +163,6 @@ namespace vcf2multialign {
 		reader.reset();
 		m_delegate->prepare(reader);
 		
-		dispatch_async_f <decltype(m_variant_buffer), &variant_buffer::read_input>(*m_parsing_queue, &m_variant_buffer);
+		dispatch(&m_variant_buffer).async <&variant_buffer::read_input>(*m_parsing_queue);
 	}
 }

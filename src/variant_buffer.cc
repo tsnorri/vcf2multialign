@@ -67,10 +67,10 @@ namespace vcf2multialign {
 					auto fn = [this, pr = std::move(prepared_variants)]() mutable {
 						process_input(pr);
 					};
-					dispatch_async_fn(*m_d.m_main_queue, std::move(fn));
+					dispatch_async_fn(*m_d.m_worker_queue, std::move(fn));
 					
 					// Wait for our turn to continue.
-					// Do this only after the main thread has received something to process so that
+					// Do this only after the worker queue has received something to process so that
 					// a long span of variants with the same POS don't cause a deadlock.
 					auto const st(dispatch_semaphore_wait(*m_d.m_process_sema, DISPATCH_TIME_FOREVER));
 					always_assert(0 == st, "dispatch_semaphore_wait returned early");
@@ -91,10 +91,10 @@ namespace vcf2multialign {
 			auto fn = [this, pr = std::move(prepared_variants)]() mutable {
 				process_input(pr);
 			};
-			dispatch_async_fn(*m_d.m_main_queue, std::move(fn));
+			dispatch_async_fn(*m_d.m_worker_queue, std::move(fn));
 		}
 		
-		dispatch_async_f <variant_buffer_delegate, &variant_buffer_delegate::finish>(*m_d.m_main_queue, m_d.m_delegate);
+		dispatch(m_d.m_delegate).async <&variant_buffer_delegate::finish>(*m_d.m_worker_queue);
 	}
 	
 	

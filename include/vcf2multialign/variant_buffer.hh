@@ -45,7 +45,7 @@ namespace vcf2multialign {
 		{
 			vcf_reader							*m_reader{};
 			variant_buffer_delegate				*m_delegate{};
-			dispatch_ptr <dispatch_queue_t>		m_main_queue{};
+			dispatch_ptr <dispatch_queue_t>		m_worker_queue{};
 			dispatch_ptr <dispatch_semaphore_t>	m_process_sema{};
 			variant_set							m_factory;
 			variant_set							m_prepared_variants;
@@ -56,12 +56,12 @@ namespace vcf2multialign {
 			
 			data(
 				vcf_reader &reader,
-				dispatch_ptr <dispatch_queue_t> const &main_queue,
+				dispatch_ptr <dispatch_queue_t> const &worker_queue,
 				variant_buffer_delegate &delegate
 			):
 				m_reader(&reader),
 				m_delegate(&delegate),
-				m_main_queue(main_queue),
+				m_worker_queue(worker_queue),
 				m_process_sema(dispatch_semaphore_create(10), false)
 			{
 			}
@@ -93,10 +93,10 @@ namespace vcf2multialign {
 		
 		variant_buffer(
 			vcf_reader &reader,
-			dispatch_ptr <dispatch_queue_t> const &main_queue,
+			dispatch_ptr <dispatch_queue_t> const &worker_queue,
 			variant_buffer_delegate &delegate
 		):
-			m_d(reader, main_queue, delegate)
+			m_d(reader, worker_queue, delegate)
 		{
 		}
 		
