@@ -132,6 +132,7 @@ namespace vcf2multialign {
 		if (!cb(m_current_variant))
 			return t_break;
 		
+		++*m_counter_ptr;
 		return t_continue;
 	}
 
@@ -174,6 +175,7 @@ namespace vcf2multialign {
 		m_len = 0;
 		m_pos = 0;
 		m_fsm.eof = nullptr;
+		*m_counter_ptr = 0;
 	}
 	
 	
@@ -332,7 +334,7 @@ namespace vcf2multialign {
 				{
 					case ':':
 						fgoto sample_rec_f;
-
+					
 					case '\t':
 					{
 						always_assert(m_format.size() == m_format_idx, "Not all fields present in the sample");
@@ -350,6 +352,7 @@ namespace vcf2multialign {
 							fbreak;
 						}
 						
+						++*m_counter_ptr;
 						fgoto main;
 					}
 					

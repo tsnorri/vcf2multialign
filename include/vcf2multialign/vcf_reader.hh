@@ -46,6 +46,8 @@ namespace vcf2multialign {
 		char						*m_line_start{nullptr};		// Current line start.
 		char const					*m_start{0};				// Current string start.
 		std::istream::pos_type		m_first_variant_offset{0};
+		std::atomic_size_t			m_counter{0};
+		std::atomic_size_t			*m_counter_ptr{&m_counter};
 		std::size_t					m_last_header_lineno{0};
 		std::size_t					m_lineno{0};
 		std::size_t					m_sample_idx{0};			// Current sample idx (1-based).
@@ -83,6 +85,7 @@ namespace vcf2multialign {
 		size_t sample_count() const { return m_sample_names.size(); }
 		sample_name_map const &sample_names() const { return m_sample_names; }
 		void set_parsed_fields(vcf_field max_field) { m_max_parsed_field = max_field; }
+		void set_counter(std::atomic_size_t *counter_ptr) { m_counter_ptr = counter_ptr; }
 		
 	protected:
 		void skip_to_next_nl();
