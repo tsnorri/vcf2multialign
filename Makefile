@@ -21,6 +21,7 @@ clean:
 clean-dependencies:
 	$(RM) -r lib/libdispatch/libdispatch-build
 	$(RM) -r lib/libpwq/libpwq-build
+	$(RM) -r lib/lemon/build/lemon/libemon.a
 
 dependencies: $(DEPENDENCIES)
 
