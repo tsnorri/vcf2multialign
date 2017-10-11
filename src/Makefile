@@ -6,12 +6,16 @@ include ../common.mk
 OBJECTS		=	check_overlapping_non_nested_variants.o \
 				cmdline.o \
 				error_logger.o \
+				find_subgraph_starting_points.o \
 				generate_haplotypes.o \
 				main.o \
+				progress_bar.o \
 				read_single_fasta_seq.o \
 				sample_reducer.o \
 				sequence_writer.o \
+				status_logger.o \
 				types.o \
+				util.o \
 				variant_buffer.o \
 				variant_handler.o \
 				variant.o \
