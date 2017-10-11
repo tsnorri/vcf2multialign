@@ -27,12 +27,12 @@ namespace vcf2multialign {
 			reader.set_parsed_fields(vcf_field::ALL);
 		}
 		
-		virtual void finish() {}
 		virtual void handle_variant(variant &var) {};
+		virtual void finish() {}
 	};
 	
 	
-	class variant_handler : public variant_buffer_delegate, public variant_handler_delegate
+	class variant_handler_base : public variant_buffer_delegate, public variant_handler_delegate
 	{
 	protected:
 		dispatch_ptr <dispatch_queue_t>					m_parsing_queue{};
@@ -51,7 +51,7 @@ namespace vcf2multialign {
 		bool											m_check_alts{true};
 		
 	public:
-		variant_handler(
+		variant_handler_base(
 			dispatch_ptr <dispatch_queue_t> const &worker_queue,
 			dispatch_ptr <dispatch_queue_t> const &parsing_queue,
 			vcf_reader &vcf_reader_,
@@ -69,10 +69,41 @@ namespace vcf2multialign {
 		{
 		}
 		
-		variant_handler() = default;
+		variant_handler_base() = default;
+		virtual ~variant_handler_base() {}
+		
+	protected:
+		virtual void finish() = 0;
+		virtual void handle_variant(variant &var) = 0;
+	};
+	
+	
+	class variant_handler : public variant_handler_base
+	{
+	protected:
+		void finish_copy()
+		{
+			m_variant_buffer.set_delegate(*this);
+		}
 		
 	public:
-		variant_buffer &get_variant_buffer() { return m_variant_buffer; }
+		using variant_handler_base::variant_handler_base;
+		
+		variant_handler(variant_handler const &other):
+			variant_handler_base(other)
+		{
+			finish_copy();
+		}
+		
+		variant_handler &operator=(variant_handler const &other) &
+		{
+			variant_handler_base::operator=(other);
+			finish_copy();
+			return *this;
+		}
+		
+	public:
+		class variant_buffer &variant_buffer() { return m_variant_buffer; }
 		void set_delegate(variant_handler_delegate &delegate) { m_delegate = &delegate; }
 		bool is_valid_alt(uint8_t const alt_idx) const { return 0 < m_valid_alts.count(alt_idx); }
 		std::set <size_t> const &valid_alts() const { return m_valid_alts; }

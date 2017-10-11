@@ -12,19 +12,19 @@ namespace vcf2multialign {
 	void variant_buffer::return_node_to_buffer(variant_set::node_type &&node)
 	{
 		std::lock_guard <std::mutex> guard(m_buffer_mutex);
-		m_d.m_buffer.emplace_back(std::move(node));
+		m_buffer.emplace_back(std::move(node));
 	}
 	
 	
 	bool variant_buffer::get_node_from_buffer(variant_set::node_type &node)
 	{
 		std::lock_guard <std::mutex> guard(m_buffer_mutex);
-		auto const bufsize(m_d.m_buffer.size());
+		auto const bufsize(m_buffer.size());
 		if (bufsize)
 		{
 			using std::swap;
-			swap(node, m_d.m_buffer[bufsize - 1]);
-			m_d.m_buffer.pop_back();
+			swap(node, m_buffer[bufsize - 1]);
+			m_buffer.pop_back();
 			return true;
 		}
 		return false;

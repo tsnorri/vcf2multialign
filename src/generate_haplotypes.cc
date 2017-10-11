@@ -521,7 +521,7 @@ namespace {
 			m_genotype_delegate.reset(new all_genotypes_handling_delegate);
 	
 		m_genotype_delegate->set_generate_context(*this);
-		m_variant_handler.get_variant_buffer().set_delegate(m_variant_handler);
+		m_variant_handler.variant_buffer().set_delegate(m_variant_handler);
 	}
 	
 	

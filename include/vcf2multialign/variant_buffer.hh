@@ -49,7 +49,6 @@ namespace vcf2multialign {
 			dispatch_ptr <dispatch_semaphore_t>	m_process_sema{};
 			variant_set							m_factory;
 			variant_set							m_prepared_variants;
-			variant_vector						m_buffer;
 			std::size_t							m_previous_pos{};
 			
 			data() = default;
@@ -69,6 +68,7 @@ namespace vcf2multialign {
 		
 	protected:
 		std::mutex							m_buffer_mutex{};
+		variant_vector						m_buffer;
 		data								m_d{};
 		
 	protected:
@@ -78,10 +78,21 @@ namespace vcf2multialign {
 	public:
 		variant_buffer() = default;
 		
+		variant_buffer(variant_buffer const &other):
+			m_d(other.m_d)
+		{
+		}
+		
 		variant_buffer(variant_buffer &&other)
 		{
 			using std::swap;
 			swap(*this, other);
+		}
+		
+		variant_buffer &operator=(variant_buffer const &other) &
+		{
+			m_d = other.m_d;
+			return *this;
 		}
 		
 		variant_buffer &operator=(variant_buffer &&other) &
@@ -103,11 +114,17 @@ namespace vcf2multialign {
 		vcf_reader &reader() { return *m_d.m_reader; }
 		void read_input();
 		void process_input(variant_set &variants);
+		void set_vcf_reader(vcf_reader &reader) { m_d.m_reader = &reader; }
 		void set_delegate(variant_buffer_delegate &delegate) { m_d.m_delegate = &delegate; }
 	};
 	
 	
-	inline void swap(variant_buffer &lhs, variant_buffer &rhs) { using std::swap; swap(lhs.m_d, rhs.m_d); }
+	inline void swap(variant_buffer &lhs, variant_buffer &rhs)
+	{
+		using std::swap;
+		swap(lhs.m_d, rhs.m_d);
+		swap(lhs.m_buffer, rhs.m_buffer);
+	}
 }
 
 #endif
