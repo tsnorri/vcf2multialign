@@ -15,11 +15,11 @@ On Linux the following libraries are required:
 
 ## Build Requirements
 
-- Reasonably new compilers for C and C++, e.g. GCC 6 or Clang 3.9. C++17 support is required.
+- Reasonably new compilers for C and C++, e.g. GCC 7 or Clang 5.0. C++17 support is required.
 - [GNU gengetopt](https://www.gnu.org/software/gengetopt/gengetopt.html) (tested with version 2.22.6)
 - [Ragel State Machine Compiler](http://www.colm.net/open-source/ragel/) (tested with version 6.7)
 - [CMake](http://cmake.org)
-- [Boost](http://www.boost.org)
+- [Boost](http://www.boost.org) (tested with version 1.63)
 
 ## Building
 
