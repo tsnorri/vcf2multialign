@@ -155,7 +155,13 @@ namespace {
 			reader.read_header();
 			
 			// Read the reference file and place its contents into reference.
+			// If minimu path length was not given, set it to the square root of the reference sequence length.
 			v2m::read_single_fasta_seq(ref_fasta_stream, m_reference);
+			if (m_should_reduce_samples && 0 == m_min_path_length)
+			{
+				m_min_path_length = std::ceil(std::sqrt(m_reference.size()));
+				std::cerr << "Set minimum path length to " << m_min_path_length << '.' << std::endl;
+			}
 		}
 		
 		std::unique_ptr <v2m::parsing_task> task(
