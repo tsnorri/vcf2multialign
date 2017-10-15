@@ -6,18 +6,14 @@
 #ifndef VCF2MULTIALIGN_TYPES_HH
 #define VCF2MULTIALIGN_TYPES_HH
 
-#include <boost/iostreams/device/file_descriptor.hpp>
-#include <boost/iostreams/stream.hpp>
 #include <map>
 #include <set>
+#include <vcf2multialign/file_handling.hh>
 #include <vector>
 
 
 namespace vcf2multialign {
 	enum { REF_SAMPLE_NUMBER = 0 };
-	
-	typedef boost::iostreams::stream <boost::iostreams::file_descriptor_source>	file_istream;
-	typedef boost::iostreams::stream <boost::iostreams::file_descriptor_sink>	file_ostream;
 	
 	typedef std::vector <char> vector_type;
 	typedef std::set <std::size_t> variant_set;
@@ -51,6 +47,7 @@ namespace vcf2multialign {
 		haplotype_ptr_map
 	> alt_map;
 	
+	typedef std::map <std::size_t, std::size_t> ploidy_map;
 	
 	enum class vcf_field : uint8_t {
 		CHROM	= 0,

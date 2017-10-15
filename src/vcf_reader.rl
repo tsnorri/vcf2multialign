@@ -132,7 +132,7 @@ namespace vcf2multialign {
 		if (!cb(m_current_variant))
 			return t_break;
 		
-		++*m_counter_ptr;
+		++m_counter;
 		return t_continue;
 	}
 
@@ -143,14 +143,10 @@ namespace vcf2multialign {
 		<< "Unexpected character '" << *current_character << "' at " << m_lineno << ':' << (current_character - m_line_start)
 		<< ", state " << current_state << '.' << std::endl;
 
+		auto const start(m_fsm.pe - m_fsm.p < 128 ? m_fsm.p : m_fsm.pe - 128);
+		std::string_view buffer_end(start, m_fsm.pe - start);
 		std::cerr
-		<< "** Buffer contents from the start:" << std::endl;
-		std::copy(m_buffer.cbegin(), m_buffer.cend(), std::ostream_iterator <char>(std::cerr));
-		std::cerr << std::endl;
-
-		std::string_view buffer_end(m_fsm.p, m_fsm.pe - m_fsm.p);
-		std::cerr
-		<< "** Buffer contents starting from m_fsm.p:" << std::endl
+		<< "** Last 128 charcters from the buffer:" << std::endl
 		<< buffer_end << std::endl;
 
 		abort();
@@ -169,13 +165,11 @@ namespace vcf2multialign {
 	// Seek to the beginning of the records.
 	void vcf_reader::reset()
 	{
-		m_stream->clear();
-		m_stream->seekg(m_first_variant_offset);
+		assert(m_input);
+		m_input->reset_to_first_variant_offset();
 		m_lineno = m_last_header_lineno;
-		m_len = 0;
-		m_pos = 0;
 		m_fsm.eof = nullptr;
-		*m_counter_ptr = 0;
+		m_counter = 0;
 	}
 	
 	
@@ -192,10 +186,13 @@ namespace vcf2multialign {
 	void vcf_reader::read_header()
 	{
 		// For now, just skip lines that begin with "##".
-		std::string line;
-		while (std::getline(*m_stream, line))
+		std::string_view line;
+		while (m_input->getline(line))
 		{
 			++m_lineno;
+			if ('\n' == line[0])
+				continue;
+			
 			if (! ('#' == line[0] && '#' == line[1]))
 				break;
 			
@@ -226,7 +223,7 @@ namespace vcf2multialign {
 		}
 		
 		// stream now points to the first variant.
-		m_first_variant_offset = m_stream->tellg();
+		m_input->store_first_variant_offset();
 		m_last_header_lineno = m_lineno;
 		
 		// Instantiate a variant.
@@ -238,53 +235,8 @@ namespace vcf2multialign {
 	
 	void vcf_reader::fill_buffer()
 	{
-		// Copy the remainder to the beginning.
-		if (m_pos + 1 < m_len)
-		{
-			char *data_start(m_buffer.data());
-			char const *start(data_start + m_pos + 1);
-			char const *end(data_start + m_len);
-			std::copy(start, end, data_start);
-			m_len -= m_pos + 1;
-		}
-		else
-		{
-			m_len = 0;
-		}
-		
-		// Read until there's at least one newline in the buffer.
-		while (true)
-		{
-			char *data_start(m_buffer.data());
-			char *data(data_start + m_len);
-		
-			std::size_t space(m_buffer.size() - m_len);
-			m_stream->read(data, space);
-			std::size_t const read_len(m_stream->gcount());
-			m_len += read_len;
-		
-			if (m_stream->eof())
-			{
-				m_pos = m_len;
-				m_fsm.p = data_start;
-				m_fsm.pe = data_start + m_len;
-				m_fsm.eof = m_fsm.pe;
-				return;
-			}
-		
-			// Try to find the last newline in the new part.
-			std::string_view sv(data, read_len);
-			m_pos = sv.rfind('\n');
-			if (std::string_view::npos != m_pos)
-			{
-				m_pos += (data - data_start);
-				m_fsm.p = data_start;
-				m_fsm.pe = m_fsm.p + m_pos + 1;
-				return;
-			}
-		
-			m_buffer.resize(2 * m_buffer.size());
-		}
+		assert(m_input);
+		m_input->fill_buffer(*this);
 	}
 	
 	
@@ -352,7 +304,7 @@ namespace vcf2multialign {
 							fbreak;
 						}
 						
-						++*m_counter_ptr;
+						++m_counter;
 						fgoto main;
 					}
 					

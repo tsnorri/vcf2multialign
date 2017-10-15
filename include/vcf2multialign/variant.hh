@@ -6,20 +6,10 @@
 #ifndef VCF2MULTIALIGN_VARIANT_HH
 #define VCF2MULTIALIGN_VARIANT_HH
 
-#include <experimental/string_view>
+#include <vcf2multialign/cxx_compat.hh>
 #include <vcf2multialign/types.hh>
 #include <vcf2multialign/util.hh>
 #include <vector>
-
-
-#ifdef __GNUC__
-#	if __GNUC__ < 7
-// XXX Hack.
-namespace std {
-	using std::experimental::string_view;
-}
-#	endif
-#endif
 
 
 namespace vcf2multialign {

@@ -7,6 +7,7 @@
 #define VCF2MULTIALIGN_CHECK_OVERLAPPING_NON_NESTED_VARIANTS_HH
 
 #include <vcf2multialign/error_logger.hh>
+#include <vcf2multialign/status_logger.hh>
 #include <vcf2multialign/types.hh>
 #include <vcf2multialign/vcf_reader.hh>
 
@@ -16,6 +17,7 @@ namespace vcf2multialign {
 		vcf_reader &reader,
 		sv_handling const sv_handling_method,
 		variant_set /* out */ &skipped_variants,
+		status_logger &status_logger,
 		error_logger &error_logger
 	);
 }

@@ -3,22 +3,26 @@ include ../common.mk
 
 .PRECIOUS: vcf_reader.cc
 
-OBJECTS		=	check_overlapping_non_nested_variants.o \
+OBJECTS		=	all_haplotypes_task.o \
+				check_overlapping_non_nested_variants.o \
 				cmdline.o \
 				error_logger.o \
+				file_handling.o \
 				find_subgraph_starting_points.o \
 				generate_haplotypes.o \
 				main.o \
+				preparation_task.o \
 				progress_bar.o \
 				read_single_fasta_seq.o \
-				sample_reducer.o \
 				sequence_writer.o \
 				status_logger.o \
 				types.o \
 				util.o \
 				variant_buffer.o \
 				variant_handler.o \
+				variant_stats.o \
 				variant.o \
+				vcf_input.o \
 				vcf_reader.o
 
 all: vcf2multialign
@@ -28,6 +32,9 @@ clean:
 
 vcf2multialign: $(OBJECTS)
 	$(CXX) -o $@ $(OBJECTS) $(LDFLAGS)
+
+test: test.o
+	$(CXX) -o test test.o $(LDFLAGS)
 
 main.c : cmdline.c
 cmdline.c : config.h

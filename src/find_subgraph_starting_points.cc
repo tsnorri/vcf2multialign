@@ -7,9 +7,6 @@
 #include <vcf2multialign/util.hh>
 
 
-namespace v2m = vcf2multialign;
-
-
 namespace vcf2multialign {
 
 	void find_subgraph_starting_points(
@@ -19,7 +16,6 @@ namespace vcf2multialign {
 	)
 	{
 		std::size_t last_position(0);
-		std::size_t i(0);
 		std::size_t current_subgraph_end(0);
 		
 		reader.reset();
@@ -32,10 +28,9 @@ namespace vcf2multialign {
 					&skipped_variants,
 					&subgraph_starting_points,
 					&last_position,
-					&i,
 					&current_subgraph_end
 				]
-				(v2m::transient_variant const &var)
+				(transient_variant const &var)
 				-> bool
 			{
 				// Verify that the positions are in increasing order.
@@ -65,10 +60,6 @@ namespace vcf2multialign {
 				last_position = pos;
 			
 			loop_end_2:
-				++i;
-				if (0 == i % 100000)
-					std::cerr << "Handled " << i << " variants…" << std::endl;
-			
 				return true;
 			});
 		} while (should_continue);

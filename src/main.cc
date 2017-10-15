@@ -51,14 +51,28 @@ int main(int argc, char **argv)
 		std::cerr << "Chunk size must be positive." << std::endl;
 		exit(EXIT_FAILURE);
 	}
+	
+	if (args_info.min_path_length_arg < 0)
+	{
+		std::cerr << "Minimum path length must be non-negative." << std::endl;
+		exit(EXIT_FAILURE);
+	}
 
 	std::ios_base::sync_with_stdio(false);	// Don't use C style IO after calling cmdline_parser.
 	std::cin.tie(nullptr);					// We don't require any input from the user.
 	
 #ifndef NDEBUG
-	std::cerr << "Assertions have been enabled." << std::endl;
+	std::cerr << "All assertions have been enabled." << std::endl;
 #endif
-
+	
+	if (args_info.print_invocation_flag)
+	{
+		std::cerr << "Invocation:";
+		for (std::size_t i(0); i < argc; ++i)
+			std::cerr << ' ' << argv[i];
+		std::cerr << std::endl;
+	}
+	
 	// libdispatch on macOS does not need pthread_workqueue.
 #ifdef __linux__
 	pthread_workqueue_init_np();
@@ -74,17 +88,17 @@ int main(int argc, char **argv)
 		args_info.report_file_arg,
 		args_info.null_allele_seq_arg,
 		args_info.chunk_size_arg,
-		args_info.variant_padding_arg,
+		args_info.min_path_length_arg,
 		sv_handling_method(args_info.structural_variants_arg),
 		args_info.overwrite_flag,
 		!args_info.no_check_ref_flag,
-		args_info.reduce_samples_flag,
-		args_info.allow_switch_to_ref_flag
+		args_info.reduce_samples_flag
 	);
 		
 	cmdline_parser_free(&args_info);
 	
 	dispatch_main();
 	// Not reached b.c. pthread_exit() is eventually called in dispatch_main().
-	return EXIT_SUCCESS;
+	abort();
+	return EXIT_FAILURE;
 }

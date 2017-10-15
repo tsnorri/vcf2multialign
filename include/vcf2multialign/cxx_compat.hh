@@ -6,6 +6,9 @@
 #ifndef VCF2MULTIALIGN_CXX14COMPAT_HH
 #define VCF2MULTIALIGN_CXX14COMPAT_HH
 
+#include <experimental/string_view>
+
+
 #if __cplusplus < 201402L
 namespace std {
 	template <typename t_input_it_1, typename t_input_it_2>
@@ -25,5 +28,16 @@ namespace std {
 	}
 }
 #endif
+
+
+#ifdef __GNUC__
+#	if __GNUC__ < 7
+// XXX Hack.
+namespace std {
+	using std::experimental::string_view;
+}
+#	endif
+#endif
+
 
 #endif

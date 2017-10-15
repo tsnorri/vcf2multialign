@@ -6,10 +6,9 @@
 #include <cmath>
 #include <vcf2multialign/progress_bar.hh>
 
-namespace v2m = vcf2multialign;
-
 
 namespace vcf2multialign {
+	
 	void progress_bar(std::ostream &stream, float const value, std::size_t const length, std::size_t const pad, std::string const &title)
 	{
 		std::string const blocks[]{u8"▏", u8"▎", u8"▍", u8"▌", u8"▋", u8"▊", u8"▉", u8"█"};

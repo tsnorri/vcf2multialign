@@ -52,8 +52,8 @@ namespace vcf2multialign {
 		
 	public:
 		variant_handler_base(
-			dispatch_ptr <dispatch_queue_t> const &worker_queue,
-			dispatch_ptr <dispatch_queue_t> const &parsing_queue,
+			dispatch_ptr <dispatch_queue_t> const &worker_queue,	// Needs to be serial.
+			dispatch_ptr <dispatch_queue_t> const &parsing_queue, // May be concurrent since only variant_buffer's read_input is called there.
 			vcf_reader &vcf_reader_,
 			vector_type const &reference,
 			sv_handling const sv_handling_method,

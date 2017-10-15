@@ -109,6 +109,12 @@ namespace vcf2multialign {
 		}
 		
 		template <void(t_owner::*t_fn)()>
+		void sync(dispatch_queue_t queue)
+		{
+			dispatch_sync_f(queue, m_owner, detail::call_member_function <t_owner, t_fn>);
+		}
+		
+		template <void(t_owner::*t_fn)()>
 		void barrier_async(dispatch_queue_t queue)
 		{
 			dispatch_barrier_async_f(queue, m_owner, detail::call_member_function <t_owner, t_fn>);

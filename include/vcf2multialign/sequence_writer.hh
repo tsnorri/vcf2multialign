@@ -10,14 +10,31 @@
 #include <stack>
 #include <vcf2multialign/types.hh>
 #include <vcf2multialign/util.hh>
-#include <vcf2multialign/variant_processor_delegate.hh>
+#include <vcf2multialign/variant.hh>
 
 
 namespace vcf2multialign {
 
-	struct sequence_writer_delegate : public virtual variant_processor_delegate
+	struct sequence_writer_delegate
 	{
 		virtual std::set <std::size_t> const &valid_alts(variant &var) const = 0;
+		virtual bool is_valid_alt(std::size_t const alt_idx) const = 0;
+		
+		virtual void enumerate_genotype(
+			variant &var,
+			std::size_t const sample_no,
+			std::function <void(uint8_t, std::size_t, bool)> const &cb
+		) = 0;
+			
+		virtual void assigned_alt_to_sequence(std::size_t const alt_idx) = 0;
+		virtual void found_overlapping_alt(
+			std::size_t const lineno,
+			uint8_t const alt_idx,
+			std::size_t const sample_no,
+			uint8_t const chr_idx
+		) = 0;
+		virtual void handled_alt(std::size_t const alt_idx) = 0;
+		virtual void handled_haplotypes(variant &var) = 0;
 	};
 	
 	

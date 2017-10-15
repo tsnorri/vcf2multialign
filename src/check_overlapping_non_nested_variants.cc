@@ -132,6 +132,7 @@ namespace vcf2multialign {
 		vcf_reader &reader,
 		sv_handling const sv_handling_method,
 		variant_set /* out */ &skipped_variants,
+		status_logger &status_logger,
 		error_logger &error_logger
 	)
 	{
@@ -144,7 +145,6 @@ namespace vcf2multialign {
 		std::multimap <size_t, var_info> end_positions; // end -> pos & lineno
 		conflict_count_map conflict_counts;
 		overlap_map bad_overlaps;
-		size_t i(0);
 		size_t conflict_count(0);
 		
 		reader.reset();
@@ -155,12 +155,12 @@ namespace vcf2multialign {
 			should_continue = reader.parse(
 				[
 					&skipped_variants,
+					&status_logger,
 					&error_logger,
 					&last_position,
 					&end_positions,
 					&conflict_counts,
 					&bad_overlaps,
-					&i,
 					&conflict_count,
 					sv_handling_method
 				]
@@ -219,10 +219,11 @@ namespace vcf2multialign {
 						++conflict_count;
 					
 						// Convert starting to 1-based to get ranges like [x, y] (instead of [x, y)).
-						std::cerr
-						<< "Variant on line " << var_lineno << " conflicts with line " << other_lineno
-						<< " ([" << 1 + pos << ", " << end << "] vs. [" << 1 + other_pos << ", " << other_end << "])." << std::endl;
-				
+						status_logger.log([var_lineno, other_lineno, pos, end, other_pos, other_end](){
+							std::cerr
+								<< "Variant on line " << var_lineno << " conflicts with line " << other_lineno
+								<< " ([" << 1 + pos << ", " << end << "] vs. [" << 1 + other_pos << ", " << other_end << "])." << std::endl;
+						});
 						{
 							auto const res(bad_overlaps.insert(overlap_map::value_type(other_lineno, var_lineno)));
 							always_assert(res.second, "Unable to insert");
@@ -247,10 +248,6 @@ namespace vcf2multialign {
 				last_position = pos;
 			
 			loop_end_2:
-				++i;
-				if (0 == i % 100000)
-					std::cerr << "Handled " << i << " variants…" << std::endl;
-			
 				return true;
 			});
 		} while (should_continue);

@@ -79,78 +79,77 @@ namespace {
 
 namespace vcf2multialign {
 	
-	void error_logger::write_header()
+	void error_logger::prepare()
 	{
-		if (is_logging_errors())
-		{
-			m_output_stream
-			<< "VARIANT_1_LINE\t"
-			<< "VARIANT_2_LINE\t"
-			<< "REF_POS\t"
-			<< "ALT_IDX\t"
-			<< "SV_TYPE\t"
-			<< "SAMPLE\t"
-			<< "CHR\t"
-			<< "HANDLED_WITH_ALT\t"
-			<< "TOTAL_WITH_ALT\t"
-			<< "HANDLED_WITH_ANY_ALT\t"
-			<< "TOTAL_WITH_ANY_ALT\t"
-			<< "REASON\n";
-		}
+		v2m::dispatch_ptr <dispatch_queue_t> worker_queue(
+			dispatch_queue_create("fi.iki.tsnorri.vcf2multialign.error_logger_queue", DISPATCH_QUEUE_SERIAL),
+			false
+		);
+		m_worker_queue = std::move(worker_queue);
 	}
 	
 	
-	void error_logger::log_no_supported_alts(std::size_t const line)
+	void error_logger::write_header_wt()
 	{
-		if (is_logging_errors())
-		{
-			char const *reason("No supported ALTs");
-			log(m_output_stream, reason, line);
-		}
+		assert(is_logging_errors());
+
+		m_output_stream
+		<< "VARIANT_1_LINE\t"
+		<< "VARIANT_2_LINE\t"
+		<< "REF_POS\t"
+		<< "ALT_IDX\t"
+		<< "SV_TYPE\t"
+		<< "SAMPLE\t"
+		<< "CHR\t"
+		<< "HANDLED_WITH_ALT\t"
+		<< "TOTAL_WITH_ALT\t"
+		<< "HANDLED_WITH_ANY_ALT\t"
+		<< "TOTAL_WITH_ANY_ALT\t"
+		<< "REASON\n";
 	}
 	
 	
-	void error_logger::log_skipped_structural_variant(std::size_t const line, std::size_t const alt_idx, sv_type const svt)
+	void error_logger::log_no_supported_alts_wt(std::size_t const line)
 	{
-		if (is_logging_errors())
-		{
-			char const *reason("Skipped structural variant");
-			log(m_output_stream, reason, line, std::nullopt, std::nullopt, alt_idx, svt);
-		}
+		assert(is_logging_errors());
+		char const *reason("No supported ALTs");
+		log(m_output_stream, reason, line);
 	}
 	
 	
-	void error_logger::log_invalid_alt_seq(std::size_t const line, std::size_t const alt_idx, std::string const &alt)
+	void error_logger::log_skipped_structural_variant_wt(std::size_t const line, std::size_t const alt_idx, sv_type const svt)
 	{
-		if (is_logging_errors())
-		{
-			char const *reason("Unexpected character in ALT");
-			log(m_output_stream, reason, line, std::nullopt, std::nullopt, alt_idx);
-		}
+		assert(is_logging_errors());
+		char const *reason("Skipped structural variant");
+		log(m_output_stream, reason, line, std::nullopt, std::nullopt, alt_idx, svt);
 	}
 	
 	
-	void error_logger::log_conflicting_variants(std::size_t const line_1, std::size_t const line_2)
+	void error_logger::log_invalid_alt_seq_wt(std::size_t const line, std::size_t const alt_idx, std::string const &alt)
 	{
-		if (is_logging_errors())
-		{
-			char const *reason("Conflicting variants");
-			log(m_output_stream, reason, line_1, line_2);
-		}
+		assert(is_logging_errors());
+		char const *reason("Unexpected character in ALT");
+		log(m_output_stream, reason, line, std::nullopt, std::nullopt, alt_idx);
 	}
 	
 	
-	void error_logger::log_ref_mismatch(std::size_t const lineno, std::size_t const diff_pos)
+	void error_logger::log_conflicting_variants_wt(std::size_t const line_1, std::size_t const line_2)
 	{
-		if (is_logging_errors())
-		{
-			char const *reason("REF does not match the reference sequence (output anyway using the reference)");
-			log(m_output_stream, reason, lineno, std::nullopt, diff_pos);
-		}
+		assert(is_logging_errors());
+		char const *reason("Conflicting variants");
+		log(m_output_stream, reason, line_1, line_2);
+	}
+	
+	
+	void error_logger::log_ref_mismatch_wt(std::size_t const lineno, std::size_t const diff_pos)
+	{
+		assert(is_logging_errors());
+		char const *reason("REF does not match the reference sequence (output anyway using the reference)");
+		log(m_output_stream, reason, lineno, std::nullopt, diff_pos);
 	}
 
 	
-	void error_logger::log_overlapping_alternative(
+	void error_logger::log_overlapping_alternative_wt(
 		std::size_t const lineno,
 		std::size_t const sample_no,
 		std::size_t const chr_idx,
@@ -158,6 +157,7 @@ namespace vcf2multialign {
 		sample_count const &non_ref_total_counts
 	)
 	{
+		assert(is_logging_errors());
 		char const *reason("Overlapping alternative");
 		log(
 			m_output_stream,

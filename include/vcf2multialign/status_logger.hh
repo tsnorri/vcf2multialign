@@ -14,50 +14,65 @@
 
 namespace vcf2multialign {
 	
+	struct status_logger_delegate
+	{
+		virtual std::size_t record_count() const = 0;
+		virtual std::size_t current_record() const = 0;
+	};
+	
+	
 	class status_logger
 	{
 	protected:
-		dispatch_ptr <dispatch_source_t>	m_message_timer;
-		dispatch_ptr <dispatch_source_t>	m_signal_source;
+		enum indicator_type : uint8_t
+		{
+			none = 0,
+			counter,
+			progress_bar
+		};
+		
+	protected:
+		status_logger_delegate				*m_delegate{nullptr};
+		dispatch_ptr <dispatch_source_t>	m_message_timer{nullptr};
+		dispatch_ptr <dispatch_source_t>	m_signal_source{nullptr};
+		std::mutex							m_message_mutex;
 		std::string							m_message;
-		std::atomic_size_t					*m_record_count{nullptr};
-		std::atomic_size_t					*m_current_record{nullptr};
 		std::size_t							m_window_width{0};
 		std::size_t							m_message_length{0};
+		std::atomic <indicator_type>		m_indicator_type{none};
+		bool								m_need_clear_line{false};
 		
 	public:
-		status_logger(
-			dispatch_ptr <dispatch_queue_t> &logging_queue,
-			std::atomic_size_t *record_count,
-			std::atomic_size_t *current_record
-		):
-			m_message_timer(
-				dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER, 0, 0, *logging_queue),
-				false
-			),
-			m_signal_source(
-				dispatch_source_create(DISPATCH_SOURCE_TYPE_SIGNAL, SIGWINCH, 0, *logging_queue),
-				false
-			),
-			m_record_count(record_count),
-			m_current_record(current_record)
+		status_logger() = default;
+		
+		status_logger(status_logger_delegate &delegate):
+			m_delegate(&delegate)
 		{
-			dispatch_source_set_timer(*m_message_timer, dispatch_time(DISPATCH_TIME_NOW, 0), 100000000, 10000000);
-			dispatch(this).source_set_event_handler <&status_logger::handle_window_size_change>(*m_signal_source);
-			dispatch(this).async <&status_logger::handle_window_size_change>(*logging_queue);
-			
-			dispatch_resume(*m_signal_source);
 		}
 		
-		void stop();
+		void set_delegate(status_logger_delegate &delegate) { m_delegate = &delegate; }
+		void install();
+		void uninstall();
 		void finish_logging();
 		void log_message_counting(std::string const &message);
 		void log_message_progress_bar(std::string const &message);
-		void update_count();
-		void update_progress_bar();
+		void update();
+		
+		template <typename t_fn>
+		void log(t_fn fn)
+		{
+			dispatch_async_fn(dispatch_get_main_queue(), [this, fn{std::move(fn)}](){
+				clear_line_mt();
+				fn();
+				update_mt();
+			});
+		}
 		
 	protected:
-		void handle_window_size_change();
+		void update_mt();
+		void clear_line_mt();
+		void finish_logging_mt();
+		void handle_window_size_change_mt();
 	};
 }
 
