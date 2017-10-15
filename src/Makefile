@@ -33,9 +33,6 @@ clean:
 vcf2multialign: $(OBJECTS)
 	$(CXX) -o $@ $(OBJECTS) $(LDFLAGS)
 
-test: test.o
-	$(CXX) -o test test.o $(LDFLAGS)
-
 main.c : cmdline.c
 cmdline.c : config.h
 
