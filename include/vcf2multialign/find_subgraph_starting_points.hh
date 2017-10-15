@@ -14,7 +14,7 @@ namespace vcf2multialign {
 	void find_subgraph_starting_points(
 		vcf_reader &reader,
 		variant_set const &skipped_variants,
-		variant_set /* out */ &subgraph_starting_points
+		subgraph_map /* out */ &subgraph_starting_points
 	);
 }
 

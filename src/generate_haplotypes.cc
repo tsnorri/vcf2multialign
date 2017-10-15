@@ -36,7 +36,7 @@ namespace {
 		
 		v2m::ploidy_map										m_ploidy;
 		v2m::variant_set									m_skipped_variants;
-		v2m::variant_set									m_subgraph_starting_points;
+		v2m::subgraph_map									m_subgraph_starting_points;
 		
 		boost::optional <std::string>						m_out_reference_fname;
 		std::string											m_null_allele_seq;

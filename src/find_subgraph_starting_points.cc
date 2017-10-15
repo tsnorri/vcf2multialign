@@ -12,7 +12,7 @@ namespace vcf2multialign {
 	void find_subgraph_starting_points(
 		vcf_reader &reader,
 		variant_set const &skipped_variants,
-		variant_set /* out */ &subgraph_starting_points
+		subgraph_map /* out */ &subgraph_starting_points
 	)
 	{
 		std::size_t last_position(0);
@@ -25,6 +25,7 @@ namespace vcf2multialign {
 			reader.fill_buffer();
 			should_continue = reader.parse(
 				[
+					&reader,
 					&skipped_variants,
 					&subgraph_starting_points,
 					&last_position,
@@ -49,7 +50,14 @@ namespace vcf2multialign {
 				
 				// If we've moved past the previous subgraph, record the current starting point.
 				if (current_subgraph_end <= var_lineno)
-					subgraph_starting_points.insert(var_lineno);
+				{
+					auto const line_start(reader.line_start());
+					subgraph_starting_points.emplace(
+						std::piecewise_construct,
+						std::forward_as_tuple(line_start),
+						std::forward_as_tuple(var_lineno)
+					);
+				}
 				
 				// If the current variant extends the current subgraph, store the new ending point.
 				// FIXME: this shouldn't happen with our current nesting rules.

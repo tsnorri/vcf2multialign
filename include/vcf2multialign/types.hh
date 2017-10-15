@@ -17,6 +17,7 @@ namespace vcf2multialign {
 	
 	typedef std::vector <char> vector_type;
 	typedef std::set <std::size_t> variant_set;
+	typedef std::map <char const *, std::size_t> subgraph_map;
 	
 	struct sample_count
 	{

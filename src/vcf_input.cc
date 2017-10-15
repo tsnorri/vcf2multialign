@@ -68,8 +68,8 @@ namespace vcf2multialign {
 			{
 				m_pos = m_len;
 				auto const end(data_start + m_len);
-				reader.set_p(data_start);
-				reader.set_pe(end);
+				reader.set_buffer_start(data_start);
+				reader.set_buffer_end(end);
 				reader.set_eof(end);
 				return;
 			}
@@ -80,8 +80,8 @@ namespace vcf2multialign {
 			if (std::string_view::npos != m_pos)
 			{
 				m_pos += (data - data_start);
-				reader.set_p(data_start);
-				reader.set_pe(data_start + m_pos + 1);
+				reader.set_buffer_start(data_start);
+				reader.set_buffer_end(data_start + m_pos + 1);
 				return;
 			}
 		
@@ -117,8 +117,8 @@ namespace vcf2multialign {
 	{
 		auto const *bytes(m_handle.data());
 		auto const len(m_handle.size());
-		reader.set_p(bytes + m_first_variant_offset);
-		reader.set_pe(bytes + len);
+		reader.set_buffer_start(bytes + m_first_variant_offset);
+		reader.set_buffer_end(bytes + len);
 		reader.set_eof(bytes + len);
 	}
 }

@@ -72,11 +72,15 @@ namespace vcf2multialign {
 		bool parse(callback_fn &&callback);
 		bool parse(callback_fn const &callback);
 		
-		void set_p(char const *p) { m_fsm.p = p; }
-		void set_pe(char const *pe) { m_fsm.pe = pe; }
+		char const *buffer_start() const { return m_fsm.p; }
+		char const *buffer_end() const { return m_fsm.pe; }
+		char const *eof() const { return m_fsm.eof; }
+		void set_buffer_start(char const *p) { m_fsm.p = p; }
+		void set_buffer_end(char const *pe) { m_fsm.pe = pe; }
 		void set_eof(char const *eof) { m_fsm.eof = eof; }
 		
 		std::size_t lineno() const { return m_lineno; }
+		char const *line_start() const { return m_line_start; }
 		size_t sample_no(std::string const &sample_name) const;
 		size_t sample_count() const { return m_sample_names.size(); }
 		sample_name_map const &sample_names() const { return m_sample_names; }
