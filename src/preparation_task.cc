@@ -85,7 +85,7 @@ namespace vcf2multialign {
 				(v2m::transient_variant const &var)
 				-> bool
 			{
-				auto const var_ref(var.ref());
+				auto const &var_ref(var.ref());
 				auto const var_pos(var.zero_based_pos());
 				auto const lineno(var.lineno());
 				std::size_t diff_pos{0};

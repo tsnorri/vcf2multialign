@@ -177,7 +177,7 @@ namespace vcf2multialign {
 			<< std::endl;
 		});
 		
-		auto const var_ref(var.ref());
+		auto const &var_ref(var.ref());
 		auto const var_ref_size(var_ref.size());
 		auto const var_alts(var.alts());
 		auto const var_alt_sv_types(var.alt_sv_types());
