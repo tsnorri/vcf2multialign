@@ -7,6 +7,7 @@
 #include <iostream>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <vcf2multialign/channel_sink.hh>
 #include <vcf2multialign/file_handling.hh>
 
 
@@ -46,6 +47,28 @@ namespace vcf2multialign {
 			handle_file_error(fname);
 		
 		ios::file_descriptor_sink sink(fd, ios::close_handle);
+		stream.open(sink);
+	}
+	
+	
+	void open_file_channel_for_writing(
+		char const *fname,
+		channel_ostream &stream,
+		dispatch_ptr <dispatch_semaphore_t> const &write_semaphore,
+		bool const should_overwrite
+	)
+	{
+		int fd(0);
+		if (should_overwrite)
+			fd = open(fname, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+		else
+			fd = open(fname, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
+		
+		if (-1 == fd)
+			handle_file_error(fname);
+		
+		channel_sink sink;
+		sink.open(fd, write_semaphore);
 		stream.open(sink);
 	}
 	
