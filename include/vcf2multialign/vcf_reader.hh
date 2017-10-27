@@ -47,7 +47,8 @@ namespace vcf2multialign {
 		char const						*m_start{0};				// Current string start.
 		copyable_atomic <std::size_t>	m_counter{0};
 		std::size_t						m_last_header_lineno{0};
-		std::size_t						m_lineno{0};
+		std::size_t						m_lineno{0};				// Current line number.
+		std::size_t						m_variant_index{0};			// Current variant number (0-based).
 		std::size_t						m_sample_idx{0};			// Current sample idx (1-based).
 		std::size_t						m_idx{0};					// Current index in multi-part fields.
 		std::size_t						m_format_idx{0};
@@ -80,6 +81,7 @@ namespace vcf2multialign {
 		void set_eof(char const *eof) { m_fsm.eof = eof; }
 		
 		std::size_t lineno() const { return m_lineno; }
+		std::size_t last_header_lineno() const { return m_last_header_lineno; }
 		char const *line_start() const { return m_line_start; }
 		size_t sample_no(std::string const &sample_name) const;
 		size_t sample_count() const { return m_sample_names.size(); }

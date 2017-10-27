@@ -71,6 +71,7 @@ namespace vcf2multialign {
 	protected:
 		std::vector <sample_field>	m_samples;
 		std::vector <sv_type>		m_alt_sv_types;
+		std::size_t					m_variant_index{0};
 		std::size_t					m_sample_count{0};
 		std::size_t					m_pos{0};
 		std::size_t					m_qual{0};
@@ -89,6 +90,7 @@ namespace vcf2multialign {
 		
 		virtual ~variant_base() {}
 		
+		void set_variant_index(std::size_t const idx) { m_variant_index = idx; }
 		void set_lineno(std::size_t const lineno) { m_lineno = lineno; }
 		void set_pos(std::size_t const pos) { m_pos = pos; }
 		void set_qual(std::size_t const qual) { m_qual = qual; }
@@ -96,11 +98,13 @@ namespace vcf2multialign {
 		void set_alt_sv_type(sv_type const svt, std::size_t const pos);
 		void reset() { m_sample_count = 0; m_alt_sv_types.clear(); }	// Try to prevent unneeded deallocation of samples.
 
+		std::size_t variant_index() const								{ return m_variant_index; }
 		size_t lineno() const											{ return m_lineno; }
 		size_t pos() const												{ return m_pos; };
 		size_t zero_based_pos() const;
 		std::vector <sv_type> const &alt_sv_types() const				{ return m_alt_sv_types; }
 		sample_field const &sample(std::size_t const sample_idx) const	{ always_assert(sample_idx <= m_sample_count); return m_samples.at(sample_idx); }
+		std::vector <sample_field> const &samples() const { return m_samples; }
 	};
 	
 	

@@ -468,6 +468,7 @@ namespace vcf2multialign {
 					m_alt_sv = sv_type::NONE;
 					++m_lineno;
 					m_current_variant.reset();
+					m_current_variant.set_variant_index(m_variant_index++);
 					m_current_variant.set_lineno(m_lineno);
 					m_line_start = fpc;
 					
