@@ -268,7 +268,7 @@ namespace vcf2multialign {
 		
 		t_dispatch operator*() { return m_ptr; }
 		
-		t_dispatch reset()
+		void reset()
 		{
 			if (m_ptr)
 				dispatch_release(m_ptr);
