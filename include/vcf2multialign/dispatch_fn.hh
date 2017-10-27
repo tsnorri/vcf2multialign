@@ -121,6 +121,12 @@ namespace vcf2multialign {
 		}
 		
 		template <void(t_owner::*t_fn)()>
+		void group_async(dispatch_group_t group, dispatch_queue_t queue)
+		{
+			dispatch_group_async_f(group, queue, m_owner, detail::call_member_function <t_owner, t_fn>);
+		}
+		
+		template <void(t_owner::*t_fn)()>
 		void source_set_event_handler(dispatch_source_t source)
 		{
 			dispatch_set_context(source, m_owner);
@@ -149,6 +155,14 @@ namespace vcf2multialign {
 		typedef detail::dispatch_fn_context <Fn> context_type;
 		auto *ctx(new context_type(std::move(fn)));
 		dispatch_barrier_async_f(queue, ctx, &context_type::call_fn);
+	}
+	
+	template <typename Fn>
+	void dispatch_group_async_fn(dispatch_group_t group, dispatch_queue_t queue, Fn fn)
+	{
+		typedef detail::dispatch_fn_context <Fn> context_type;
+		auto *ctx(new context_type(std::move(fn)));
+		dispatch_group_async_f(group, queue, ctx, &context_type::call_fn);
 	}
 	
 	template <typename Fn>
@@ -253,6 +267,14 @@ namespace vcf2multialign {
 		}
 		
 		t_dispatch operator*() { return m_ptr; }
+		
+		t_dispatch reset()
+		{
+			if (m_ptr)
+				dispatch_release(m_ptr);
+			
+			m_ptr = nullptr;
+		}
 	};
 	
 	
