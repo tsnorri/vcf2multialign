@@ -1,6 +1,6 @@
 /*
- Copyright (c) 2017 Tuukka Norri
- This code is licensed under MIT license (see LICENSE for details).
+ * Copyright (c) 2017 Tuukka Norri
+ * This code is licensed under MIT license (see LICENSE for details).
  */
 
 #include <cstdlib>
@@ -46,6 +46,9 @@ int main(int argc, char **argv)
 	if (0 != cmdline_parser(argc, argv, &args_info))
 		exit(EXIT_FAILURE);
 	
+	std::ios_base::sync_with_stdio(false);	// Don't use C style IO after calling cmdline_parser.
+	std::cin.tie(nullptr);					// We don't require any input from the user.
+	
 	if (args_info.chunk_size_arg <= 0)
 	{
 		std::cerr << "Chunk size must be positive." << std::endl;
@@ -57,9 +60,24 @@ int main(int argc, char **argv)
 		std::cerr << "Minimum path length must be non-negative." << std::endl;
 		exit(EXIT_FAILURE);
 	}
-
-	std::ios_base::sync_with_stdio(false);	// Don't use C style IO after calling cmdline_parser.
-	std::cin.tie(nullptr);					// We don't require any input from the user.
+	
+	if (args_info.reduce_samples_given && (!args_info.generated_path_count_given))
+	{
+		std::cerr << "'--generated-path-count' option required." << std::endl;
+		exit(EXIT_FAILURE);
+	}
+	
+	std::size_t generated_path_count(0);
+	if (args_info.generated_path_count_given)
+	{
+		if (args_info.generated_path_count_arg <= 0)
+		{
+			std::cerr << "Generated path count must be positive." << std::endl;
+			exit(EXIT_FAILURE);
+		}
+		
+		generated_path_count = args_info.generated_path_count_arg;
+	}
 	
 #ifndef NDEBUG
 	std::cerr << "All assertions have been enabled." << std::endl;
@@ -89,6 +107,7 @@ int main(int argc, char **argv)
 		args_info.null_allele_seq_arg,
 		args_info.chunk_size_arg,
 		args_info.min_path_length_arg,
+		generated_path_count,
 		sv_handling_method(args_info.structural_variants_arg),
 		args_info.overwrite_flag,
 		!args_info.no_check_ref_flag,

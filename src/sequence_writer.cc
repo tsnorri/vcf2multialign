@@ -6,11 +6,40 @@
 #include <vcf2multialign/sequence_writer.hh>
 #include <vcf2multialign/variant.hh>
 
+namespace v2m = vcf2multialign;
+
+
+namespace {
+	
+	std::string const &to_string(std::string const &str) { return str; }
+	std::string to_string(std::string_view const &sv) { return std::string(sv); }
+	
+	template <typename t_variant>
+	struct adaptor {};
+	
+	template <>
+	struct adaptor <v2m::variant>
+	{
+		static std::string const *string_ptr(std::string const &str, std::string &) { return &str; }
+	};
+	
+	template <>
+	struct adaptor <v2m::transient_variant>
+	{
+		static std::string const *string_ptr(std::string_view const &sv, std::string &buffer)
+		{ 
+			buffer = std::string(sv);
+			return &buffer;
+		}
+	};
+}
+
 
 namespace vcf2multialign {
 	
 	// Fill the streams with '-'.
-	void sequence_writer::fill_streams(haplotype_ptr_map &haplotypes, size_t const fill_amt) const
+	template <typename t_ostream>
+	void sequence_writer <t_ostream>::fill_streams(haplotype_ptr_map_type &haplotypes, size_t const fill_amt) const
 	{
 		for (auto &kv : haplotypes)
 		{
@@ -27,7 +56,8 @@ namespace vcf2multialign {
 
 	
 	// Fill the streams with reference.
-	void sequence_writer::output_reference(std::size_t const output_start_pos, std::size_t const output_end_pos)
+	template <typename t_ostream>
+	void sequence_writer <t_ostream>::output_reference(std::size_t const output_start_pos, std::size_t const output_end_pos)
 	{
 		if (output_start_pos == output_end_pos)
 			return;
@@ -53,21 +83,22 @@ namespace vcf2multialign {
 	}
 
 	
-	std::size_t sequence_writer::process_overlap_stack(size_t const var_pos)
+	template <typename t_ostream>
+	std::size_t sequence_writer <t_ostream>::process_overlap_stack(size_t const var_pos)
 	{
 		std::size_t retval(0);
 		while (true)
 		{
 			// NOTE: for libc++, use p overlap_stack.c in the debugger (not p overlap_stack).
-			variant_overlap &vo(m_overlap_stack.top());
+			variant_overlap_type &vo(m_overlap_stack.top());
 			if (var_pos < vo.end_pos)
 				break;
-
+			
 			// The sequence was output up to vo's start_pos when it was added to the stack.
 			// Check the current position and output from there.
 			auto const output_start_pos(vo.current_pos);
 			auto const output_end_pos(vo.end_pos);
-
+			
 			// Return the end position of the last variant overlap.
 			retval = output_end_pos;
 			
@@ -76,7 +107,7 @@ namespace vcf2multialign {
 			
 			// Add the amount output to the heaviest path length.
 			vo.heaviest_path_length += vo.end_pos - vo.current_pos;
-
+			
 			// Also output ALTs. At the same time,
 			// compare the heaviest path length to the lengths of every alternative.
 			auto heaviest_path_length(vo.heaviest_path_length);
@@ -98,20 +129,20 @@ namespace vcf2multialign {
 						}
 					}
 				}
-
+				
 				heaviest_path_length = std::max(heaviest_path_length, alt.size());
 			}
-
+			
 			// Update current_pos to match the position up to which the sequence was output.
 			vo.current_pos = output_end_pos;
-
+			
 			// Fill the shorter sequences. vo.heaviest_path_length considers REF only.
 			if (vo.heaviest_path_length < heaviest_path_length)
 			{
 				auto const fill_amt(heaviest_path_length - vo.heaviest_path_length);
 				fill_streams(m_ref_haplotype_ptrs, fill_amt);
 			}
-
+			
 			// Also fill the shorter alternatives.
 			for (auto &kv : vo.alt_haplotypes)
 			{
@@ -124,7 +155,7 @@ namespace vcf2multialign {
 					fill_streams(haplotypes, fill_amt);
 				}
 			}
-
+			
 			// Since the variants were written to the haplotypes, they can now be updated with the reference again.
 			for (auto &kv : vo.alt_haplotypes)
 			{
@@ -166,7 +197,9 @@ namespace vcf2multialign {
 	}
 	
 	
-	void sequence_writer::handle_variant(variant &var)
+	template <typename t_ostream>
+	template <typename t_variant>
+	void sequence_writer <t_ostream>::handle_variant_2(t_variant const &var)
 	{
 		auto const var_pos(var.zero_based_pos());
 		auto const lineno(var.lineno());
@@ -217,15 +250,16 @@ namespace vcf2multialign {
 		
 		// Find haplotypes that have the variant.
 		// First make sure that all valid alts are listed in m_alt_haplotypes.
+		m_alt_haplotypes.clear();
 		std::string const empty_alt("");
-		for (auto const alt_idx : m_delegate->valid_alts(var))
+		for (auto const alt_idx : m_delegate->valid_alts(lineno))
 		{
 			switch (var_alt_sv_types[alt_idx - 1])
 			{
 				case sv_type::NONE:
 				{
 					auto const &alt_str(var_alts[alt_idx - 1]);
-					m_alt_haplotypes[alt_str];
+					m_alt_haplotypes[::to_string(alt_str)];
 					break;
 				}
 				
@@ -241,83 +275,83 @@ namespace vcf2multialign {
 		}
 		m_alt_haplotypes[*m_null_allele_seq];
 		
-		for (auto const &kv : *m_all_haplotypes)
-		{
-			auto const sample_no(kv.first);
-
-			m_delegate->enumerate_genotype(var, sample_no,
-				[
-					this,
-					sample_no,
-					lineno,
-					&var_alts,
-					&var_alt_sv_types,
-					&empty_alt
-				](
-					uint8_t const chr_idx, std::size_t const alt_idx, bool const is_phased
-				) {
-					always_assert(0 == chr_idx || is_phased, "Variant file not phased");
+		m_delegate->enumerate_sample_genotypes(
+			var,
+			[
+				this,
+				lineno,
+				&var_alts,
+				&var_alt_sv_types,
+				&empty_alt
+			](
+				std::size_t const sample_no,
+				uint8_t const chr_idx,
+				uint8_t const alt_idx,
+				bool const is_phased
+			) {
+				assert(m_all_haplotypes->find(sample_no) != m_all_haplotypes->cend());
+				always_assert(0 == chr_idx || is_phased, "Variant file not phased");
 				
-					if (0 != alt_idx && m_delegate->is_valid_alt(alt_idx))
+				if (0 != alt_idx && m_delegate->is_valid_alt(lineno, alt_idx))
+				{
+					auto &ref_ptrs(m_ref_haplotype_ptrs.find(sample_no)->second); // Has nodes for every sample_no.
+					
+					std::string const *alt_ptr{m_null_allele_seq};
+					std::string alt_buffer; // Used in case var is transient_variant.
+					if (NULL_ALLELE != alt_idx)
 					{
-						auto &ref_ptrs(m_ref_haplotype_ptrs.find(sample_no)->second); // Has nodes for every sample_no.
-						
-						std::string const *alt_ptr{m_null_allele_seq};
-						if (NULL_ALLELE != alt_idx)
+						switch (var_alt_sv_types[alt_idx - 1])
 						{
-							switch (var_alt_sv_types[alt_idx - 1])
-							{
-								case sv_type::NONE:
-									alt_ptr = &var_alts[alt_idx - 1];
-									break;
-									
-								case sv_type::DEL:
-								case sv_type::DEL_ME:
-									alt_ptr = &empty_alt;
-									break;
-									
-								default:
-									fail("Unexpected structural variant type.");
-									break;
-							}
+							case sv_type::NONE:
+								alt_ptr = adaptor <t_variant>::string_ptr(var_alts[alt_idx - 1], alt_buffer);
+								break;
+								
+							case sv_type::DEL:
+							case sv_type::DEL_ME:
+								alt_ptr = &empty_alt;
+								break;
+								
+							default:
+								fail("Unexpected structural variant type.");
+								break;
 						}
-						
-						haplotype_ptr_map &alt_ptrs_by_sample(m_alt_haplotypes[*alt_ptr]);
-						auto it(alt_ptrs_by_sample.find(sample_no));
-						if (alt_ptrs_by_sample.end() == it)
-						{
-							it = alt_ptrs_by_sample.emplace(
-								std::piecewise_construct,
-								std::forward_as_tuple(sample_no),
-								std::forward_as_tuple(ref_ptrs.size(), nullptr)
-							).first;
-						}
-						auto &alt_ptrs(it->second);
-						
-						if (ref_ptrs[chr_idx])
-						{
-							// Use ADL.
-							using std::swap;
-							swap(alt_ptrs[chr_idx], ref_ptrs[chr_idx]);
-							m_delegate->assigned_alt_to_sequence(alt_idx);
-						}
-						else
-						{
-							m_delegate->found_overlapping_alt(lineno, alt_idx, sample_no, chr_idx);
-						}
-						
-						m_delegate->handled_alt(alt_idx);
 					}
+					
+					haplotype_ptr_map_type &alt_ptrs_by_sample(m_alt_haplotypes[*alt_ptr]);
+					auto it(alt_ptrs_by_sample.find(sample_no));
+					if (alt_ptrs_by_sample.end() == it)
+					{
+						it = alt_ptrs_by_sample.emplace(
+							std::piecewise_construct,
+							std::forward_as_tuple(sample_no),
+							std::forward_as_tuple(ref_ptrs.size(), nullptr)
+						).first;
+					}
+					auto &alt_ptrs(it->second);
+					
+					if (ref_ptrs[chr_idx])
+					{
+						// Use ADL.
+						using std::swap;
+						swap(alt_ptrs[chr_idx], ref_ptrs[chr_idx]);
+						m_delegate->assigned_alt_to_sequence(alt_idx);
+					}
+					else
+					{
+						m_delegate->found_overlapping_alt(lineno, alt_idx, sample_no, chr_idx);
+					}
+					
+					m_delegate->handled_alt(alt_idx);
 				}
-			);
-		}
+			}
+		);
 		
 		m_delegate->handled_haplotypes(var);
 		
 		// Create a new variant_overlap.
 		auto const var_end(var_pos + var_ref_size);
 		auto const previous_end_pos(previous_variant.end_pos);
-		variant_overlap overlap(var_pos, var_pos, var_end, 0, lineno, m_alt_haplotypes);
+		variant_overlap overlap(var_pos, var_pos, var_end, 0, lineno, std::move(m_alt_haplotypes));
 		if (var_pos < previous_end_pos)
 		{
 			// Add the current variant to the stack.
@@ -333,7 +367,22 @@ namespace vcf2multialign {
 	}
 	
 	
-	void sequence_writer::prepare(haplotype_map &all_haplotypes)
+	template <typename t_ostream>
+	void sequence_writer <t_ostream>::handle_variant(variant const &var)
+	{
+		handle_variant_2(var);
+	}
+	
+	
+	template <typename t_ostream>
+	void sequence_writer <t_ostream>::handle_variant(transient_variant const &var)
+	{
+		handle_variant_2(var);
+	}
+	
+	
+	template <typename t_ostream>
+	void sequence_writer <t_ostream>::prepare(haplotype_map_type &all_haplotypes)
 	{
 		while (!m_overlap_stack.empty())
 			m_overlap_stack.pop();
@@ -357,7 +406,8 @@ namespace vcf2multialign {
 	}
 	
 	
-	void sequence_writer::finish()
+	template <typename t_ostream>
+	void sequence_writer <t_ostream>::finish()
 	{
 		// Fill the remaining part with reference.
 		std::cerr << "Filling with the reference…" << std::endl;
@@ -374,4 +424,8 @@ namespace vcf2multialign {
 			}
 		}
 	}
+	
+	// Explicit instantiation.
+	template class sequence_writer <file_ostream>;
+	template class sequence_writer <channel_ostream>;
 }

@@ -28,6 +28,10 @@ namespace vcf2multialign {
 		public status_logger_delegate,
 		public virtual sequence_writer_delegate
 	{
+	public:
+		typedef haplotype_map <file_ostream>				haplotype_map_type;
+		typedef sequence_writer <file_ostream>				sequence_writer_type;
+		
 	protected:
 		all_haplotypes_task_delegate						*m_delegate{nullptr};
 		
@@ -35,8 +39,8 @@ namespace vcf2multialign {
 		variant_set const									*m_skipped_variants{nullptr};
 		boost::optional <std::string> const					*m_out_reference_fname{nullptr};
 		
-		haplotype_map										m_haplotypes;
-		sequence_writer										m_sequence_writer;
+		haplotype_map_type									m_haplotypes;
+		sequence_writer_type								m_sequence_writer;
 		
 		vcf_reader::sample_name_map::const_iterator			m_sample_names_it{};
 		vcf_reader::sample_name_map::const_iterator			m_sample_names_end{};
@@ -59,25 +63,38 @@ namespace vcf2multialign {
 		
 		all_haplotypes_task(
 			all_haplotypes_task_delegate &delegate,
+			dispatch_ptr <dispatch_queue_t> const &worker_queue,
 			class status_logger &status_logger,
 			class error_logger &error_logger,
-			class variant_handler &&variant_handler,
 			class vcf_reader &&vcf_reader,
+			alt_checker const &checker,
 			vector_type const &reference,
 			std::string const &null_allele_seq,
 			ploidy_map const &ploidy,
 			variant_set const &skipped_variants,
 			boost::optional <std::string> const &out_reference_fname,
-			std::size_t record_count,
-			std::size_t chunk_size,
-			bool should_overwrite_files
+			sv_handling const sv_handling_method,
+			std::size_t const record_count,
+			std::size_t const chunk_size,
+			bool const should_overwrite_files
 		):
-			parsing_task_vh(status_logger, error_logger, std::move(variant_handler), std::move(vcf_reader)),
+			parsing_task_vh(
+				worker_queue,
+				status_logger,
+				error_logger,
+				std::move(vcf_reader),
+				checker,
+				reference,
+				sv_handling_method,
+				skipped_variants
+			),
+			variant_stats(),
 			m_delegate(&delegate),
 			m_ploidy(&ploidy),
 			m_skipped_variants(&skipped_variants),
 			m_out_reference_fname(&out_reference_fname),
 			m_sequence_writer(reference, null_allele_seq),
+			m_record_count(record_count),
 			m_chunk_size(chunk_size),
 			m_should_overwrite_files(should_overwrite_files)
 		{
@@ -89,7 +106,7 @@ namespace vcf2multialign {
 		virtual void handle_variant(variant &var) override;
 		virtual void finish() override;
 		
-		// parsing_task
+		// task
 		virtual void execute() override;
 		
 		// variant_stats
@@ -101,22 +118,21 @@ namespace vcf2multialign {
 		virtual std::size_t current_record() const override { return m_vcf_reader.counter_value(); }
 		
 		// sequence_writer_delegate
-		virtual std::set <std::size_t> const &valid_alts(variant &var) const override { return m_variant_handler.valid_alts(); }
-		virtual bool is_valid_alt(std::size_t const alt_idx) const override { return m_variant_handler.is_valid_alt(alt_idx); }
-		virtual void enumerate_genotype(
-			variant &var,
-			std::size_t const sample_no,
-			std::function <void(uint8_t, std::size_t, bool)> const &cb
-		) override { m_variant_handler.enumerate_genotype(var, sample_no, cb); }
+		virtual std::vector <uint8_t> const &valid_alts(std::size_t const lineno) const override { return m_checker->valid_alts(lineno); }
+		virtual bool is_valid_alt(std::size_t const lineno, uint8_t const alt_idx) const override { return m_checker->is_valid_alt(lineno, alt_idx); }
+		virtual void enumerate_sample_genotypes(
+			variant const &var,
+			std::function <void(std::size_t, uint8_t, uint8_t, bool)> const &cb	// sample_no, chr_idx, alt_idx, is_phased
+		) override { m_variant_handler.enumerate_sample_genotypes(var, cb); }
 		// Rest comes from variant_stats.
 		
 	protected:
-		haplotype_map::iterator create_haplotype(
+		haplotype_map_type::iterator create_haplotype(
 			std::size_t const sample_no,
 			std::size_t const ploidy
 		);
 	
-		haplotype_map::iterator find_or_create_haplotype(
+		haplotype_map_type::iterator find_or_create_haplotype(
 			std::size_t const sample_no,
 			std::size_t const ploidy
 		);

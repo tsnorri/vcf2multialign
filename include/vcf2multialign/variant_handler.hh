@@ -29,32 +29,32 @@ namespace vcf2multialign {
 		
 		virtual void handle_variant(variant &var) {};
 		virtual void finish() {}
+		
+		virtual std::vector <uint8_t> const &valid_alts(std::size_t const lineno) const = 0;
+		virtual bool is_valid_alt(std::size_t const lineno, uint8_t const alt_idx) const = 0;
 	};
 	
 	
-	class variant_handler_base : public variant_buffer_delegate, public variant_handler_delegate
+	class variant_handler_base : public variant_buffer_delegate
 	{
 	protected:
 		dispatch_ptr <dispatch_queue_t>					m_parsing_queue{};
 		
-		variant_handler_delegate						*m_delegate{this};
+		variant_handler_delegate						*m_delegate{};
 		error_logger									*m_error_logger{};
 		
 		vector_type	const								*m_reference{};
 		
 		variant_buffer									m_variant_buffer;
 		variant_set const								*m_skipped_variants{};
-		std::set <size_t>								m_valid_alts;
 		
 		sv_handling										m_sv_handling_method{};
-		std::size_t										m_i{0};
-		bool											m_check_alts{true};
 		
 	public:
 		variant_handler_base(
 			dispatch_ptr <dispatch_queue_t> const &worker_queue,	// Needs to be serial.
-			dispatch_ptr <dispatch_queue_t> const &parsing_queue, // May be concurrent since only variant_buffer's read_input is called there.
-			vcf_reader &vcf_reader_,
+			dispatch_ptr <dispatch_queue_t> const &parsing_queue,	// May be concurrent since only variant_buffer's read_input is called there.
+			class vcf_reader &vcf_reader,
 			vector_type const &reference,
 			sv_handling const sv_handling_method,
 			variant_set const &skipped_variants,
@@ -63,7 +63,7 @@ namespace vcf2multialign {
 			m_parsing_queue(parsing_queue),
 			m_error_logger(&error_logger),
 			m_reference(&reference),
-			m_variant_buffer(vcf_reader_, worker_queue, *this),
+			m_variant_buffer(vcf_reader, worker_queue, *this),
 			m_skipped_variants(&skipped_variants),
 			m_sv_handling_method(sv_handling_method)
 		{
@@ -105,24 +105,16 @@ namespace vcf2multialign {
 	public:
 		class variant_buffer &variant_buffer() { return m_variant_buffer; }
 		void set_delegate(variant_handler_delegate &delegate) { m_delegate = &delegate; }
-		bool is_valid_alt(uint8_t const alt_idx) const { return 0 < m_valid_alts.count(alt_idx); }
-		std::set <size_t> const &valid_alts() const { return m_valid_alts; }
 		
 		void process_variants();
-		void enumerate_genotype(
-			variant &var,
-			std::size_t const sample_no,
-			std::function <void(uint8_t, std::size_t, bool)> const &cb
+		void enumerate_sample_genotypes(
+			variant const &var,
+			std::function <void(std::size_t, uint8_t, uint8_t, bool)> const &cb	// sample_no, chr_idx, alt_idx, is_phased
 		);
-		
 
 	protected:
 		virtual void handle_variant(variant &var) override;
 		virtual void finish() override;
-		
-		bool check_alt_seq(std::string const &alt) const;
-		void fill_valid_alts(variant const &var);
-		void set_check_alts(bool const should_check) { m_check_alts = should_check; }
 	};
 }
 

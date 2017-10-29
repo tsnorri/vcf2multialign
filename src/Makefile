@@ -4,6 +4,8 @@ include ../common.mk
 .PRECIOUS: vcf_reader.cc
 
 OBJECTS		=	all_haplotypes_task.o \
+				alt_checker.o \
+				channel_sink.o \
 				check_overlapping_non_nested_variants.o \
 				cmdline.o \
 				error_logger.o \
@@ -11,17 +13,22 @@ OBJECTS		=	all_haplotypes_task.o \
 				find_subgraph_starting_points.o \
 				generate_haplotypes.o \
 				main.o \
+				merge_subgraph_paths_task.o \
 				preparation_task.o \
 				progress_bar.o \
 				read_single_fasta_seq.o \
+				read_subgraph_variants_task.o \
+				reduce_samples_task.o \
+				reduced_subgraph.o \
 				sequence_writer.o \
+				sequence_writer_task.o \
 				status_logger.o \
 				types.o \
 				util.o \
+				variant.o \
 				variant_buffer.o \
 				variant_handler.o \
 				variant_stats.o \
-				variant.o \
 				vcf_input.o \
 				vcf_reader.o
 

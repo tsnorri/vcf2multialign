@@ -9,10 +9,10 @@
 
 namespace vcf2multialign {
 	
-	haplotype_map::iterator all_haplotypes_task::create_haplotype(
+	auto all_haplotypes_task::create_haplotype(
 		std::size_t const sample_no,
 		std::size_t const ploidy
-	)
+	) -> haplotype_map_type::iterator
 	{
 		return m_haplotypes.emplace(
 			std::piecewise_construct,
@@ -22,10 +22,10 @@ namespace vcf2multialign {
 	}
 	
 	
-	haplotype_map::iterator all_haplotypes_task::find_or_create_haplotype(
+	auto all_haplotypes_task::find_or_create_haplotype(
 		std::size_t const sample_no,
 		std::size_t const ploidy
-	)
+	) -> haplotype_map_type::iterator
 	{
 		// Since file_ostream is not movable, check first if the vector has already been created.
 		// If not, create it with the exact size to avoid resizing and thus moving later.

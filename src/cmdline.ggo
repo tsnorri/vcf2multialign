@@ -37,3 +37,4 @@ option	"structural-variants"	-	"Structural variant handling"														typest
 section "Sample reduction"
 option	"reduce-samples"		-	"Reduce the number of samples as described above"							flag	off
 option	"min-path-length"		-	"Minimum path length in a subgraph. Specify 0 for n^(1/2)"					int		default = "0"	dependon = "reduce-samples"									optional
+option	"generated-path-count"	-	"Number of generated paths"													int						dependon = "reduce-samples"									optional

@@ -169,6 +169,22 @@ namespace vcf2multialign {
 			}
 		});
 		
+		// Check valid ALTs.
+		{
+			m_status_logger->log_message_progress_bar("Checking valid ALTs…");
+			class alt_checker temp_checker(
+				m_record_count,
+				m_vcf_reader.last_header_lineno(),
+				m_sv_handling_method,
+				m_skipped_variants,
+				*m_error_logger
+			);
+				
+			m_alt_checker = std::move(temp_checker);
+			m_alt_checker.check_all_variants(m_vcf_reader);
+			m_status_logger->finish_logging();
+		}
+		
 		// Find subgraphs connected by single edges.
 		m_status_logger->log_message_progress_bar("Finding subgraphs connected by single edges…");
 		find_subgraph_starting_points(m_vcf_reader, m_skipped_variants, m_subgraph_starting_points);

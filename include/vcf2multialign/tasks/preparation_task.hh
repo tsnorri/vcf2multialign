@@ -6,6 +6,7 @@
 #ifndef VCF2MULTIALIGN_TASKS_PREPARATION_TASK_HH
 #define VCF2MULTIALIGN_TASKS_PREPARATION_TASK_HH
 
+#include <vcf2multialign/alt_checker.hh>
 #include <vcf2multialign/status_logger.hh>
 #include <vcf2multialign/tasks/parsing_task.hh>
 
@@ -30,6 +31,7 @@ namespace vcf2multialign {
 		ploidy_map					m_ploidy;
 		variant_set					m_skipped_variants;
 		subgraph_map				m_subgraph_starting_points;
+		alt_checker					m_alt_checker;
 		
 		std::size_t					m_record_count{0};
 		sv_handling					m_sv_handling_method;
@@ -59,6 +61,7 @@ namespace vcf2multialign {
 		ploidy_map &ploidy_map() { return m_ploidy; }
 		variant_set &skipped_variants() { return m_skipped_variants; }
 		subgraph_map &subgraph_starting_points() { return m_subgraph_starting_points; }
+		alt_checker &alt_checker() { return m_alt_checker; }
 		
 		// parsing_task
 		virtual void execute() override;

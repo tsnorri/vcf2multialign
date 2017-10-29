@@ -17,6 +17,7 @@ namespace vcf2multialign {
 		char const *null_allele_seq,
 		std::size_t const chunk_size,
 		std::size_t const min_path_length,
+		std::size_t const generated_path_count,
 		sv_handling const sv_handling_method,
 		bool const should_overwrite_files,
 		bool const should_check_ref,

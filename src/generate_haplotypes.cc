@@ -1,14 +1,18 @@
 /*
- Copyright (c) 2017 Tuukka Norri
- This code is licensed under MIT license (see LICENSE for details).
+ * Copyright (c) 2017 Tuukka Norri
+ * This code is licensed under MIT license (see LICENSE for details).
  */
 
+#include <boost/range/numeric.hpp>
+#include <boost/range/adaptor/map.hpp>
 #include <iostream>
+#include <thread>
 #include <vcf2multialign/dispatch_fn.hh>
 #include <vcf2multialign/generate_haplotypes.hh>
 #include <vcf2multialign/read_single_fasta_seq.hh>
 #include <vcf2multialign/tasks/all_haplotypes_task.hh>
 #include <vcf2multialign/tasks/preparation_task.hh>
+#include <vcf2multialign/tasks/reduce_samples_task.hh>
 
 namespace ios	= boost::iostreams;
 namespace v2m	= vcf2multialign;
@@ -18,15 +22,17 @@ namespace {
 	
 	class generate_context final :
 		public v2m::all_haplotypes_task_delegate,
-		public v2m::preparation_task_delegate
+		public v2m::preparation_task_delegate,
+		public v2m::reduce_samples_task_delegate
 	{
 	protected:
 		typedef std::set <
-			std::unique_ptr <v2m::parsing_task>,
-			v2m::pointer_cmp <v2m::parsing_task>
+			std::unique_ptr <v2m::task>,
+			v2m::pointer_cmp <v2m::task>
 		> task_set;
 		
 	protected:
+		std::mutex											m_tasks_mutex{};
 		task_set											m_tasks;
 		v2m::vector_type									m_reference;
 		v2m::vcf_mmap_input									m_vcf_input;
@@ -36,13 +42,15 @@ namespace {
 		
 		v2m::ploidy_map										m_ploidy;
 		v2m::variant_set									m_skipped_variants;
-		v2m::subgraph_map									m_subgraph_starting_points;
+		v2m::subgraph_map									m_subgraph_starting_points;	// Variant line numbers by character pointers.
+		v2m::alt_checker									m_alt_checker;
 		
 		boost::optional <std::string>						m_out_reference_fname;
 		std::string											m_null_allele_seq;
 		v2m::sv_handling									m_sv_handling_method;
 		std::size_t											m_chunk_size{0};
 		std::size_t											m_min_path_length{0};
+		std::size_t											m_generated_path_count{0};
 		
 		bool												m_should_overwrite_files{false};
 		bool												m_should_reduce_samples{false};
@@ -54,6 +62,7 @@ namespace {
 			v2m::sv_handling const sv_handling_method,
 			std::size_t const chunk_size,
 			std::size_t const min_path_length,
+			std::size_t const generated_path_count,
 			bool const should_overwrite_files,
 			bool const should_reduce_samples
 		):
@@ -61,6 +70,7 @@ namespace {
 			m_sv_handling_method(sv_handling_method),
 			m_chunk_size(chunk_size),
 			m_min_path_length(min_path_length),
+			m_generated_path_count(generated_path_count),
 			m_should_overwrite_files(should_overwrite_files),
 			m_should_reduce_samples(should_reduce_samples)
 		{
@@ -78,15 +88,23 @@ namespace {
 			char const *report_fname,
 			bool const should_check_ref
 		);
+			
+		void store_and_execute_in_group(std::unique_ptr <v2m::task> &&task, dispatch_group_t group);
 		
 		// preparation_task_delegate
 		virtual void task_did_finish(v2m::preparation_task &task) override;
+		
+		// all_haplotypes_task_delegate
 		virtual void task_did_finish(v2m::all_haplotypes_task &task) override;
+		
+		// reduce_samples_task_delegate
+		virtual void task_did_finish(v2m::reduce_samples_task &task) override;
+		virtual void store_and_execute(std::unique_ptr <v2m::task> &&task) override;
 		
 	protected:
 		void finish_init(char const *out_reference_fname);
-		void store_and_execute(std::unique_ptr <v2m::parsing_task> &&task);
-		void remove(v2m::parsing_task &task);
+		v2m::task *store_task(std::unique_ptr <v2m::task> &&task);
+		void remove(v2m::task &task);
 	};
 	
 	
@@ -99,21 +117,36 @@ namespace {
 	}
 	
 	
-	void generate_context::store_and_execute(std::unique_ptr <v2m::parsing_task> &&task)
+	v2m::task *generate_context::store_task(std::unique_ptr <v2m::task> &&task)
 	{
+		std::lock_guard <std::mutex> lock_guard(m_tasks_mutex);
 		auto st(m_tasks.emplace(std::move(task)));
 		
 		// task is now invalid.
 		v2m::always_assert(st.second);
-		auto it(st.first);
-		auto queue(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0));
+		v2m::task *inserted_task(st.first->get());
 		
-		v2m::parsing_task_base *inserted_task(st.first->get());
-		v2m::dispatch(inserted_task).async <&v2m::parsing_task_base::execute>(queue);
+		return inserted_task;
 	}
 	
 	
-	void generate_context::remove(v2m::parsing_task &task)
+	void generate_context::store_and_execute(std::unique_ptr <v2m::task> &&task)
+	{
+		auto inserted_task(store_task(std::move(task)));
+		auto queue(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0));
+		v2m::dispatch(inserted_task).async <&v2m::task::execute>(queue);
+	}
+	
+	
+	void generate_context::store_and_execute_in_group(std::unique_ptr <v2m::task> &&task, dispatch_group_t group)
+	{
+		auto inserted_task(store_task(std::move(task)));
+		auto queue(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0));
+		v2m::dispatch(inserted_task).group_async <&v2m::task::execute>(group, queue);
+	}
+	
+	
+	void generate_context::remove(v2m::task &task)
 	{
 		// Use the C++14 templated find.
 		auto it(m_tasks.find(task));
@@ -164,7 +197,7 @@ namespace {
 			}
 		}
 		
-		std::unique_ptr <v2m::parsing_task> task(
+		std::unique_ptr <v2m::task> task(
 			new v2m::preparation_task(
 				*this,
 				m_status_logger,
@@ -186,6 +219,7 @@ namespace {
 		
 		m_ploidy = std::move(task.ploidy_map());
 		m_skipped_variants = std::move(task.skipped_variants());
+		m_alt_checker = std::move(task.alt_checker());
 		m_subgraph_starting_points = std::move(task.subgraph_starting_points());
 		auto const record_count(task.record_count());
 		
@@ -194,11 +228,38 @@ namespace {
 		
 		if (m_should_reduce_samples)
 		{
-			// FIXME: code me.
-			std::cerr << "Not implemented yet!" << std::endl;
+			auto const sample_ploidy_sum(boost::accumulate(m_ploidy | boost::adaptors::map_values, 0));
+			auto const hw_concurrency(std::thread::hardware_concurrency());
+			
+			std::unique_ptr <v2m::task> task(
+				new v2m::reduce_samples_task(
+					*this,
+					m_status_logger,
+					m_error_logger,
+					hw_concurrency,
+					std::move(reader),
+					m_reference,
+					m_null_allele_seq,
+					m_alt_checker,
+					m_subgraph_starting_points,
+					m_skipped_variants,
+					m_out_reference_fname,
+					m_sv_handling_method,
+					record_count,
+					m_generated_path_count,
+					sample_ploidy_sum,
+					m_min_path_length,
+					m_should_overwrite_files
+				)
+			);
+			
+			store_and_execute(std::move(task));
 		}
 		else
 		{
+			// FIXME: create the queues in a function? The case above (m_should_reduce_samples) is
+			// going to be handled with a custom variant handler (with enumerate_sample_genotypes
+			// replaced but everything else should be OK as is) and with a custom task.
 			auto concurrent_queue(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0));
 			v2m::dispatch_ptr <dispatch_queue_t> parsing_queue(concurrent_queue, true);
 			v2m::dispatch_ptr <dispatch_queue_t> worker_queue(
@@ -206,28 +267,20 @@ namespace {
 				false
 			);
 			
-			v2m::variant_handler vh(
-				worker_queue,
-				parsing_queue,
-				reader,
-				m_reference,
-				m_sv_handling_method,
-				m_skipped_variants,
-				m_error_logger
-			);
-			
-			std::unique_ptr <v2m::parsing_task> task(
+			std::unique_ptr <v2m::task> task(
 				new v2m::all_haplotypes_task(
 					*this,
+					worker_queue,
 					m_status_logger,
 					m_error_logger,
-					std::move(vh),
 					std::move(reader),
+					m_alt_checker,
 					m_reference,
 					m_null_allele_seq,
 					m_ploidy,
 					m_skipped_variants,
 					m_out_reference_fname,
+					m_sv_handling_method,
 					record_count,
 					m_chunk_size,
 					m_should_overwrite_files
@@ -236,6 +289,13 @@ namespace {
 			
 			store_and_execute(std::move(task));
 		}
+	}
+	
+	
+	void generate_context::task_did_finish(v2m::reduce_samples_task &task)
+	{
+		cleanup();
+		exit(EXIT_SUCCESS);
 	}
 	
 	
@@ -261,6 +321,7 @@ namespace vcf2multialign {
 		char const *null_allele_seq,
 		std::size_t const chunk_size,
 		std::size_t const min_path_length,
+		std::size_t const generated_path_count,
 		sv_handling const sv_handling_method,
 		bool const should_overwrite_files,
 		bool const should_check_ref,
@@ -275,6 +336,7 @@ namespace vcf2multialign {
 			sv_handling_method,
 			chunk_size,
 			min_path_length,
+			generated_path_count,
 			should_overwrite_files,
 			should_reduce_samples
 		));

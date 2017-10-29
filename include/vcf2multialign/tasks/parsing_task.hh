@@ -6,8 +6,10 @@
 #ifndef VCF2MULTIALIGN_TASKS_PARSING_TASK_HH
 #define VCF2MULTIALIGN_TASKS_PARSING_TASK_HH
 
+#include <vcf2multialign/alt_checker.hh>
 #include <vcf2multialign/file_handling.hh>
 #include <vcf2multialign/status_logger.hh>
+#include <vcf2multialign/tasks/task.hh>
 #include <vcf2multialign/variant_handler.hh>
 #include <vcf2multialign/vcf_reader.hh>
 
@@ -34,7 +36,7 @@ namespace vcf2multialign {
 	//
 	// vcf_reader has the following pointer:
 	//      vcf_input				*m_input; (owned by generate_context)
-	class parsing_task_base
+	class parsing_task_base : public task
 	{
 	protected:
 		status_logger						*m_status_logger{nullptr};
@@ -42,14 +44,16 @@ namespace vcf2multialign {
 		vcf_reader							m_vcf_reader;
 		
 	public:
+		parsing_task_base() = default;
+		
 		parsing_task_base(
 			status_logger &status_logger,
 			error_logger &error_logger,
-			vcf_reader const &vcf_reader_
+			class vcf_reader const &vcf_reader
 		):
 			m_status_logger(&status_logger),
 			m_error_logger(&error_logger),
-			m_vcf_reader(vcf_reader_)
+			m_vcf_reader(vcf_reader)
 		{
 		}
 		
@@ -111,29 +115,33 @@ namespace vcf2multialign {
 	class parsing_task_vh_base : public parsing_task, public variant_handler_delegate
 	{
 	protected:
-		variant_handler						m_variant_handler;
+		alt_checker const	*m_checker{nullptr};
+		variant_handler		m_variant_handler;
 	
 	public:
-		parsing_task_vh_base(
-			status_logger &status_logger,
-			error_logger &error_logger,
-			class variant_handler &variant_handler,
-			class vcf_reader const &vcf_reader
-		):
-			parsing_task(status_logger, error_logger, vcf_reader),
-			m_variant_handler(variant_handler)
-		{
-			m_variant_handler.set_delegate(*this);
-		}
+		parsing_task_vh_base() = default;
 		
 		parsing_task_vh_base(
+			dispatch_ptr <dispatch_queue_t> const &worker_queue,	// Needs to be serial.
 			status_logger &status_logger,
 			error_logger &error_logger,
-			class variant_handler &&variant_handler,
-			class vcf_reader const &&vcf_reader
+			class vcf_reader const &vcf_reader,
+			alt_checker const &checker,
+			vector_type const &reference,
+			sv_handling const sv_handling_method,
+			variant_set const &skipped_variants
 		):
-			parsing_task(status_logger, error_logger, std::move(vcf_reader)),
-			m_variant_handler(std::move(variant_handler))
+			parsing_task(status_logger, error_logger, vcf_reader),
+			m_checker(&checker),
+			m_variant_handler(
+				worker_queue,
+				dispatch_ptr <dispatch_queue_t>(dispatch_get_main_queue()),
+				m_vcf_reader,
+				reference,
+				sv_handling_method,
+				skipped_variants,
+				error_logger
+			)
 		{
 			m_variant_handler.set_delegate(*this);
 		}
@@ -177,6 +185,10 @@ namespace vcf2multialign {
 			finish_copy_or_move();
 			return *this;
 		}
+		
+		// variant_handler_delegate
+		virtual std::vector <uint8_t> const &valid_alts(std::size_t const lineno) const override { return m_checker->valid_alts(lineno); }
+		virtual bool is_valid_alt(std::size_t const lineno, uint8_t const alt_idx) const override { return m_checker->is_valid_alt(lineno, alt_idx); }
 	};
 }
 

@@ -27,26 +27,30 @@ namespace vcf2multialign {
 		void reset() { handled_count = 0; total_count = 0; }
 	};
 	
+	template <typename t_ostream>
 	struct haplotype
 	{
 		size_t current_pos{0};
-		file_ostream output_stream;
+		t_ostream output_stream;
 	};
 	
-	typedef std::map <
-		std::size_t,				// Sample (line) number
-		std::vector <haplotype>		// All haplotype sequences
-	> haplotype_map;
+	template <typename t_ostream>
+	using haplotype_map = std::map <
+		std::size_t,							// Sample (line) number
+		std::vector <haplotype <t_ostream>>		// All haplotype sequences
+	>;
 
-	typedef std::map <
-		std::size_t,				// Sample (line) number
-		std::vector <haplotype *>	// Haplotype sequences by chromosome index
-	> haplotype_ptr_map;
+	template <typename t_ostream>
+	using haplotype_ptr_map = std::map <
+		std::size_t,							// Sample (line) number
+		std::vector <haplotype <t_ostream> *>	// Haplotype sequences by chromosome index
+	>;
 	
-	typedef std::map <
-		std::string,				// ALT
-		haplotype_ptr_map
-	> alt_map;
+	template <typename t_ostream>
+	using alt_map = std::map <
+		std::string,							// ALT
+		haplotype_ptr_map <t_ostream>
+	>;
 	
 	typedef std::map <std::size_t, std::size_t> ploidy_map;
 	
