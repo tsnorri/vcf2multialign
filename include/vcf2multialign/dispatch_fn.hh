@@ -166,6 +166,14 @@ namespace vcf2multialign {
 	}
 	
 	template <typename Fn>
+	void dispatch_group_notify_fn(dispatch_group_t group, dispatch_queue_t queue, Fn fn)
+	{
+		typedef detail::dispatch_fn_context <Fn> context_type;
+		auto *ctx(new context_type(std::move(fn)));
+		dispatch_group_notify_f(group, queue, ctx, &context_type::call_fn);
+	}
+	
+	template <typename Fn>
 	void dispatch_sync_fn(dispatch_queue_t queue, Fn fn)
 	{
 		typedef detail::dispatch_fn_context <Fn> context_type;
