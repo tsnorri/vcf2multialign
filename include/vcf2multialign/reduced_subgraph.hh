@@ -75,31 +75,15 @@ namespace vcf2multialign {
 		> sample_bimap;
 		
 		// Map generated path indices <->> sample id.
-#if 0
-		// FIXME: does this need to be a bimap?
-		typedef boost::bimap <
-			boost::bimaps::set_of <path_index>,
-			boost::bimaps::multiset_of <sample_id>
-		> path_bimap;
-#endif
 		typedef std::multimap <path_index, sample_id> path_map;
 	
 		// Map generated path indices <<-> (existing) unique (ALT index) sequence index.
-#if 0
-		// FIXME: does this need to be a bimap?
-		typedef boost::bimap <
-			boost::bimaps::multiset_of <path_index>,
-			boost::bimaps::set_of <sequence_index>
-		> path_eq_bimap;
-#endif
 		typedef std::map <path_index, sequence_index> path_eq_map;
 		
 	protected:
 		sequence_vec						m_sequences;				// Initialized in invert_sequences_by_sample().
 		sample_bimap						m_samples_by_sequence_idx;	// Initialized in invert_sequences_by_sample().
-		//path_bimap							m_generated_paths;			// Initialized in split_sequences_to_paths().
 		path_map							m_generated_paths;
-		//path_eq_bimap						m_generated_paths_eq;		// Initialized in split_sequences_to_paths().
 		path_eq_map							m_generated_paths_eq;
 		std::size_t							m_start_lineno{0};
 		std::size_t							m_variant_count{0};
@@ -112,8 +96,6 @@ namespace vcf2multialign {
 			sample_bimap &&samples_by_sequence_idx,
 			path_map &&generated_paths,
 			path_eq_map &&generated_paths_eq,
-			//path_bimap &&generated_paths,
-			//path_eq_bimap &&generated_paths_eq,
 			std::size_t const start_lineno,
 			std::size_t const variant_count
 		):
@@ -137,11 +119,9 @@ namespace vcf2multialign {
 			return m_sequences.at(seq_idx);
 		}
 		
-		//std::pair <path_bimap::right_iterator, path_bimap::right_iterator>
 		std::pair <path_map::const_iterator, path_map::const_iterator>
 		path_samples(path_index const idx) const
 		{
-			//return m_generated_paths.right.equal_range(idx);
 			return m_generated_paths.equal_range(idx);
 		}
 		
@@ -157,11 +137,6 @@ namespace vcf2multialign {
 		
 		bool path_sequence_index(path_index const &path_idx, sequence_index /* out */ &seq_idx) const
 		{
-#if 0
-			auto const seq_it(m_generated_paths_eq.left.find(path_idx);
-			if (seq_it == m_generated_paths_eq.left.end())
-				return false;
-#endif
 			auto const seq_it(m_generated_paths_eq.find(path_idx));
 			if (m_generated_paths_eq.cend() != seq_it)
 				return false;
