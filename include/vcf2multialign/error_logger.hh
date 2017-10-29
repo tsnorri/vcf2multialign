@@ -49,6 +49,7 @@ namespace vcf2multialign {
 		{
 			if (is_logging_errors())
 			{
+				// Copy alt.
 				dispatch_async_fn(*m_worker_queue, [this, line, alt_idx, alt](){
 					log_invalid_alt_seq_wt(line, alt_idx, alt);
 				});
