@@ -1,6 +1,6 @@
 /*
- Copyright (c) 2017 Tuukka Norri
- This code is licensed under MIT license (see LICENSE for details).
+ * Copyright (c) 2017 Tuukka Norri
+ * This code is licensed under MIT license (see LICENSE for details).
  */
 
 #include <experimental/optional>
