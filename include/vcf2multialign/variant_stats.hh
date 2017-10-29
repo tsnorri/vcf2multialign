@@ -26,22 +26,22 @@ namespace vcf2multialign {
 		sample_count						m_non_ref_totals;			// In current variant.
 		
 	public:
-		virtual void assigned_alt_to_sequence(std::size_t const alt_idx);
+		virtual class error_logger &error_logger() = 0;
+		virtual class status_logger &status_logger() = 0;
+
+		void handle_variant(variant_base const &var);
+		
+		// sequence_writer_delegate
+		virtual void assigned_alt_to_sequence(std::size_t const alt_idx) override;
 		virtual void found_overlapping_alt(
 			std::size_t const lineno,
 			uint8_t const alt_idx,
 			std::size_t const sample_no,
 			uint8_t const chr_idx
-		);
-		virtual void handled_alt(std::size_t const alt_idx);
-		virtual void handled_haplotypes(variant &var);
-		
-		virtual class error_logger &error_logger() = 0;
-		virtual class status_logger &status_logger() = 0;
-
-		void handle_variant(variant &var);
+		) override;
+		virtual void handled_alt(std::size_t const alt_idx) override;
+		virtual void handled_haplotypes(variant_base const &var) override;
 	};
-	
 }
 
 #endif

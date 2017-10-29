@@ -37,7 +37,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void variant_stats::handle_variant(variant &var)
+	void variant_stats::handle_variant(variant_base const &var)
 	{
 		m_skipped_samples.clear();
 		m_counts_by_alt.clear();
@@ -52,7 +52,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void variant_stats::handled_haplotypes(variant &var)
+	void variant_stats::handled_haplotypes(variant_base const &var)
 	{
 		// Report errors if needed.
 		auto &el(error_logger());
