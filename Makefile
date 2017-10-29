@@ -55,3 +55,4 @@ lib/lemon/build/lemon/libemon.a:
 	CXX="$(CXX)" \
 	cmake ..
 	$(MAKE) -C lib/lemon/build VERBOSE=1
+	cd lib/lemon/lemon && cp -i ../build/lemon/config.h ./
