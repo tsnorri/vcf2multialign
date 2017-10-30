@@ -30,6 +30,9 @@ lib/libdispatch/libdispatch-build/src/libdispatch.a: lib/libpwq/libpwq-build/lib
 	cd lib/libdispatch && \
 	mkdir libdispatch-build && \
 	cd libdispatch-build && \
+	CFLAGS="$(SYSTEM_CPPFLAGS) $(SYSTEM_CFLAGS)" \
+	CXXFLAGS="$(SYSTEM_CPPFLAGS) $(SYSTEM_CXXFLAGS)" \
+	LDFLAGS="$(SYSTEM_LDFLAGS)" \
 	../configure --cc="$(CC)" --c++="$(CXX)" --release -- \
 		-DPTHREAD_WORKQUEUE_INCLUDE_DIRS=../../libpwq/include \
 		-DPTHREAD_WORKQUEUE_LIBRARIES=../../libpwq/libpwq-build/libpthread_workqueue.a \
@@ -43,6 +46,9 @@ lib/libpwq/libpwq-build/libpthread_workqueue.a:
 	cd libpwq-build && \
 	CC="$(CC)" \
 	CXX="$(CXX)" \
+	CFLAGS="$(SYSTEM_CPPFLAGS) $(SYSTEM_CFLAGS)" \
+	CXXFLAGS="$(SYSTEM_CPPFLAGS) $(SYSTEM_CXXFLAGS)" \
+	LDFLAGS="$(SYSTEM_LDFLAGS)" \
 	cmake -DSTATIC_WORKQUEUE=ON ..
 	$(MAKE) -C lib/libpwq/libpwq-build VERBOSE=1
 
@@ -53,6 +59,9 @@ lib/lemon/build/lemon/libemon.a:
 	cd build && \
 	CC="$(CC)" \
 	CXX="$(CXX)" \
+	CFLAGS="$(SYSTEM_CPPFLAGS) $(SYSTEM_CFLAGS)" \
+	CXXFLAGS="$(SYSTEM_CPPFLAGS) $(SYSTEM_CXXFLAGS)" \
+	LDFLAGS="$(SYSTEM_LDFLAGS)" \
 	cmake ..
 	$(MAKE) -C lib/lemon/build VERBOSE=1
-	cd lib/lemon/lemon && cp -i ../build/lemon/config.h ./
+	cd lib/lemon/lemon && cp ../build/lemon/config.h ./
