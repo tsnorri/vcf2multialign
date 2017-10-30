@@ -174,9 +174,8 @@ namespace vcf2multialign {
 		
 		// sequence_writer_task_delegate
 		virtual void task_did_finish(sequence_writer_task &task) override;
-		
 		virtual void enumerate_sample_genotypes(
-			variant const &var,
+			transient_variant const &var,
 			std::function <void(std::size_t, uint8_t, uint8_t, bool)> const &cb	// sample_no, chr_idx, alt_idx, is_phased
 		) override;
 			

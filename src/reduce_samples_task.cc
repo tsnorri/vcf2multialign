@@ -208,7 +208,7 @@ namespace vcf2multialign {
 	
 	
 	void reduce_samples_task::enumerate_sample_genotypes(
-		variant const &var,
+		transient_variant const &var,
 		std::function <void(std::size_t, uint8_t, uint8_t, bool)> const &cb	// sample_no, chr_idx, alt_idx, is_phased
 	)
 	{

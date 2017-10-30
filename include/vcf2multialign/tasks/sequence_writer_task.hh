@@ -23,7 +23,7 @@ namespace vcf2multialign {
 		virtual void task_did_finish(sequence_writer_task &task) = 0;
 		
 		virtual void enumerate_sample_genotypes(
-			variant const &var,
+			transient_variant const &var,
 			std::function <void(std::size_t, uint8_t, uint8_t, bool)> const &cb	// sample_no, chr_idx, alt_idx, is_phased
 		) = 0;
 	};
@@ -32,10 +32,13 @@ namespace vcf2multialign {
 	class sequence_writer_task :
 		public parsing_task,
 		public variant_stats,
-		public sequence_writer_delegate <variant>
+		public sequence_writer_delegate <transient_variant>
 	{
 	protected:
-		sequence_writer <channel_ostream, variant>	m_sequence_writer;
+		typedef sequence_writer <channel_ostream, transient_variant> sequence_writer_type;
+			
+	protected:
+		sequence_writer_type						m_sequence_writer;
 		sequence_writer_task_delegate				*m_delegate{nullptr};
 		alt_checker const							*m_alt_checker{nullptr};
 		
@@ -68,7 +71,7 @@ namespace vcf2multialign {
 		virtual std::vector <uint8_t> const &valid_alts(std::size_t const lineno) const override { return m_alt_checker->valid_alts(lineno); }
 		virtual bool is_valid_alt(std::size_t const lineno, uint8_t const alt_idx) const override { return m_alt_checker->is_valid_alt(lineno, alt_idx); }
 		virtual void enumerate_sample_genotypes(
-			variant const &var,
+			transient_variant const &var,
 			std::function <void(std::size_t, uint8_t, uint8_t, bool)> const &cb	// sample_no, chr_idx, alt_idx, is_phased
 		) override { m_delegate->enumerate_sample_genotypes(var, cb); }
 		// Rest comes from variant_stats.

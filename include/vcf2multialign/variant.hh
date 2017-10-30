@@ -83,8 +83,7 @@ namespace vcf2multialign {
 		{
 		}
 		
-		variant_base(variant_base const &) = default;
-		variant_base(variant_base &&) = default;
+		explicit variant_base(variant_base const &) = default;
 		variant_base &operator=(variant_base const &) & = default;
 		variant_base &operator=(variant_base &&) & = default;
 		
@@ -127,19 +126,21 @@ namespace vcf2multialign {
 		void copy_vectors(variant_tpl <t_other_string> const &other);
 		
 	public:
-		variant_tpl(std::size_t sample_count = 0):
+		explicit variant_tpl(std::size_t sample_count = 0):
 			variant_base(sample_count)
 		{
 		}
 
 		template <typename t_other_string>
-		variant_tpl(variant_tpl <t_other_string> const &other):
+		explicit variant_tpl(variant_tpl <t_other_string> const &other):
 			variant_base(other),
 			m_chrom_id(other.m_chrom_id),
 			m_ref(other.m_ref)
 		{
 			copy_vectors(other);
 		}
+		
+		explicit variant_tpl(variant_tpl const &) = default;
 		
 		virtual ~variant_tpl() {}
 		
