@@ -30,13 +30,11 @@ namespace std {
 #endif
 
 
-#ifdef __GNUC__
-#	if __GNUC__ < 7
+#if __cplusplus < 201703L
 // XXX Hack.
 namespace std {
 	using std::experimental::string_view;
 }
-#	endif
 #endif
 
 
