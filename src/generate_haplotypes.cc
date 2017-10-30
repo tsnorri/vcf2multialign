@@ -221,7 +221,7 @@ namespace {
 		m_skipped_variants = std::move(task.skipped_variants());
 		m_alt_checker = std::move(task.alt_checker());
 		m_subgraph_starting_points = std::move(task.subgraph_starting_points());
-		auto const record_count(task.record_count());
+		auto const record_count(task.step_count());
 		
 		remove(task);
 		// task is now invalid.

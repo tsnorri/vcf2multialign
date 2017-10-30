@@ -114,8 +114,8 @@ namespace vcf2multialign {
 		virtual class status_logger &status_logger() override { return *m_status_logger; }
 		
 		// status_logger_delegate
-		virtual std::size_t record_count() const override { return m_record_count; }
-		virtual std::size_t current_record() const override { return m_vcf_reader.counter_value(); }
+		virtual std::size_t step_count() const override { return m_record_count; }
+		virtual std::size_t current_step() const override { return m_vcf_reader.counter_value(); }
 		
 		// sequence_writer_delegate
 		virtual std::vector <uint8_t> const &valid_alts(std::size_t const lineno) const override { return m_checker->valid_alts(lineno); }

@@ -118,7 +118,7 @@ namespace vcf2multialign {
 				auto fmt(
 					boost::format("%s % d ")
 					% m_message
-					% boost::io::group(std::setw(m_window_width - m_message_length - 2), m_delegate->record_count())
+					% boost::io::group(std::setw(m_window_width - m_message_length - 2), m_delegate->step_count())
 				);
 				std::cerr << '\r' << fmt << std::flush;
 				break;
@@ -129,12 +129,12 @@ namespace vcf2multialign {
 				std::lock_guard <std::mutex> guard(m_message_mutex);
 				m_need_clear_line = true;
 				
-				float const record_count(m_delegate->record_count());
-				float const current_record(m_delegate->current_record());
+				float const step_count(m_delegate->step_count());
+				float const current_step(m_delegate->current_step());
 				auto const half(m_window_width / 2);
 				auto const pad(half < m_message_length ? 1 : half - m_message_length);
 				auto const bar_width(m_window_width - half - 2);
-				v2m::progress_bar(std::cerr, current_record / record_count, bar_width, pad, m_message);
+				v2m::progress_bar(std::cerr, current_step / step_count, bar_width, pad, m_message);
 			}
 			
 			case none:
