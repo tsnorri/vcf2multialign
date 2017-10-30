@@ -16,7 +16,7 @@ namespace vcf2multialign {
 	
 	struct vcf_input
 	{
-		virtual ~vcf_input() = 0;
+		virtual ~vcf_input() {};
 		virtual bool getline(std::string_view &dst) = 0;
 		virtual void store_first_variant_offset() = 0;
 		virtual void reset_to_first_variant_offset() {}
