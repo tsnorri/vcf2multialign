@@ -21,6 +21,8 @@ namespace vcf2multialign {
 		variant_set const					*m_skipped_variants{nullptr};
 		error_logger						*m_error_logger{};
 		sv_handling							m_sv_handling_method{};
+		std::size_t							m_max_alt_field_size{0};		// Need not be atomic b.c. set only when parsing the file.
+		std::size_t							m_records_with_valid_alts{0};	// Need not be atomic b.c. set only when parsing the file.
 		std::size_t							m_last_header_lineno{0};
 		
 	public:
@@ -43,6 +45,9 @@ namespace vcf2multialign {
 		
 		void check_variant(transient_variant const &var);
 		void check_all_variants(vcf_reader &reader);
+		
+		std::size_t max_alt_field_size() const { return m_max_alt_field_size; }
+		std::size_t	records_with_valid_alts() const { return m_records_with_valid_alts; }
 		
 		// variant_handler_delegate compatible, thread-safe.
 		std::vector <uint8_t> const &valid_alts(std::size_t const lineno) const

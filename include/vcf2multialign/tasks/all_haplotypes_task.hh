@@ -76,6 +76,7 @@ namespace vcf2multialign {
 			boost::optional <std::string> const &out_reference_fname,
 			sv_handling const sv_handling_method,
 			std::size_t const record_count,
+			std::size_t const records_with_valid_alts, // FIXME: make use of this (or pass alt_checker instead).
 			std::size_t const chunk_size,
 			bool const should_overwrite_files
 		):

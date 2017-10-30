@@ -222,6 +222,7 @@ namespace {
 		m_alt_checker = std::move(task.alt_checker());
 		m_subgraph_starting_points = std::move(task.subgraph_starting_points());
 		auto const record_count(task.step_count());
+		auto const records_with_valid_alts(m_alt_checker.records_with_valid_alts());
 		
 		remove(task);
 		// task is now invalid.
@@ -282,6 +283,7 @@ namespace {
 					m_out_reference_fname,
 					m_sv_handling_method,
 					record_count,
+					records_with_valid_alts,
 					m_chunk_size,
 					m_should_overwrite_files
 				)

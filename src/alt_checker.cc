@@ -96,6 +96,10 @@ namespace vcf2multialign {
 		}
 		
 		std::sort(valid_alts.begin(), valid_alts.end());
+		if (valid_alts.size())
+			++m_records_with_valid_alts;
+		// FIXME: we currently have no means to change the indices in genotypes in case there is e.g. only one valid ALT.
+		m_max_alt_field_size = std::max(m_max_alt_field_size, var.alts().size());
 	}
 	
 	
