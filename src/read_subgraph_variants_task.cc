@@ -75,6 +75,8 @@ namespace vcf2multialign {
 				++i;
 			}
 		);
+		
+		m_delegate->task_did_handle_variant(*this, var);
 	}
 	
 	

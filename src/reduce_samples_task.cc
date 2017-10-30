@@ -9,6 +9,31 @@
 #include <vcf2multialign/tasks/reduce_samples_task.hh>
 
 
+namespace vcf2multialign { namespace detail {
+	void reduce_samples_progress_counter::calculate_step_count(
+		std::size_t const record_count,
+		std::size_t const path_count,
+		std::size_t const merge_tasks
+	)
+	{
+		std::size_t step_count(0);
+	
+		// Handling each variant in read_subgraph_variants_task.
+		// FIXME: this does not take into account generating the paths.
+		m_rsv_steps = record_count;
+		m_step_count += m_rsv_steps;
+	
+		// Calculating the weight of each edge between subgraphs.
+		m_edge_weight_steps = merge_tasks * path_count * path_count;
+		m_step_count += m_edge_weight_steps;
+		
+		// Merging.
+		m_merge_tasks = merge_tasks;
+		m_step_count += m_merge_tasks;
+	}
+}}
+
+
 namespace vcf2multialign {
 	
 	void reduce_samples_task::init_read_subgraph_variants_task(
@@ -117,6 +142,8 @@ namespace vcf2multialign {
 		std::vector <reduced_subgraph::path_index> &&matchings
 	)
 	{
+		m_progress_counter.merge_subgraph_paths_task_did_finish();
+		
 		// As per [container.requirements.dataraces] this should be thread-safe since different
 		// threads may not modify the same element.
 		auto const idx(task.left_subgraph_index());
@@ -129,6 +156,10 @@ namespace vcf2multialign {
 		// side effect in the thread that did a load –– ”
 		if (0 == --m_remaining_merge_tasks)
 		{
+			m_status_logger->finish_logging();
+			m_progress_counter.reset_step_count(m_record_count);
+			
+			m_status_logger->log_message_progress_bar("Writing sequences…");
 			auto task(new sequence_writer_task(
 				*this,
 				*m_status_logger,
@@ -164,6 +195,7 @@ namespace vcf2multialign {
 		}
 		
 		dispatch_group_notify_fn(*group, queue, [this](){
+			m_status_logger->finish_logging();
 			m_delegate->task_did_finish(*this);
 		});
 	}
@@ -294,6 +326,12 @@ namespace vcf2multialign {
 		m_subgraph_bitmap.resize(range_count);
 		m_path_matchings.resize(range_count - 1);
 		m_remaining_merge_tasks = range_count - 1;
+		
+		// Calculate the number of steps.
+		m_progress_counter.calculate_step_count(m_record_count, m_generated_path_count, m_remaining_merge_tasks);
+		
+		// Update status.
+		m_status_logger->log_message_progress_bar("Reducing samples…");
 		
 		// Start each task.
 		std::size_t task_idx(0);

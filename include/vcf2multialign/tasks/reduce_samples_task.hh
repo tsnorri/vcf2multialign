@@ -14,6 +14,38 @@
 #include <vcf2multialign/tasks/task.hh>
 
 
+namespace vcf2multialign { namespace detail {
+	class reduce_samples_progress_counter : public status_logger_delegate
+	{
+	protected:
+		std::atomic_size_t		m_current_step{0};
+		std::size_t				m_step_count{0};
+		
+		// For debugging.
+		std::atomic_size_t		m_rsv_steps{0};
+		std::atomic_size_t		m_edge_weight_steps{0};
+		std::atomic_size_t		m_merge_tasks{0};
+		
+	public:
+		void calculate_step_count(
+			std::size_t const record_count,
+			std::size_t const path_count,
+			std::size_t const merge_task_count
+		);
+		
+		inline void reset_step_count(std::size_t const step_count) { m_current_step = 0; m_step_count = step_count; }
+		
+		inline void read_subgraph_variants_task_did_handle_variant() { ++m_current_step; --m_rsv_steps; }
+		inline void merge_subgraph_paths_task_did_finish() { ++m_current_step; --m_merge_tasks; }
+		inline void merge_subgraph_paths_task_did_calculate_edge_weight() { ++m_current_step; --m_edge_weight_steps; }
+		
+		// status_logger_delegate
+		virtual std::size_t step_count() const override { return m_step_count; }
+		virtual std::size_t current_step() const override { return m_current_step; }
+	};
+}}
+
+
 namespace vcf2multialign {
 	
 	class reduce_samples_task;
@@ -30,8 +62,7 @@ namespace vcf2multialign {
 		public task,
 		public merge_subgraph_paths_task_delegate,
 		public read_subgraph_variants_task_delegate,
-		public sequence_writer_task_delegate,
-		public status_logger_delegate
+		public sequence_writer_task_delegate
 	{
 	public:
 		typedef haplotype_map <channel_ostream>		haplotype_map_type;
@@ -54,6 +85,7 @@ namespace vcf2multialign {
 		haplotype_map_type							m_haplotypes;
 		subgraph_vector::const_iterator				m_subgraph_iterator{};
 		vcf_reader									m_reader;
+		detail::reduce_samples_progress_counter		m_progress_counter;
 		
 		reduce_samples_task_delegate				*m_delegate{nullptr};
 		status_logger								*m_status_logger{nullptr};
@@ -96,7 +128,6 @@ namespace vcf2multialign {
 		):
 			task(),
 			sequence_writer_task_delegate(),
-			status_logger_delegate(),
 			m_semaphore(dispatch_semaphore_create(2 * hw_concurrency)), // FIXME: some other value?
 			m_write_semaphore(dispatch_semaphore_create(2 * hw_concurrency)), // FIXME: arbitrary value.
 			m_path_permutation(generated_path_count),
@@ -117,25 +148,23 @@ namespace vcf2multialign {
 			m_min_path_length(min_path_length),
 			m_should_overwrite_files(should_overwrite_files)
 		{
-			m_status_logger->set_delegate(*this);
+			m_status_logger->set_delegate(m_progress_counter);
 			std::iota(m_path_permutation.begin(), m_path_permutation.end(), 0);
 		}
 		
 		// task
 		virtual void execute() override;
 		
-		// status_logger_delegate
-		virtual std::size_t step_count() const override { return m_record_count; }
-		virtual std::size_t current_step() const override { return 0; } // FIXME return the correct value.
-		
 		// merge_subgraph_paths_task_delegate
 		virtual void task_did_finish(
 			merge_subgraph_paths_task &task,
 			std::vector <reduced_subgraph::path_index> &&matchings
 		) override;
+		virtual void task_did_calculate_edge_weight(merge_subgraph_paths_task &task) override { m_progress_counter.merge_subgraph_paths_task_did_calculate_edge_weight(); }
 		
 		// read_subgraph_variants_task_delegate
 		virtual void task_did_finish(read_subgraph_variants_task &task, reduced_subgraph &&rsg) override;	
+		virtual void task_did_handle_variant(read_subgraph_variants_task &task, variant const &variant) override { m_progress_counter.read_subgraph_variants_task_did_handle_variant(); }
 		
 		// sequence_writer_task_delegate
 		virtual void task_did_finish(sequence_writer_task &task) override;

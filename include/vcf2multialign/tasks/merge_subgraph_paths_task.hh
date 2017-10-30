@@ -22,6 +22,7 @@ namespace vcf2multialign {
 	struct merge_subgraph_paths_task_delegate
 	{
 		virtual ~merge_subgraph_paths_task_delegate() {}
+		virtual void task_did_calculate_edge_weight(merge_subgraph_paths_task &task) {};
 		virtual void task_did_finish(
 			merge_subgraph_paths_task &task,
 			std::vector <reduced_subgraph::path_index> &&matchings

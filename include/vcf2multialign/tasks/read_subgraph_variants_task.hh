@@ -18,6 +18,7 @@ namespace vcf2multialign {
 	struct read_subgraph_variants_task_delegate
 	{
 		virtual void task_did_finish(read_subgraph_variants_task &task, reduced_subgraph &&rsg) = 0;
+		virtual void task_did_handle_variant(read_subgraph_variants_task &task, variant const &variant) = 0;
 	};
 	
 	

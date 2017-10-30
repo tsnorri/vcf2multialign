@@ -30,6 +30,8 @@ namespace vcf2multialign {
 			std::lock_guard <std::mutex> lock_guard(graph_mutex);
 			edge_costs.set(edge, weight);
 		}
+		
+		m_delegate->task_did_calculate_edge_weight(*this);
 	}
 	
 	
