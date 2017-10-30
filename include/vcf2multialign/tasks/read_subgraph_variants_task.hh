@@ -6,6 +6,7 @@
 #ifndef VCF2MULTIALIGN_TASKS_READ_SUBGRAPH_VARIANTS_TASK_HH
 #define VCF2MULTIALIGN_TASKS_READ_SUBGRAPH_VARIANTS_TASK_HH
 
+#include <sdsl/bits.hpp>
 #include <vcf2multialign/reduced_subgraph.hh>
 #include <vcf2multialign/tasks/parsing_task.hh>
 
@@ -27,8 +28,17 @@ namespace vcf2multialign {
 		public parsing_task_vh
 	{
 	protected:
+		struct sequence
+		{
+			reduced_subgraph::sequence_type		sequence_vector;
+			std::size_t							position{0};
+		};
+		
+		typedef std::map <sample_id, sequence>	sequence_map;
+		
+	protected:
 		read_subgraph_variants_task_delegate	*m_delegate{nullptr};
-		reduced_subgraph::sequence_map			m_sequences_by_sample;		// Used only in the first phase (before finish()).
+		sequence_map							m_sequences_by_sample;		// Used only in the first phase (before finish()).
 		
 		// End co-ordinate of the REF sequence in each sample.
 		// Used only in the first phase (before finish()).
@@ -37,6 +47,7 @@ namespace vcf2multialign {
 		std::size_t								m_generated_path_count{0};
 		std::size_t								m_start_lineno{0};
 		std::size_t								m_variant_count{0};
+		std::size_t								m_alt_field_width{0};
 		
 	public:
 		read_subgraph_variants_task() = default;
@@ -73,7 +84,8 @@ namespace vcf2multialign {
 			m_task_idx(task_idx),
 			m_generated_path_count(generated_path_count),
 			m_start_lineno(start_lineno),
-			m_variant_count(variant_count)
+			m_variant_count(variant_count),
+			m_alt_field_width(1 << sdsl::bits::hi(checker.max_alt_field_size()))
 		{
 		}
 		

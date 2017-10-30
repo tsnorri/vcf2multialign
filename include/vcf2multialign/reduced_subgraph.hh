@@ -11,6 +11,7 @@
 #include <boost/bimap/set_of.hpp>
 #include <boost/format.hpp>
 #include <map>
+#include <sdsl/int_vector.hpp>
 #include <set>
 #include <vcf2multialign/util.hh>
 
@@ -50,13 +51,8 @@ namespace vcf2multialign {
 	class reduced_subgraph
 	{
 	public:
-		typedef std::vector <bool> sequence_type;
+		typedef sdsl::int_vector <0> sequence_type;
 		
-		typedef std::map <
-			sample_id,
-			sequence_type
-		> sequence_map;
-
 		typedef std::set <sample_id> sample_id_set;
 		
 		typedef uint16_t sequence_index;	// FIXME: could be uint8_t?

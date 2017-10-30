@@ -38,7 +38,6 @@ namespace vcf2multialign {
 				bool const is_phased
 			) {
 				always_assert(0 == chr_idx || is_phased, "Variant file not phased");
-				always_assert(alt_idx <= 1); // FIXME: the maximum should be determined by checking the file before this step. Make use of int_vector from https://github.com/xxsds/sdsl-lite and use ceil(log2(max_chr_idx)) for the size.
 				
 				// If there is a variant, check that it does not overlap
 				// with the co-ordinates of a previous variant in
@@ -63,13 +62,15 @@ namespace vcf2multialign {
 				auto it(m_sequences_by_sample.find(sid));
 				if (m_sequences_by_sample.cend() == it)
 				{
-					auto &vec(m_sequences_by_sample[sid]);
-					vec.reserve(m_variant_count);
-					vec.emplace_back(alt_idx);
+					auto &seq(m_sequences_by_sample[sid]);
+					seq.sequence_vector.width(m_alt_field_width);
+					seq.sequence_vector.resize(m_variant_count);
+					seq.sequence_vector[seq.position++] = alt_idx;
 				}
 				else
 				{
-					it->second.emplace_back(alt_idx);
+					auto &seq(it->second);
+					seq.sequence_vector[seq.position++] = alt_idx;
 				}
 				
 				++i;
@@ -99,8 +100,8 @@ namespace vcf2multialign {
 		while (m_sequences_by_sample.size())
 		{
 			auto it(m_sequences_by_sample.begin());
-			auto &vec(it->second);
-			samples_by_sequence[std::move(vec)].emplace(it->first);
+			auto &seq(it->second);
+			samples_by_sequence[std::move(seq.sequence_vector)].emplace(it->first);
 		}
 		
 		std::size_t const unique_sequence_count(samples_by_sequence.size());
