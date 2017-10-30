@@ -16,24 +16,15 @@
 
 namespace vcf2multialign {
 	
-	class merge_subgraph_paths_task;
-	
-	
-	struct merge_subgraph_paths_task_delegate
-	{
-		virtual ~merge_subgraph_paths_task_delegate() {}
-		virtual void task_did_calculate_edge_weight(merge_subgraph_paths_task &task) {};
-		virtual void task_did_finish(
-			merge_subgraph_paths_task &task,
-			std::vector <reduced_subgraph::path_index> &&matchings
-		) = 0;
-	};
+	struct merge_subgraph_paths_task_delegate;
 	
 	
 	class merge_subgraph_paths_task : public task
 	{
-	protected:
+	public:
 		typedef int32_t																weight_type;
+		
+	protected:
 		typedef lemon::FullBpGraph													graph_type;
 		typedef graph_type::EdgeMap <int32_t>										edge_cost_map_type;
 		typedef lemon::MaxWeightedPerfectMatching <graph_type, edge_cost_map_type>	matching_type;	// No bipartite algorithms in Lemon 1.3.1.
@@ -79,11 +70,23 @@ namespace vcf2multialign {
 			std::size_t const ri
 		);
 			
-		void find_minimum_cost_matching(
+		weight_type find_minimum_cost_matching(
 			graph_type const &graph,
 			edge_cost_map_type const &edge_costs,
 			std::vector <reduced_subgraph::path_index> &matchings
 		);
+	};
+	
+	
+	struct merge_subgraph_paths_task_delegate
+	{
+		virtual ~merge_subgraph_paths_task_delegate() {}
+		virtual void task_did_calculate_edge_weight(merge_subgraph_paths_task &task) {};
+		virtual void task_did_finish(
+			merge_subgraph_paths_task &task,
+			std::vector <reduced_subgraph::path_index> &&matchings,
+			merge_subgraph_paths_task::weight_type const matching_weight
+		) = 0;
 	};
 }
 

@@ -35,17 +35,16 @@ namespace vcf2multialign {
 	}
 	
 	
-	void merge_subgraph_paths_task::find_minimum_cost_matching(
+	auto merge_subgraph_paths_task::find_minimum_cost_matching(
 		graph_type const &graph,
 		edge_cost_map_type const &edge_costs,
 		std::vector <reduced_subgraph::path_index> &matchings
-	)
+	) -> weight_type
 	{
 		matching_type matching(graph, edge_costs);
 		matching.run();
 
 		// Iterate red nodes in the graph, find their mates and store the pairs in target_paths.
-		// FIXME: Do something with matching_weight?
 		auto const matching_weight(matching.matchingWeight());
 		for (std::size_t i(0), count(graph.redNum()); i < count; ++i)
 		{
@@ -62,6 +61,8 @@ namespace vcf2multialign {
 			always_assert(ri < matchings.size());
 			matchings[li] = ri;
 		}
+		
+		return matching_weight;
 	}
 	
 	
@@ -100,9 +101,9 @@ namespace vcf2multialign {
 		);
 
 		dispatch_semaphore_wait(*m_semaphore, DISPATCH_TIME_FOREVER);
-		find_minimum_cost_matching(graph, edge_costs, matchings);
+		auto const matching_weight(find_minimum_cost_matching(graph, edge_costs, matchings));
 		dispatch_semaphore_signal(*m_semaphore);
 		
-		m_delegate->task_did_finish(*this, std::move(matchings));
+		m_delegate->task_did_finish(*this, std::move(matchings), matching_weight);
 	}
 }

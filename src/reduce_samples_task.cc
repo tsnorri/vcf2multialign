@@ -139,10 +139,12 @@ namespace vcf2multialign {
 	
 	void reduce_samples_task::task_did_finish(
 		merge_subgraph_paths_task &task,
-		std::vector <reduced_subgraph::path_index> &&matchings
+		std::vector <reduced_subgraph::path_index> &&matchings,
+		merge_subgraph_paths_task::weight_type const matching_weight
 	)
 	{
 		m_progress_counter.merge_subgraph_paths_task_did_finish();
+		m_matching_weight += matching_weight;
 		
 		// As per [container.requirements.dataraces] this should be thread-safe since different
 		// threads may not modify the same element.
@@ -158,6 +160,10 @@ namespace vcf2multialign {
 		{
 			m_status_logger->finish_logging();
 			m_progress_counter.reset_step_count(m_alt_checker->records_with_valid_alts());
+			
+			m_status_logger->log([weight = std::size_t(m_matching_weight)](){
+				std::cerr << "Total matching weight was " << weight << '.' << std::endl;
+			});
 			
 			m_status_logger->log_message_progress_bar("Writing sequences…");
 			auto task(new sequence_writer_task(

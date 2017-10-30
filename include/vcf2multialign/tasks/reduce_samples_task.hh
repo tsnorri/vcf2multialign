@@ -72,6 +72,10 @@ namespace vcf2multialign {
 				reduced_subgraph::path_index
 			>
 		>											path_matchings_type;
+		typedef std::atomic <
+			merge_subgraph_paths_task::weight_type
+		>											atomic_weight_type;
+		
 		
 	protected:
 		dispatch_ptr <dispatch_semaphore_t>			m_semaphore{};	// FIXME: make use of this.
@@ -98,6 +102,7 @@ namespace vcf2multialign {
 		boost::optional <std::string> const			*m_out_reference_fname{nullptr};
 		sv_handling									m_sv_handling_method{};
 		std::atomic_size_t							m_remaining_merge_tasks{0};
+		atomic_weight_type							m_matching_weight{0};
 		std::size_t									m_record_count{0};
 		std::size_t									m_generated_path_count{0};
 		std::size_t									m_sample_ploidy_sum{0};
@@ -158,7 +163,8 @@ namespace vcf2multialign {
 		// merge_subgraph_paths_task_delegate
 		virtual void task_did_finish(
 			merge_subgraph_paths_task &task,
-			std::vector <reduced_subgraph::path_index> &&matchings
+			std::vector <reduced_subgraph::path_index> &&matchings,
+			merge_subgraph_paths_task::weight_type const matching_weight
 		) override;
 		virtual void task_did_calculate_edge_weight(merge_subgraph_paths_task &task) override { m_progress_counter.merge_subgraph_paths_task_did_calculate_edge_weight(); }
 		
