@@ -11,7 +11,7 @@
 
 namespace vcf2multialign { namespace detail {
 	void reduce_samples_progress_counter::calculate_step_count(
-		std::size_t const record_count,
+		std::size_t const valid_record_count,
 		std::size_t const path_count,
 		std::size_t const merge_tasks
 	)
@@ -20,7 +20,7 @@ namespace vcf2multialign { namespace detail {
 	
 		// Handling each variant in read_subgraph_variants_task.
 		// FIXME: this does not take into account generating the paths.
-		m_rsv_steps = record_count;
+		m_rsv_steps = valid_record_count;
 		m_step_count += m_rsv_steps;
 	
 		// Calculating the weight of each edge between subgraphs.
@@ -157,7 +157,7 @@ namespace vcf2multialign {
 		if (0 == --m_remaining_merge_tasks)
 		{
 			m_status_logger->finish_logging();
-			m_progress_counter.reset_step_count(m_record_count);
+			m_progress_counter.reset_step_count(m_alt_checker->records_with_valid_alts());
 			
 			m_status_logger->log_message_progress_bar("Writing sequences…");
 			auto task(new sequence_writer_task(
@@ -304,19 +304,43 @@ namespace vcf2multialign {
 			auto const buffer_start(m_reader.buffer_start());
 			auto const buffer_end(m_reader.buffer_end());
 			auto current_start(buffer_start);
-			std::size_t current_lineno(1 + m_reader.last_header_lineno());
+			std::size_t current_start_lineno(1 + m_reader.last_header_lineno());
+			std::size_t current_lineno(current_start_lineno);	// Points to the last line that was checked for valid alts.
+			std::size_t current_range_variant_count(0);
 		
 			for (auto const &kv : *m_subgraph_starting_points)
 			{
-				auto const subgraph_start(kv.first);
+				auto const next_subgraph_start(kv.first);
 				auto const var_lineno(kv.second);
-			
-				if (m_min_path_length <= subgraph_start - current_start)
-					graph_ranges.emplace_back(current_start, subgraph_start, current_lineno, var_lineno - current_lineno);
+				
+				// Check how many variants in the current range may be handled.
+				while (current_lineno < var_lineno)
+				{
+					// valid_alts() is O(1).
+					if (m_alt_checker->valid_alts(current_lineno).size())
+						++current_range_variant_count;
+					
+					++current_lineno;
+				}
+				
+				if (m_min_path_length <= current_range_variant_count)
+				{
+					graph_ranges.emplace_back(current_start, next_subgraph_start, current_start_lineno, current_range_variant_count);
+					current_range_variant_count = 0;
+					current_start = next_subgraph_start;
+				}
 			}
 		
 			// Add the final graph_range to cover the remaining range.
-			graph_ranges.emplace_back(current_start, buffer_end, current_lineno, m_record_count - current_lineno);
+			auto const last_lineno(m_record_count + m_reader.last_header_lineno());
+			while (current_lineno <= last_lineno)
+			{
+				if (m_alt_checker->valid_alts(current_lineno).size())
+					++current_range_variant_count;
+				
+				++current_lineno;
+			}
+			graph_ranges.emplace_back(current_start, buffer_end, current_lineno, current_range_variant_count);
 		}
 		
 		// Allocate enough space for subgraphs.
@@ -328,7 +352,7 @@ namespace vcf2multialign {
 		m_remaining_merge_tasks = range_count - 1;
 		
 		// Calculate the number of steps.
-		m_progress_counter.calculate_step_count(m_record_count, m_generated_path_count, m_remaining_merge_tasks);
+		m_progress_counter.calculate_step_count(m_alt_checker->records_with_valid_alts(), m_generated_path_count, m_remaining_merge_tasks);
 		
 		// Update status.
 		m_status_logger->log_message_progress_bar("Reducing samples…");

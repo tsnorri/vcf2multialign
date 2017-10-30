@@ -28,7 +28,7 @@ namespace vcf2multialign { namespace detail {
 		
 	public:
 		void calculate_step_count(
-			std::size_t const record_count,
+			std::size_t const valid_record_count,
 			std::size_t const path_count,
 			std::size_t const merge_task_count
 		);
