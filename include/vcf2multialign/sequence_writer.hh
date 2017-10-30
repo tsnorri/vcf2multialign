@@ -15,16 +15,12 @@
 
 namespace vcf2multialign {
 	
-	struct sequence_writer_delegate
+	// Non-templated part since enumerate_sample_genotypes needs the correct variant type.
+	struct sequence_writer_delegate_base
 	{
 		virtual std::vector <uint8_t> const &valid_alts(std::size_t const lineno) const = 0;
 		virtual bool is_valid_alt(std::size_t const lineno, uint8_t const alt_idx) const = 0;
 		
-		virtual void enumerate_sample_genotypes(
-			variant const &var,
-			std::function <void(std::size_t, uint8_t, uint8_t, bool)> const &cb	// sample_no, chr_idx, alt_idx, is_phased
-		) = 0;
-			
 		virtual void assigned_alt_to_sequence(std::size_t const alt_idx) = 0;
 		virtual void found_overlapping_alt(
 			std::size_t const lineno,
@@ -34,6 +30,16 @@ namespace vcf2multialign {
 		) = 0;
 		virtual void handled_alt(std::size_t const alt_idx) = 0;
 		virtual void handled_haplotypes(variant_base const &var) = 0;
+	};
+	
+	
+	template <typename t_variant>
+	struct sequence_writer_delegate : public virtual sequence_writer_delegate_base
+	{
+		virtual void enumerate_sample_genotypes(
+			t_variant const &var,
+			std::function <void(std::size_t, uint8_t, uint8_t, bool)> const &cb	// sample_no, chr_idx, alt_idx, is_phased
+		) = 0;
 	};
 	
 	
@@ -100,7 +106,7 @@ namespace vcf2multialign {
 	};
 	
 	
-	template <typename t_ostream>
+	template <typename t_ostream, typename t_variant>
 	class sequence_writer
 	{
 	protected:
@@ -112,7 +118,7 @@ namespace vcf2multialign {
 		typedef alt_map <t_ostream>						alt_map_type;
 		
 	protected:
-		sequence_writer_delegate						*m_delegate{};
+		sequence_writer_delegate <t_variant>			*m_delegate{};
 		
 		vector_type	const								*m_reference{};
 
@@ -135,21 +141,16 @@ namespace vcf2multialign {
 		{
 		}
 		
-		void set_delegate(sequence_writer_delegate &delegate) { m_delegate = &delegate; }
+		void set_delegate(sequence_writer_delegate <t_variant> &delegate) { m_delegate = &delegate; }
 		
 		void prepare(haplotype_map_type &haplotypes);
-		void handle_variant(variant const &var);
-		void handle_variant(transient_variant const &var);
+		void handle_variant(t_variant const &var);
 		void finish();
 		
 	protected:
 		void fill_streams(haplotype_ptr_map_type &haplotypes, size_t const fill_amt) const;
 		void output_reference(std::size_t const output_start_pos, std::size_t const output_end_pos);
 		std::size_t process_overlap_stack(size_t const var_pos);
-		
-	private:
-		template <typename t_variant>
-		void handle_variant_2(t_variant const &var);
 	};
 }
 

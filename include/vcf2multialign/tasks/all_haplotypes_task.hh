@@ -26,11 +26,11 @@ namespace vcf2multialign {
 		public parsing_task_vh,
 		public variant_stats,
 		public status_logger_delegate,
-		public virtual sequence_writer_delegate
+		public sequence_writer_delegate <variant>
 	{
 	public:
 		typedef haplotype_map <file_ostream>				haplotype_map_type;
-		typedef sequence_writer <file_ostream>				sequence_writer_type;
+		typedef sequence_writer <file_ostream, variant>		sequence_writer_type;
 		
 	protected:
 		all_haplotypes_task_delegate						*m_delegate{nullptr};

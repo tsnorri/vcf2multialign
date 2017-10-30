@@ -27,12 +27,15 @@ namespace vcf2multialign {
 	};
 	
 	
-	class sequence_writer_task : public parsing_task, public variant_stats
+	class sequence_writer_task :
+		public parsing_task,
+		public variant_stats,
+		public sequence_writer_delegate <variant>
 	{
 	protected:
-		sequence_writer <channel_ostream>	m_sequence_writer;
-		sequence_writer_task_delegate		*m_delegate{nullptr};
-		alt_checker const					*m_alt_checker{nullptr};
+		sequence_writer <channel_ostream, variant>	m_sequence_writer;
+		sequence_writer_task_delegate				*m_delegate{nullptr};
+		alt_checker const							*m_alt_checker{nullptr};
 		
 	public:
 		sequence_writer_task(

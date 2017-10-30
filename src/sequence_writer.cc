@@ -38,8 +38,8 @@ namespace {
 namespace vcf2multialign {
 	
 	// Fill the streams with '-'.
-	template <typename t_ostream>
-	void sequence_writer <t_ostream>::fill_streams(haplotype_ptr_map_type &haplotypes, size_t const fill_amt) const
+	template <typename t_ostream, typename t_variant>
+	void sequence_writer <t_ostream, t_variant>::fill_streams(haplotype_ptr_map_type &haplotypes, size_t const fill_amt) const
 	{
 		for (auto &kv : haplotypes)
 		{
@@ -56,8 +56,8 @@ namespace vcf2multialign {
 
 	
 	// Fill the streams with reference.
-	template <typename t_ostream>
-	void sequence_writer <t_ostream>::output_reference(std::size_t const output_start_pos, std::size_t const output_end_pos)
+	template <typename t_ostream, typename t_variant>
+	void sequence_writer <t_ostream, t_variant>::output_reference(std::size_t const output_start_pos, std::size_t const output_end_pos)
 	{
 		if (output_start_pos == output_end_pos)
 			return;
@@ -83,8 +83,8 @@ namespace vcf2multialign {
 	}
 
 	
-	template <typename t_ostream>
-	std::size_t sequence_writer <t_ostream>::process_overlap_stack(size_t const var_pos)
+	template <typename t_ostream, typename t_variant>
+	std::size_t sequence_writer <t_ostream, t_variant>::process_overlap_stack(size_t const var_pos)
 	{
 		std::size_t retval(0);
 		while (true)
@@ -197,9 +197,8 @@ namespace vcf2multialign {
 	}
 	
 	
-	template <typename t_ostream>
-	template <typename t_variant>
-	void sequence_writer <t_ostream>::handle_variant_2(t_variant const &var)
+	template <typename t_ostream, typename t_variant>
+	void sequence_writer <t_ostream, t_variant>::handle_variant(t_variant const &var)
 	{
 		auto const var_pos(var.zero_based_pos());
 		auto const lineno(var.lineno());
@@ -367,22 +366,8 @@ namespace vcf2multialign {
 	}
 	
 	
-	template <typename t_ostream>
-	void sequence_writer <t_ostream>::handle_variant(variant const &var)
-	{
-		handle_variant_2(var);
-	}
-	
-	
-	template <typename t_ostream>
-	void sequence_writer <t_ostream>::handle_variant(transient_variant const &var)
-	{
-		handle_variant_2(var);
-	}
-	
-	
-	template <typename t_ostream>
-	void sequence_writer <t_ostream>::prepare(haplotype_map_type &all_haplotypes)
+	template <typename t_ostream, typename t_variant>
+	void sequence_writer <t_ostream, t_variant>::prepare(haplotype_map_type &all_haplotypes)
 	{
 		while (!m_overlap_stack.empty())
 			m_overlap_stack.pop();
@@ -406,8 +391,8 @@ namespace vcf2multialign {
 	}
 	
 	
-	template <typename t_ostream>
-	void sequence_writer <t_ostream>::finish()
+	template <typename t_ostream, typename t_variant>
+	void sequence_writer <t_ostream, t_variant>::finish()
 	{
 		// Fill the remaining part with reference.
 		std::cerr << "Filling with the reference…" << std::endl;
@@ -426,6 +411,8 @@ namespace vcf2multialign {
 	}
 	
 	// Explicit instantiation.
-	template class sequence_writer <file_ostream>;
-	template class sequence_writer <channel_ostream>;
+	template class sequence_writer <file_ostream, variant>;
+	template class sequence_writer <file_ostream, transient_variant>;
+	template class sequence_writer <channel_ostream, variant>;
+	template class sequence_writer <channel_ostream, transient_variant>;
 }

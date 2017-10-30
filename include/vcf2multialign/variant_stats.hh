@@ -17,7 +17,7 @@ namespace vcf2multialign {
 	class error_logger;
 	
 	
-	class variant_stats : public virtual sequence_writer_delegate
+	class variant_stats : public virtual sequence_writer_delegate_base
 	{
 	protected:
 		variant_set							m_overlapping_alts;
@@ -31,7 +31,7 @@ namespace vcf2multialign {
 
 		void handle_variant(variant_base const &var);
 		
-		// sequence_writer_delegate
+		// sequence_writer_delegate_base
 		virtual void assigned_alt_to_sequence(std::size_t const alt_idx) override;
 		virtual void found_overlapping_alt(
 			std::size_t const lineno,
