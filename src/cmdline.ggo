@@ -16,18 +16,18 @@ Instead of writing each complete haplotype sequence, the samples may also be red
 #Since the generated sequences are not written to disk, sample reduction can require a lot of memory."
 
 section "Input and output options"
-option	"reference"				r	"Reference FASTA file path"													string	typestr = "filename"														required
-option	"variants"				a	"Variant call file path"													string	typestr = "filename"														required
-option	"output-reference"		-	"Output multiply-aligned reference"											string	typestr = "filename"														optional
+option	"reference"				r	"Reference FASTA file path"													string	typestr = "FILENAME"														required
+option	"variants"				a	"Variant call file path"													string	typestr = "FILENAME"														required
+option	"output-reference"		-	"Output multiply-aligned reference"											string	typestr = "FILENAME"														optional
 option	"overwrite"				-	"Overwrite output files"													flag	off
-option	"chunk-size"			-	"Number of samples to be processed in one pass"								long	typestr = "size" default = "500"											optional
-option	"report-file"			-	"Write skipped variants to the given file"									string	typestr = "filename"														optional
+option	"chunk-size"			-	"Number of samples to be processed in one pass"								long	typestr = "SIZE"	default = "500"											optional
+option	"report-file"			-	"Write skipped variants to the given file"									string	typestr = "FILENAME"														optional
 option	"print-invocation"		-	"Output the invocation"														flag	off
 
 section "Input processing"
-option	"null-allele-seq"		-	"Sequence to be used for null alleles"										string	typestr = "seq"	default = "N"												optional
+option	"null-allele-seq"		-	"Sequence to be used for null alleles"										string	typestr = "SEQ"		default = "N"											optional
 option	"no-check-ref"			-	"Omit comparing the reference to the REF column"							flag	off
-option	"structural-variants"	-	"Structural variant handling"														typestr = "mode"	values = "discard", "keep" default = "discard"	enum	optional
+option	"structural-variants"	-	"Structural variant handling"														typestr = "MODE"	values = "discard", "keep" default = "discard"	enum	optional
 
 #section "Sample reduction"
 #option	"reduce-samples"		-	"Reduce the number of samples to a minimum as described above"				flag	off
@@ -36,5 +36,5 @@ option	"structural-variants"	-	"Structural variant handling"														typest
 
 section "Sample reduction"
 option	"reduce-samples"		-	"Reduce the number of samples as described above"							flag	off
-option	"min-path-length"		-	"Minimum path length in a subgraph. Specify 0 for n^(1/2)"					int		default = "0"	dependon = "reduce-samples"									optional
-option	"generated-path-count"	-	"Number of generated paths"													int						dependon = "reduce-samples"									optional
+option	"min-path-length"		-	"Minimum path length in a subgraph. Specify 0 for n^(1/2)"					int		typestr = "LENGTH"	default = "0"	dependon = "reduce-samples"				optional
+option	"generated-path-count"	-	"Number of generated paths"													int		typestr = "COUNT"					dependon = "reduce-samples"				optional
