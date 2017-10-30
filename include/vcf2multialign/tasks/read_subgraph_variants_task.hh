@@ -94,8 +94,6 @@ namespace vcf2multialign {
 			reduced_subgraph::sample_bimap const &samples_by_sequence_idx,
 			reduced_subgraph::path_map &generated_paths,
 			reduced_subgraph::path_eq_map &generated_paths_eq
-			//path_bimap &generated_paths,
-			//path_eq_bimap &generated_paths_eq
 		);
 	};
 }
