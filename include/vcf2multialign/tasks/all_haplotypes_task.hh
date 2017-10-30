@@ -18,6 +18,7 @@ namespace vcf2multialign {
 	
 	struct all_haplotypes_task_delegate
 	{
+		virtual ~all_haplotypes_task_delegate() {}
 		virtual void task_did_finish(all_haplotypes_task &task) = 0;
 	};
 	

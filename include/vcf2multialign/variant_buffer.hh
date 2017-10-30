@@ -19,6 +19,7 @@ namespace vcf2multialign {
 	
 	struct variant_buffer_delegate
 	{
+		virtual ~variant_buffer_delegate() {}
 		virtual void handle_variant(variant &variant) = 0;
 		virtual void finish() = 0;
 	};

@@ -18,6 +18,8 @@ namespace vcf2multialign {
 	
 	struct sequence_writer_task_delegate
 	{
+		virtual ~sequence_writer_task_delegate() {}
+		
 		virtual void task_did_finish(sequence_writer_task &task) = 0;
 		
 		virtual void enumerate_sample_genotypes(

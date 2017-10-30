@@ -18,6 +18,8 @@ namespace vcf2multialign {
 	// Non-templated part since enumerate_sample_genotypes needs the correct variant type.
 	struct sequence_writer_delegate_base
 	{
+		virtual ~sequence_writer_delegate_base() {}
+		
 		virtual std::vector <uint8_t> const &valid_alts(std::size_t const lineno) const = 0;
 		virtual bool is_valid_alt(std::size_t const lineno, uint8_t const alt_idx) const = 0;
 		
@@ -36,6 +38,8 @@ namespace vcf2multialign {
 	template <typename t_variant>
 	struct sequence_writer_delegate : public virtual sequence_writer_delegate_base
 	{
+		virtual ~sequence_writer_delegate() {}
+		
 		virtual void enumerate_sample_genotypes(
 			t_variant const &var,
 			std::function <void(std::size_t, uint8_t, uint8_t, bool)> const &cb	// sample_no, chr_idx, alt_idx, is_phased

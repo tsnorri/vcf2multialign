@@ -16,6 +16,7 @@ namespace vcf2multialign {
 	
 	struct vcf_input
 	{
+		virtual ~vcf_input() = 0;
 		virtual bool getline(std::string_view &dst) = 0;
 		virtual void store_first_variant_offset() = 0;
 		virtual void reset_to_first_variant_offset() {}
@@ -36,6 +37,8 @@ namespace vcf2multialign {
 			m_buffer(128, '\0')
 		{
 		}
+		
+		virtual ~vcf_stream_input_base() = 0;
 	
 		virtual bool getline(std::string_view &dst) override;
 		virtual void store_first_variant_offset() override;

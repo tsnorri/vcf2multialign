@@ -18,6 +18,7 @@ namespace vcf2multialign {
 	
 	struct preparation_task_delegate
 	{
+		virtual ~preparation_task_delegate() {}
 		virtual void task_did_finish(preparation_task &task) = 0;
 	};
 	

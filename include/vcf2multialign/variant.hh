@@ -141,6 +141,8 @@ namespace vcf2multialign {
 			copy_vectors(other);
 		}
 		
+		virtual ~variant_tpl() {}
+		
 		template <typename t_other_string>
 		bool operator==(variant_tpl <t_other_string> const &other) const;
 		

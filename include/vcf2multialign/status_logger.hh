@@ -16,6 +16,7 @@ namespace vcf2multialign {
 	
 	struct status_logger_delegate
 	{
+		virtual ~status_logger_delegate() {}
 		virtual std::size_t step_count() const = 0;
 		virtual std::size_t current_step() const = 0;
 	};

@@ -97,6 +97,8 @@ namespace vcf2multialign {
 		{
 		}
 		
+		virtual ~parsing_task() {}
+		
 		parsing_task &operator=(parsing_task const &other) &
 		{
 			parsing_task_base::operator=(other);
@@ -145,6 +147,8 @@ namespace vcf2multialign {
 		{
 			m_variant_handler.set_delegate(*this);
 		}
+		
+		virtual ~parsing_task_vh_base() {}
 	};
 	
 	
@@ -171,6 +175,8 @@ namespace vcf2multialign {
 		{
 			finish_copy_or_move();
 		}
+		
+		virtual ~parsing_task_vh() {}
 		
 		parsing_task_vh &operator=(parsing_task_vh const &other) &
 		{
