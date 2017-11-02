@@ -13,6 +13,7 @@
 #include <map>
 #include <sdsl/int_vector.hpp>
 #include <set>
+#include <vcf2multialign/dispatch_fn.hh>
 #include <vcf2multialign/util.hh>
 
 
@@ -46,10 +47,17 @@ namespace vcf2multialign {
 	
 	static_assert(4 == sizeof(sample_id));
 	
+	inline std::ostream &operator<<(std::ostream &os, sample_id const &sid)
+	{
+		return os << '(' << sid.sample << ", " << (int) sid.chr << ')';
+	}
+	
 	
 	// FIXME: everything that uses consecutive indices here should be replaced with std::vectors or bimaps with vector views for O(1) random access.
 	class reduced_subgraph
 	{
+		friend std::ostream &operator<<(std::ostream &, reduced_subgraph const &);
+		
 	public:
 		typedef sdsl::int_vector <0> sequence_type;
 		
@@ -66,8 +74,8 @@ namespace vcf2multialign {
 		// Instead, we store the equivalence class (sequence index) of each path and use this container
 		// to compare.
 		typedef boost::bimap <
-			boost::bimaps::set_of <sequence_index>,
-			boost::bimaps::multiset_of <sample_id>
+			boost::bimaps::multiset_of <sequence_index>,
+			boost::bimaps::set_of <sample_id>
 		> sample_bimap;
 		
 		// Map generated path indices <->> sample id.
@@ -134,13 +142,27 @@ namespace vcf2multialign {
 		bool path_sequence_index(path_index const &path_idx, sequence_index /* out */ &seq_idx) const
 		{
 			auto const seq_it(m_generated_paths_eq.find(path_idx));
-			if (m_generated_paths_eq.cend() != seq_it)
+			if (m_generated_paths_eq.cend() == seq_it)
 				return false;
 			
 			seq_idx = seq_it->second;
 			return true;
 		}
 	};
+	
+	
+	inline std::ostream &operator<<(std::ostream &os, reduced_subgraph const &sg)
+	{
+		std::size_t const count(sg.m_sequences[0].size());
+		for (std::size_t i(0); i < count; ++i)
+		{
+			for (auto const &seq : sg.m_sequences)
+				os << '\t' << seq[i];
+			os << std::endl;
+		}
+		return os;
+	}
+	
 	
 	std::size_t edge_weight(
 		reduced_subgraph const &lhs,
