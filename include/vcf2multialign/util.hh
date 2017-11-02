@@ -6,6 +6,7 @@
 #ifndef VCF2MULTIALIGN_UTIL_HH
 #define VCF2MULTIALIGN_UTIL_HH
 
+#include <boost/iterator/iterator_facade.hpp>
 #include <iostream>
 
 
@@ -96,6 +97,64 @@ namespace vcf2multialign {
 	
 	// Calculate the printed length of a UTF-8 string by checking the first two bits of each byte.
 	std::size_t strlen_utf8(std::string const &str);
+	
+	
+	// Make a call to finish_copy_or_move() after using std::move() or similar.
+	template <typename t_owner>
+	class move_guard
+	{
+	protected:
+		t_owner *m_owner{nullptr};
+		
+	public:
+		move_guard() = default;
+		move_guard(t_owner &owner): m_owner(&owner) {}
+		move_guard(move_guard const &) = delete;
+		move_guard(move_guard &&) = delete;
+		
+		move_guard &operator=(move_guard &&other) &
+		{
+			m_owner->finish_copy_or_move();
+			return *this;
+		}
+		
+		move_guard &operator=(move_guard const &other) &
+		{
+			m_owner->finish_copy_or_move();
+			return *this;
+		}
+	};
+	
+	
+	template <typename t_item>
+	class infix_ostream_fn
+	{
+	protected:
+		std::ostream	*m_ostream{nullptr};
+		char const		m_delim{0};
+		bool			m_first_item{true};
+		
+	public:
+		infix_ostream_fn() = default;
+		
+		infix_ostream_fn(
+			std::ostream &stream,
+			char const delim
+		):
+			m_ostream(&stream),
+			m_delim(delim)
+		{
+		}
+		
+		void operator()(t_item const &item)
+		{
+			if (!m_first_item)
+				*m_ostream << m_delim;
+			
+			*m_ostream << item;
+			m_first_item = false;
+		}
+	};
 }
 
 #endif
