@@ -66,4 +66,20 @@ namespace vcf2multialign {
 		m_chrom_id.clear();
 		m_ref.clear();
 	}
+	
+	
+	std::ostream &operator<<(std::ostream &os, sample_field const &sample_field)
+	{
+		bool is_first(true);
+		for (auto const &gt_field : sample_field.get_genotype())
+		{
+			if (!is_first)
+				os << (gt_field.is_phased ? '|' : '/');
+			
+			is_first = false;
+			os << gt_field.alt;
+		}
+		
+		return os;
+	}
 }

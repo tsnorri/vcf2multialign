@@ -6,6 +6,7 @@
 #ifndef VCF2MULTIALIGN_VARIANT_HH
 #define VCF2MULTIALIGN_VARIANT_HH
 
+#include <boost/function_output_iterator.hpp>
 #include <vcf2multialign/cxx_compat.hh>
 #include <vcf2multialign/types.hh>
 #include <vcf2multialign/util.hh>
@@ -99,8 +100,9 @@ namespace vcf2multialign {
 
 		std::size_t variant_index() const								{ return m_variant_index; }
 		size_t lineno() const											{ return m_lineno; }
-		size_t pos() const												{ return m_pos; };
+		size_t pos() const												{ return m_pos; }
 		size_t zero_based_pos() const;
+		std::size_t qual() const										{ return m_qual; }
 		std::vector <sv_type> const &alt_sv_types() const				{ return m_alt_sv_types; }
 		sample_field const &sample(std::size_t const sample_idx) const	{ always_assert(sample_idx <= m_sample_count); return m_samples.at(sample_idx); }
 		std::vector <sample_field> const &samples() const { return m_samples; }
@@ -154,6 +156,8 @@ namespace vcf2multialign {
 		variant_tpl &operator=(variant_tpl <t_other_string> const &other);
 		
 		std::vector <t_string> const &alts() const	{ return m_alts; }
+		std::vector <t_string> const &ids() const	{ return m_id; }
+		t_string const &chrom_id() const			{ return m_chrom_id; }
 		t_string const &ref() const					{ return m_ref; }
 		
 		void reset() { variant_base::reset(); m_alts.clear(); m_id.clear(); };
@@ -162,6 +166,45 @@ namespace vcf2multialign {
 		void set_id(std::string_view const &id, std::size_t const pos);
 		void set_alt(std::string_view const &alt, std::size_t const pos, bool const is_complex);
 	};
+	
+	
+	std::ostream &operator<<(std::ostream &os, sample_field const &sample_field);
+	
+	
+	template <typename t_string>
+	std::ostream &operator<<(std::ostream &os, variant_tpl <t_string> const &var)
+	{
+		// Lineno, CHROM and POS
+		os << var.lineno() << ':' << var.chrom_id() << '\t' << var.pos() << '\t';
+		
+		// ID
+		auto const &ids(var.ids());
+		std::copy(
+			ids.begin(),
+			ids.end(),
+			boost::make_function_output_iterator(infix_ostream_fn <t_string>(os, ','))
+		);
+		
+		// REF
+		os << '\t' << var.ref() << '\t';
+		
+		// ALT
+		auto const &alts(var.alts());
+		std::copy(
+			alts.begin(),
+			alts.end(),
+			boost::make_function_output_iterator(infix_ostream_fn <t_string>(os, ','))
+		);
+
+		// QUAL
+		os << '\t' << var.qual();
+		
+		// Samples
+		for (auto const &sample : var.samples())
+			os << '\t' << sample;
+		
+		return os;
+	}
 	
 	
 	// Transient in the sense that strings point to the working
