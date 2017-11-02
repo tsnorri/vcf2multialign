@@ -106,7 +106,7 @@ namespace vcf2multialign {
 		if (!S_ISREG(sb.st_mode))
 			throw std::runtime_error("Trying to memory map a non-regular file");
 		
-		m_content = static_cast <char *>(mmap(0, sb.st_size, PROT_READ, MAP_FILE, fd, 0));
+		m_content = static_cast <char *>(mmap(0, sb.st_size, PROT_READ, MAP_FILE | MAP_PRIVATE, fd, 0));
 		if (MAP_FAILED == m_content)
 			throw std::runtime_error(strerror(errno));
 		
