@@ -32,6 +32,7 @@ namespace vcf2multialign {
 	protected:
 		merge_subgraph_paths_task_delegate	*m_delegate{nullptr};
 		dispatch_ptr <dispatch_semaphore_t>	m_semaphore{};
+		std::mutex							m_graph_mutex{};
 		reduced_subgraph const				*m_left_subgraph{nullptr};
 		reduced_subgraph const				*m_right_subgraph{nullptr};
 		std::size_t							m_lhs_idx{0};
@@ -63,7 +64,6 @@ namespace vcf2multialign {
 		
 	protected:
 		void calculate_edge_weight(
-			std::mutex &graph_mutex,
 			graph_type const &graph,
 			edge_cost_map_type &edge_costs,
 			std::size_t const li,

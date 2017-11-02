@@ -9,7 +9,6 @@
 namespace vcf2multialign {
 	
 	void merge_subgraph_paths_task::calculate_edge_weight(
-		std::mutex &graph_mutex,
 		graph_type const &graph,
 		edge_cost_map_type &edge_costs,
 		std::size_t const li,
@@ -27,7 +26,7 @@ namespace vcf2multialign {
 		auto const edge(graph.edge(lhs, rhs));
 
 		{
-			std::lock_guard <std::mutex> lock_guard(graph_mutex);
+			std::lock_guard <std::mutex> lock_guard(m_graph_mutex);
 			edge_costs.set(edge, weight);
 		}
 		
@@ -79,15 +78,13 @@ namespace vcf2multialign {
 		edge_cost_map_type edge_costs(graph);
 		
 		{
-			std::mutex graph_mutex{};
-			
 			for (std::size_t i(0); i < m_path_count; ++i)
 			{
 				for (std::size_t j(0); j < m_path_count; ++j)
 				{
 					dispatch_semaphore_wait(*m_semaphore, DISPATCH_TIME_FOREVER);
-					dispatch_group_async_fn(*group, queue, [this, &graph_mutex, &graph, &edge_costs, i, j](){
-						calculate_edge_weight(graph_mutex, graph, edge_costs, i, j);
+					dispatch_group_async_fn(*group, queue, [this, &graph, &edge_costs, i, j](){
+						calculate_edge_weight(graph, edge_costs, i, j);
 						dispatch_semaphore_signal(*m_semaphore);
 					});
 				}
