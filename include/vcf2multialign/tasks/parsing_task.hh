@@ -137,7 +137,7 @@ namespace vcf2multialign {
 			m_checker(&checker),
 			m_variant_handler(
 				worker_queue,
-				dispatch_ptr <dispatch_queue_t>(dispatch_get_main_queue()),
+				dispatch_ptr <dispatch_queue_t>(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)),
 				m_vcf_reader,
 				reference,
 				sv_handling_method,
