@@ -179,6 +179,12 @@ namespace vcf2multialign {
 	}
 	
 	
+	void reduce_samples_task::handled_all_haplotypes(sequence_writer_task &task)
+	{
+		m_status_logger->finish_logging();
+	}
+	
+	
 	void reduce_samples_task::task_did_finish(sequence_writer_task &task)
 	{
 		// Wait with a dispatch group that every file has finished writing.
@@ -202,7 +208,7 @@ namespace vcf2multialign {
 		}
 		
 		dispatch_group_notify_fn(*group, queue, [this](){
-			m_status_logger->finish_logging();
+			// finish_logging() gets called in handled_all_haplotypes(). 
 			m_delegate->task_did_finish(*this);
 		});
 	}
@@ -259,6 +265,8 @@ namespace vcf2multialign {
 			// REF is zero, see the assertion above.
 			cb(++sample_no, 0, alt_idx, true);
 		}
+		
+		m_progress_counter.sequence_writer_task_did_handle_variant();
 	}
 	
 	

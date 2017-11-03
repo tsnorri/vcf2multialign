@@ -394,6 +394,8 @@ namespace vcf2multialign {
 	template <typename t_ostream, typename t_variant>
 	void sequence_writer <t_ostream, t_variant>::finish()
 	{
+		m_delegate->handled_all_haplotypes();
+		
 		// Fill the remaining part with reference.
 		std::cerr << "Filling with the reference…" << std::endl;
 		auto const ref_size(m_reference->size());

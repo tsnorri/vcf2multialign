@@ -21,6 +21,7 @@ namespace vcf2multialign {
 		virtual ~sequence_writer_task_delegate() {}
 		
 		virtual void task_did_finish(sequence_writer_task &task) = 0;
+		virtual void handled_all_haplotypes(sequence_writer_task &task) = 0;
 		
 		virtual void enumerate_sample_genotypes(
 			transient_variant const &var,
@@ -74,6 +75,7 @@ namespace vcf2multialign {
 			transient_variant const &var,
 			std::function <void(std::size_t, uint8_t, uint8_t, bool)> const &cb	// sample_no, chr_idx, alt_idx, is_phased
 		) override { m_delegate->enumerate_sample_genotypes(var, cb); }
+		virtual void handled_all_haplotypes() override { m_delegate->handled_all_haplotypes(*this); }
 		// Rest comes from variant_stats.
 		
 	};

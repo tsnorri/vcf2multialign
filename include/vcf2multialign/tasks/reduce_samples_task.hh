@@ -38,6 +38,7 @@ namespace vcf2multialign { namespace detail {
 		inline void read_subgraph_variants_task_did_handle_variant() { ++m_current_step; --m_rsv_steps; }
 		inline void merge_subgraph_paths_task_did_finish() { ++m_current_step; --m_merge_tasks; }
 		inline void merge_subgraph_paths_task_did_calculate_edge_weight() { ++m_current_step; --m_edge_weight_steps; }
+		inline void sequence_writer_task_did_handle_variant() { ++m_current_step; }
 		
 		// status_logger_delegate
 		virtual std::size_t step_count() const override { return m_step_count; }
@@ -176,6 +177,7 @@ namespace vcf2multialign {
 		virtual void task_did_handle_variant(read_subgraph_variants_task &task, variant const &variant) override { m_progress_counter.read_subgraph_variants_task_did_handle_variant(); }
 		
 		// sequence_writer_task_delegate
+		virtual void handled_all_haplotypes(sequence_writer_task &task) override;
 		virtual void task_did_finish(sequence_writer_task &task) override;
 		virtual void enumerate_sample_genotypes(
 			transient_variant const &var,

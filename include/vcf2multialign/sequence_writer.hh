@@ -32,6 +32,7 @@ namespace vcf2multialign {
 		) = 0;
 		virtual void handled_alt(std::size_t const alt_idx) = 0;
 		virtual void handled_haplotypes(variant_base const &var) = 0;
+		virtual void handled_all_haplotypes() {};
 	};
 	
 	

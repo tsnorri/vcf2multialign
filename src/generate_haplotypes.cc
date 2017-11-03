@@ -82,7 +82,7 @@ namespace {
 		generate_context(generate_context const &) = delete;
 		generate_context(generate_context &&) = delete;
 		
-		void cleanup() { m_status_logger.uninstall(); delete this; }
+		void cleanup() { delete this; }
 		
 		void load_and_generate(
 			char const *reference_fname,
@@ -300,8 +300,13 @@ namespace {
 	
 	void generate_context::task_did_finish(v2m::reduce_samples_task &task)
 	{
-		cleanup();
-		exit(EXIT_SUCCESS);
+		// status_logger's target queue is the main queue where the cancelling is done asynchronously.
+		auto queue(dispatch_get_main_queue());
+		v2m::dispatch_async_fn(queue, [this, queue](){
+			m_status_logger.uninstall();
+			cleanup();
+			exit(EXIT_SUCCESS);
+		});
 	}
 	
 	
