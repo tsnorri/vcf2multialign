@@ -30,12 +30,13 @@ namespace vcf2multialign {
 					always_assert(last_position <= pos, "Positions not in increasing order");
 					
 					variant_stats::handle_variant(var);
-					m_sequence_writer.handle_variant(var); // FIXME: causes copy constructor to be called?
+					m_sequence_writer.handle_variant(var);
 					
 					return true;
 				}
 			);
 		} while (should_continue);
 		m_sequence_writer.finish();
+		m_delegate->task_did_finish(*this);
 	}
 }
