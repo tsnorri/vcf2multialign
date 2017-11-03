@@ -9,6 +9,7 @@
 #include <vcf2multialign/status_logger.hh>
 
 
+namespace ch = std::chrono;
 namespace v2m = vcf2multialign;
 
 
@@ -76,6 +77,7 @@ namespace vcf2multialign {
 			m_message = message;
 			m_message_length = message_len;
 			m_indicator_type = counter;
+			m_start_time = ch::steady_clock::now();
 		}
 
 		dispatch(this).source_set_event_handler <&status_logger::update_mt>(*m_message_timer);
@@ -92,6 +94,7 @@ namespace vcf2multialign {
 			m_message = message;
 			m_message_length = message_len;
 			m_indicator_type = progress_bar;
+			m_start_time = ch::steady_clock::now();
 		}
 		
 		dispatch(this).source_set_event_handler <&status_logger::update_mt>(*m_message_timer);
@@ -131,10 +134,11 @@ namespace vcf2multialign {
 				
 				float const step_count(m_delegate->step_count());
 				float const current_step(m_delegate->current_step());
+				float const progress_val(current_step / step_count);
 				auto const half(m_window_width / 2);
 				auto const pad(half < m_message_length ? 1 : half - m_message_length);
-				auto const bar_width(m_window_width - half - 2);
-				v2m::progress_bar(std::cerr, current_step / step_count, bar_width, pad, m_message);
+
+				v2m::progress_bar(std::cerr, progress_val, m_window_width - half - 1, pad, m_message, m_start_time);
 			}
 			
 			case none:

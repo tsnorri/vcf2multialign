@@ -24,6 +24,9 @@ namespace vcf2multialign {
 	
 	class status_logger
 	{
+	public:
+		typedef std::chrono::time_point <std::chrono::steady_clock> time_point_type;
+		
 	protected:
 		enum indicator_type : uint8_t
 		{
@@ -38,6 +41,7 @@ namespace vcf2multialign {
 		dispatch_ptr <dispatch_source_t>	m_signal_source{nullptr};
 		std::mutex							m_message_mutex;
 		std::string							m_message;
+		time_point_type						m_start_time{};
 		std::size_t							m_window_width{0};
 		std::size_t							m_message_length{0};
 		std::atomic <indicator_type>		m_indicator_type{none};

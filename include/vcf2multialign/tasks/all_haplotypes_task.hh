@@ -46,6 +46,7 @@ namespace vcf2multialign {
 		vcf_reader::sample_name_map::const_iterator			m_sample_names_it{};
 		vcf_reader::sample_name_map::const_iterator			m_sample_names_end{};
 		
+		// FIXME: change all instances of std::chrono::system_clock to steady_clock when measuring elapsed time.
 		std::chrono::time_point <std::chrono::system_clock>	m_start_time{};
 		std::chrono::time_point <std::chrono::system_clock>	m_round_start_time{};
 		

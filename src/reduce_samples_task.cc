@@ -156,7 +156,7 @@ namespace vcf2multialign {
 				std::cerr << "Total matching weight was " << weight << '.' << std::endl;
 			});
 			
-			m_status_logger->log_message_progress_bar("Writing sequences…");
+			m_status_logger->log_message_progress_bar("Writing the sequences…");
 			auto task(new sequence_writer_task(
 				*this,
 				*m_status_logger,

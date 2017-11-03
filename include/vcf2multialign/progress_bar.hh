@@ -15,7 +15,8 @@ namespace vcf2multialign {
 		float const value,
 		std::size_t const length,
 		std::size_t const pad,
-		std::string const &title
+		std::string const &title,
+		std::chrono::time_point <std::chrono::steady_clock> start_time
 	);
 }
 
