@@ -15,8 +15,14 @@
 
 namespace vcf2multialign {
 	
+	class vcf_mmap_input;
+	
+	
 	class vcf_reader
 	{
+		friend class vcf_stream_input_base;
+		friend class vcf_mmap_input;
+		
 	public:
 		typedef std::function <bool(transient_variant const &var)> callback_fn;
 		typedef std::map <std::string, std::size_t> sample_name_map;
@@ -46,7 +52,6 @@ namespace vcf2multialign {
 		char const						*m_line_start{nullptr};		// Current line start.
 		char const						*m_start{0};				// Current string start.
 		copyable_atomic <std::size_t>	m_counter{0};
-		std::size_t						m_last_header_lineno{0};
 		std::size_t						m_lineno{0};				// Current line number.
 		std::size_t						m_variant_index{0};			// Current variant number (0-based).
 		std::size_t						m_sample_idx{0};			// Current sample idx (1-based).
@@ -73,15 +78,14 @@ namespace vcf2multialign {
 		bool parse(callback_fn &&callback);
 		bool parse(callback_fn const &callback);
 		
+		class vcf_input &vcf_input() { return *m_input; }
+		class vcf_input const &vcf_input() const { return *m_input; }
 		char const *buffer_start() const { return m_fsm.p; }
 		char const *buffer_end() const { return m_fsm.pe; }
 		char const *eof() const { return m_fsm.eof; }
-		void set_buffer_start(char const *p) { m_fsm.p = p; }
-		void set_buffer_end(char const *pe) { m_fsm.pe = pe; }
-		void set_eof(char const *eof) { m_fsm.eof = eof; }
 		
 		std::size_t lineno() const { return m_lineno; }
-		std::size_t last_header_lineno() const { return m_last_header_lineno; }
+		std::size_t last_header_lineno() const { return m_input->last_header_lineno(); }
 		char const *line_start() const { return m_line_start; }
 		size_t sample_no(std::string const &sample_name) const;
 		size_t sample_count() const { return m_sample_names.size(); }
@@ -91,6 +95,10 @@ namespace vcf2multialign {
 		
 	protected:
 		void skip_to_next_nl();
+		void set_buffer_start(char const *p) { m_fsm.p = p; }
+		void set_buffer_end(char const *pe) { m_fsm.pe = pe; }
+		void set_eof(char const *eof) { m_fsm.eof = eof; }
+		void set_lineno(std::size_t const lineno) { assert(lineno); m_lineno = lineno - 1; }
 	};
 }
 

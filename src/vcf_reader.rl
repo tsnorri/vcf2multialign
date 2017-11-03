@@ -167,9 +167,10 @@ namespace vcf2multialign {
 	{
 		assert(m_input);
 		m_input->reset_to_first_variant_offset();
-		m_lineno = m_last_header_lineno;
+		m_lineno = m_input->last_header_lineno();
 		m_fsm.eof = nullptr;
 		m_counter = 0;
+		m_variant_index = 0;
 	}
 	
 	
@@ -223,8 +224,7 @@ namespace vcf2multialign {
 		}
 		
 		// stream now points to the first variant.
-		m_input->store_first_variant_offset();
-		m_last_header_lineno = m_lineno;
+		m_input->store_first_variant_offset(1 + m_lineno);
 		
 		// Instantiate a variant.
 		transient_variant var(sample_count());
@@ -451,8 +451,8 @@ namespace vcf2multialign {
 				
 			# Handle a newline and continue.
 			# The newline gets eaten before its checked, though, so use any instead.
-			main_nl := any @{ fhold; fgoto main; };
-			break_nl := any @{ fhold; fbreak; };
+			main_nl		:= any @{ fhold; fgoto main; }	$eof{ retval = false; };
+			break_nl	:= any @{ fhold; fbreak; }		$eof{ retval = false; };
 			
 			# Line start.
 			# Apparently main has to be able to read a character, so use fhold.
@@ -470,7 +470,7 @@ namespace vcf2multialign {
 					m_current_variant.reset();
 					m_current_variant.set_variant_index(m_variant_index++);
 					m_current_variant.set_lineno(m_lineno);
-					m_line_start = fpc;
+					m_line_start = 1 + fpc;
 					
 					fgoto *check_max_field <fentry(main_nl), fentry(break_nl)>(vcf_field::CHROM, fentry(chrom_id_f), cb);
 				}

@@ -30,24 +30,27 @@ namespace vcf2multialign {
 	protected:
 		struct sequence
 		{
-			reduced_subgraph::sequence_type		sequence_vector;
-			std::size_t							position{0};
+			reduced_subgraph::sequence_type			sequence_vector;
+			std::size_t								position{0};
 		};
 		
-		typedef std::map <sample_id, sequence>	sequence_map;
+		typedef std::map <sample_id, sequence>		sequence_map;
 		
 	protected:
-		read_subgraph_variants_task_delegate	*m_delegate{nullptr};
-		sequence_map							m_sequences_by_sample;		// Used only in the first phase (before finish()).
+		read_subgraph_variants_task_delegate		*m_delegate{nullptr};
+		sequence_map								m_sequences_by_sample;		// Used only in the first phase (before finish()).
 		
 		// End co-ordinate of the REF sequence in each sample.
 		// Used only in the first phase (before finish()).
-		std::vector <std::size_t>				m_endpoints;
-		std::size_t								m_task_idx{0};
-		std::size_t								m_generated_path_count{0};
-		std::size_t								m_start_lineno{0};
-		std::size_t								m_variant_count{0};
-		std::size_t								m_alt_field_width{0};
+		std::vector <std::size_t>					m_endpoints;
+		graph_range									m_subgraph_range;
+		vcf_mmap_input								m_vcf_input;				// FIXME: move to parsing_task_vh?
+		std::size_t									m_task_idx{0};
+		std::size_t									m_generated_path_count{0};
+		std::size_t									m_start_lineno{0};
+		std::size_t									m_variant_count{0};
+		std::size_t									m_alt_field_width{0};
+		move_guard <read_subgraph_variants_task>	m_move_guard{*this};		// Needs to be the last one.
 		
 	public:
 		read_subgraph_variants_task() = default;
@@ -58,16 +61,16 @@ namespace vcf2multialign {
 			status_logger &status_logger,
 			error_logger &error_logger,
 			class vcf_reader const &vcf_reader,
+			mmap_handle const &vcf_input_handle,
 			alt_checker const &checker,
 			vector_type const &reference,
 			sv_handling const sv_handling_method,
 			variant_set const &skipped_variants,
 			boost::optional <std::string> const &out_reference_fname,
+			graph_range &&range,
 			std::size_t const task_idx, 
 			std::size_t const generated_path_count,
-			std::size_t const sample_ploidy_sum,
-			std::size_t const start_lineno,
-			std::size_t const variant_count
+			std::size_t const sample_ploidy_sum
 		):
 			parsing_task_vh(
 				worker_queue,
@@ -81,18 +84,22 @@ namespace vcf2multialign {
 			),
 			m_delegate(&delegate),
 			m_endpoints(sample_ploidy_sum, 0),
+			m_subgraph_range(std::move(range)),
+			m_vcf_input(vcf_input_handle),
 			m_task_idx(task_idx),
 			m_generated_path_count(generated_path_count),
-			m_start_lineno(start_lineno),
-			m_variant_count(variant_count),
 			m_alt_field_width(1 << sdsl::bits::hi(checker.max_alt_field_size()))
 		{
+			m_vcf_reader.set_input(m_vcf_input);
 		}
+		
+		void finish_copy_or_move() { m_vcf_reader.set_input(m_vcf_input); }
 		
 		std::size_t task_idx() const { return m_task_idx; }
 		virtual void execute() override;
 		
 		// variant_handler_delegate
+		virtual void prepare(class vcf_reader &reader) override;
 		void handle_variant(variant &var) override;
 		void finish() override;
 		

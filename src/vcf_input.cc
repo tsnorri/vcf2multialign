@@ -31,8 +31,9 @@ namespace vcf2multialign {
 	}
 	
 	
-	void vcf_stream_input_base::store_first_variant_offset()
+	void vcf_stream_input_base::store_first_variant_offset(std::size_t const lineno)
 	{
+		vcf_input::store_first_variant_offset(lineno);
 		m_first_variant_offset = stream_tellg();
 	}
 	
@@ -42,7 +43,7 @@ namespace vcf2multialign {
 		// Copy the remainder to the beginning.
 		if (m_pos + 1 < m_len)
 		{
-			char *data_start((char *) m_buffer.data()); // FIXME: hack, my libc++ does not yet have the non-const data().
+			char *data_start(m_buffer.data());
 			char *start(data_start + m_pos + 1);
 			char *end(data_start + m_len);
 			std::copy(start, end, data_start);
@@ -84,18 +85,25 @@ namespace vcf2multialign {
 				reader.set_buffer_end(data_start + m_pos + 1);
 				return;
 			}
-		
+			
 			m_buffer.resize(2 * m_buffer.size());
 		}
 	}
 	
 	
+	void vcf_mmap_input::reset_range()
+	{
+		m_range_start_offset = 0;
+		m_range_length = m_handle->size();
+	}
+	
+	
 	bool vcf_mmap_input::getline(std::string_view &dst)
 	{
-		auto const size(m_handle.size());
+		auto const size(m_handle->size());
 		assert(m_pos <= size);
 		
-		auto const sv(m_handle.operator std::string_view());
+		auto const sv(m_handle->operator std::string_view());
 		auto const nl_pos(sv.find('\n', m_pos));
 		if (std::string_view::npos == nl_pos)
 			return false;
@@ -107,18 +115,26 @@ namespace vcf2multialign {
 	}
 	
 	
-	void vcf_mmap_input::store_first_variant_offset()
+	void vcf_mmap_input::store_first_variant_offset(std::size_t const lineno)
 	{
+		vcf_input::store_first_variant_offset(lineno);
+
 		m_first_variant_offset = m_pos;
+		m_range_length = m_handle->size() - m_pos;
+		m_range_start_offset = m_first_variant_offset;
+		m_range_start_lineno = m_first_variant_lineno;
 	}
 	
 	
 	void vcf_mmap_input::fill_buffer(vcf_reader &reader)
 	{
-		auto const *bytes(m_handle.data());
-		auto const len(m_handle.size());
-		reader.set_buffer_start(bytes + m_first_variant_offset);
-		reader.set_buffer_end(bytes + len);
-		reader.set_eof(bytes + len);
+		auto const bytes(m_handle->data());
+		auto const buffer_start(bytes + m_range_start_offset);
+		auto const buffer_end(bytes + m_range_start_offset + m_range_length);
+		
+		reader.set_lineno(m_range_start_lineno);
+		reader.set_buffer_start(buffer_start);
+		reader.set_buffer_end(buffer_end);
+		reader.set_eof(buffer_end);
 	}
 }

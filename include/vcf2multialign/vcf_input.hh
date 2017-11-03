@@ -14,13 +14,29 @@ namespace vcf2multialign {
 	class vcf_reader;
 	
 	
-	struct vcf_input
+	class vcf_input
 	{
+	protected:
+		std::size_t					m_first_variant_offset{0};
+		std::size_t					m_first_variant_lineno{0};
+		
+	public:
+		vcf_input() = default;
+		explicit vcf_input(vcf_input const &other) = default;
+		
 		virtual ~vcf_input() {};
 		virtual bool getline(std::string_view &dst) = 0;
-		virtual void store_first_variant_offset() = 0;
+		virtual void store_first_variant_offset(std::size_t const lineno) { m_first_variant_lineno = lineno; }
 		virtual void reset_to_first_variant_offset() {}
 		virtual void fill_buffer(vcf_reader &reader) = 0;
+		
+		virtual char const *buffer_start() const { return nullptr; }
+		virtual char const *first_variant_start() const { return nullptr; }
+		virtual char const *buffer_end() const { return nullptr; }
+		virtual void set_range_start_lineno(std::size_t const lineno) {}
+		virtual void set_range_start_offset(std::size_t const offset) {}
+		virtual void set_range_length(std::size_t) {}
+		std::size_t last_header_lineno() const { return m_first_variant_lineno - 1; }
 	};
 
 
@@ -28,7 +44,6 @@ namespace vcf2multialign {
 	{
 	protected:
 		std::string					m_buffer;
-		std::istream::pos_type		m_first_variant_offset{0};
 		std::size_t					m_len{0};
 		std::size_t					m_pos{0};
 	
@@ -41,7 +56,7 @@ namespace vcf2multialign {
 		virtual ~vcf_stream_input_base() = 0;
 	
 		virtual bool getline(std::string_view &dst) override;
-		virtual void store_first_variant_offset() override;
+		virtual void store_first_variant_offset(std::size_t const lineno) override;
 		virtual void reset_to_first_variant_offset() override;
 		virtual void fill_buffer(vcf_reader &reader) override;
 		
@@ -84,20 +99,34 @@ namespace vcf2multialign {
 	class vcf_mmap_input : public vcf_input
 	{
 	protected:
-		typedef boost::iostreams::stream <
-			boost::iostreams::basic_array_source <char>
-		>	input_stream;
-		
-	protected:
-		mmap_handle					m_handle;
+		mmap_handle const			*m_handle{nullptr};
 		std::size_t					m_pos{0};
-		std::size_t					m_first_variant_offset{0};
+		std::size_t					m_range_start_lineno{0};
+		std::size_t					m_range_start_offset{0};
+		std::size_t					m_range_length{0};
 	
 	public:
-		mmap_handle &handle() { return m_handle; }
+		vcf_mmap_input() = default;
+		
+		vcf_mmap_input(mmap_handle const &handle):
+			m_handle(&handle)
+		{
+			reset_range();
+		}
+		
+		mmap_handle const &handle() const { return *m_handle; }
+		
 		virtual bool getline(std::string_view &dst) override;
-		virtual void store_first_variant_offset() override;
+		virtual void store_first_variant_offset(std::size_t const lineno) override;
 		virtual void fill_buffer(vcf_reader &reader) override;
+		
+		virtual char const *buffer_start() const override { return m_handle->data(); }
+		virtual char const *first_variant_start() const override { return m_handle->data() + m_first_variant_offset; }
+		virtual char const *buffer_end() const override { return m_handle->data() + m_handle->size(); }
+		void reset_range();
+		virtual void set_range_start_lineno(std::size_t const lineno) override { m_range_start_lineno = lineno; }
+		virtual void set_range_start_offset(std::size_t const offset) override { m_range_start_offset = offset; }
+		virtual void set_range_length(std::size_t const length) override { m_range_length = length; }
 	};
 }
 

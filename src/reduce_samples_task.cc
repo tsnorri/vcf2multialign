@@ -39,10 +39,7 @@ namespace vcf2multialign {
 	void reduce_samples_task::init_read_subgraph_variants_task(
 		read_subgraph_variants_task &task,
 		std::size_t const task_idx,
-		char const *buffer_start,
-		char const *buffer_end,
-		std::size_t const start_lineno,
-		std::size_t const variant_count
+		graph_range &&range
 	)
 	{
 		auto const qname(boost::str(boost::format("fi.iki.tsnorri.vcf2multialign.worker-queue-%u") % task_idx));
@@ -57,23 +54,17 @@ namespace vcf2multialign {
 			*m_status_logger,
 			*m_error_logger,
 			m_reader,
+			*m_vcf_input_handle,
 			*m_alt_checker,
 			*m_reference,
 			m_sv_handling_method,
 			*m_skipped_variants,
 			*m_out_reference_fname,
+			std::move(range),
 			task_idx,
 			m_generated_path_count,
-			m_sample_ploidy_sum,
-			start_lineno,
-			variant_count
+			m_sample_ploidy_sum
 		);
-		
-		// Make the task parse the given range.
-		auto &task_reader(temp_task.vcf_reader());
-		task_reader.set_buffer_start(buffer_start);
-		task_reader.set_buffer_end(buffer_end);
-		task_reader.set_eof(buffer_end);
 		
 		task = std::move(temp_task);
 	}
@@ -197,7 +188,17 @@ namespace vcf2multialign {
 		{
 			// Actually there's only one element in each kv.second.
 			for (auto &haplotype : kv.second)
-				haplotype.output_stream->close_async(*group);
+			{
+				// Make sure that dispatch_group_notify_fn does not fire before this
+				// block has been executed.
+				// FIXME: copying group may not be strictly needed since we call dispatch_group_async_fn with the same group.
+				dispatch_group_async_fn(*group, queue, [&haplotype, group](){
+					// Flush buffers and close. This is safe b.c.
+					// set_closing_group() is called in the same thread as close().
+					haplotype.output_stream->set_closing_group(group);
+					haplotype.output_stream.close();
+				});
+			}
 		}
 		
 		dispatch_group_notify_fn(*group, queue, [this](){
@@ -213,17 +214,18 @@ namespace vcf2multialign {
 	)
 	{
 		auto const var_lineno(var.lineno());
-		auto const pos_in_subgraph(var.variant_index());
+		auto const first_var_lineno(1 + m_reader.last_header_lineno());
 		
 		// Find the correct subgraph.
 		// Update m_path_permutation if the next subgraph is chosen.
+		std::size_t subgraph_start_lineno(0);
 		while (true)
 		{
 			always_assert(m_subgraphs.cend() != m_subgraph_iterator);
 			
 			auto const &subgraph(*m_subgraph_iterator);
-			auto const subgraph_start_lineno(subgraph.start_lineno());
 			auto const subgraph_var_count(subgraph.variant_count());
+			subgraph_start_lineno = subgraph.start_lineno();
 			
 			always_assert(subgraph_start_lineno <= var_lineno);
 			if (var_lineno < subgraph_start_lineno + subgraph_var_count)
@@ -245,6 +247,7 @@ namespace vcf2multialign {
 		}
 		
 		// Enumerate the genotypes in the permutation order.
+		auto const pos_in_subgraph(var.variant_index() - (subgraph_start_lineno - first_var_lineno));
 		std::size_t sample_no(0);
 		static_assert(0 == REF_SAMPLE_NUMBER);
 		cb(REF_SAMPLE_NUMBER, 0, 0, true);	// REF.
@@ -281,35 +284,14 @@ namespace vcf2multialign {
 	
 	void reduce_samples_task::execute()
 	{
-		struct graph_range
-		{
-			char const 	*subgraph_start{nullptr};
-			char const 	*subgraph_end{nullptr};
-			std::size_t start_lineno{0};
-			std::size_t	variant_count{0};
-			
-			graph_range() = default;
-			graph_range(
-				char const 	*subgraph_start_,
-				char const 	*subgraph_end_,
-				std::size_t start_lineno_,
-				std::size_t	variant_count_
-			):
-				subgraph_start(subgraph_start_),
-				subgraph_end(subgraph_end_),
-				start_lineno(start_lineno_),
-				variant_count(variant_count_)
-			{
-			}
-		};
-		
 		std::vector <graph_range> graph_ranges;
 		
 		// Create a task for each sufficiently long range.
 		{
-			auto const buffer_start(m_reader.buffer_start());
-			auto const buffer_end(m_reader.buffer_end());
-			auto current_start(buffer_start);
+			auto const &input(m_reader.vcf_input());
+			auto const buffer_start(input.buffer_start());
+			auto const buffer_end(input.buffer_end());
+			auto current_start(input.first_variant_start());
 			std::size_t current_start_lineno(1 + m_reader.last_header_lineno());
 			std::size_t current_lineno(current_start_lineno);	// Points to the last line that was checked for valid alts.
 			std::size_t current_range_variant_count(0);
@@ -328,28 +310,42 @@ namespace vcf2multialign {
 					
 					++current_lineno;
 				}
+				assert(var_lineno == current_lineno);
 				
 				if (m_min_path_length <= current_range_variant_count)
 				{
-					graph_ranges.emplace_back(current_start, next_subgraph_start, current_start_lineno, current_range_variant_count);
+					graph_ranges.emplace_back(
+						current_start - buffer_start,
+						next_subgraph_start - current_start,
+						current_start_lineno,
+						current_range_variant_count
+					);
 					current_range_variant_count = 0;
 					current_start = next_subgraph_start;
+					current_start_lineno = current_lineno;
 				}
 			}
 		
 			// Add the final graph_range to cover the remaining range.
-			auto const last_lineno(m_record_count + m_reader.last_header_lineno());
-			while (current_lineno <= last_lineno)
+			auto const lineno_limit(1 + m_record_count + m_reader.last_header_lineno());
+			while (current_lineno < lineno_limit)
 			{
 				if (m_alt_checker->valid_alts(current_lineno).size())
 					++current_range_variant_count;
 				
 				++current_lineno;
 			}
-			graph_ranges.emplace_back(current_start, buffer_end, current_lineno, current_range_variant_count);
+			assert(lineno_limit == current_lineno);
+			
+			graph_ranges.emplace_back(
+				current_start - buffer_start,
+				buffer_end - current_start,
+				current_start_lineno,
+				current_range_variant_count
+			);
 		}
 		
-		// Allocate enough space for subgraphs.
+		// Allocate enough space for the subgraphs.
 		auto const range_count(graph_ranges.size());
 		always_assert(range_count);
 		m_subgraphs.resize(range_count);
@@ -365,18 +361,16 @@ namespace vcf2multialign {
 		
 		// Start each task.
 		std::size_t task_idx(0);
-		for (auto const &range : graph_ranges)
+		for (auto &range : graph_ranges)
 		{
 			auto *task(new read_subgraph_variants_task);
 			std::unique_ptr <class task> task_ptr(task);
 			init_read_subgraph_variants_task(
 				*task,
 				task_idx++,
-				range.subgraph_start,
-				range.subgraph_end,
-				range.start_lineno,
-				range.variant_count
+				std::move(range)
 			);
+			
 			m_delegate->store_and_execute(std::move(task_ptr));
 		}
 	}

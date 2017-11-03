@@ -9,9 +9,6 @@
 #include <vcf2multialign/tasks/read_subgraph_variants_task.hh>
 
 
-namespace bm = boost::bimaps;
-
-
 namespace vcf2multialign {
 	
 	void read_subgraph_variants_task::handle_variant(variant &var)
@@ -23,6 +20,7 @@ namespace vcf2multialign {
 		auto const var_ref_size(var_ref.size());
 		auto const var_end(var_pos + var_ref_size);
 		std::size_t i(0);
+		
 		m_variant_handler.enumerate_sample_genotypes(
 			var,
 			[
@@ -59,12 +57,12 @@ namespace vcf2multialign {
 				}
 				
 				sample_id const sid(sample_no, chr_idx);
-				auto it(m_sequences_by_sample.find(sid));
+				auto it(m_sequences_by_sample.find(sid));	// FIXME: O(log n)
 				if (m_sequences_by_sample.cend() == it)
 				{
 					auto &seq(m_sequences_by_sample[sid]);
 					seq.sequence_vector.width(m_alt_field_width);
-					seq.sequence_vector.resize(m_variant_count);
+					seq.sequence_vector.resize(m_subgraph_range.variant_count);
 					seq.sequence_vector[seq.position++] = alt_idx;
 				}
 				else
@@ -97,11 +95,13 @@ namespace vcf2multialign {
 		// Invert m_sequences_by_sample.
 		// This step is needed mainly to keep only unique (ALT index) sequences.
 		sample_map samples_by_sequence;
+
 		while (m_sequences_by_sample.size())
 		{
 			auto it(m_sequences_by_sample.begin());
 			auto &seq(it->second);
 			samples_by_sequence[std::move(seq.sequence_vector)].emplace(it->first);
+			m_sequences_by_sample.erase(it);
 		}
 		
 		std::size_t const unique_sequence_count(samples_by_sequence.size());
@@ -145,7 +145,7 @@ namespace vcf2multialign {
 			abort();
 		}
 		
-		auto const original_sample_count(samples_by_sequence_idx.right.size());
+		auto const original_sample_count(samples_by_sequence_idx.size());
 		std::vector <uint16_t> path_assignment_counts(original_seq_count, 0);	// In how many paths does a sequence of ALT indices appear.
 		
 		// Divide the generated paths by the ration of samples that have a particular path and the total sample count.
@@ -200,16 +200,19 @@ namespace vcf2multialign {
 			}
 			
 			// Add generated sequences in the order of fractionals.
-			for (auto const &kv : boost::adaptors::reverse(fractionals))
+			while (true)
 			{
-				// kv.first is the fractional part.
-				// kv.second is an original sequence (vector of ALT indices) index.
-				auto const seq_idx(kv.second);
-				if (0 == remaining_path_count)
-					goto loop_end;
-				
-				++path_assignment_counts[seq_idx];
-				--remaining_path_count;
+				for (auto const &kv : boost::adaptors::reverse(fractionals))
+				{
+					// kv.first is the fractional part.
+					// kv.second is an original sequence (vector of ALT indices) index.
+					auto const seq_idx(kv.second);
+					if (0 == remaining_path_count)
+						goto loop_end;
+					
+					++path_assignment_counts[seq_idx];
+					--remaining_path_count;
+				}
 			}
 			
 		loop_end:
@@ -242,7 +245,6 @@ namespace vcf2multialign {
 				}
 				
 				// Map the sequence identifiers to paths.
-				bool check(false);
 				while (it != end)
 				{
 					for (std::size_t i(0); i < count; ++i)
@@ -258,13 +260,9 @@ namespace vcf2multialign {
 						if (end == it)
 							goto loop_end_2;
 					}
-					
-					// Check that all the paths have a sequence identifier.
-					check = true;
 				}
 				
 			loop_end_2:
-				always_assert(check);
 				path_idx += count;
 				++seq_idx;
 			}
@@ -296,17 +294,27 @@ namespace vcf2multialign {
 			std::move(samples_by_sequence_idx),
 			std::move(generated_paths),
 			std::move(generated_paths_eq),
-			m_start_lineno,
-			m_variant_count
+			m_subgraph_range.start_lineno,
+			m_subgraph_range.variant_count
 		);
 		
 		m_delegate->task_did_finish(*this, std::move(rsg));
 	}
 	
 	
+	void read_subgraph_variants_task::prepare(class vcf_reader &reader)
+	{
+		reader.set_parsed_fields(vcf_field::ALL);
+		
+		// Make the reader handle the subgraph range.
+		m_vcf_input.set_range_start_lineno(m_subgraph_range.start_lineno);
+		m_vcf_input.set_range_start_offset(m_subgraph_range.range_start_offset);
+		m_vcf_input.set_range_length(m_subgraph_range.range_length);
+	}
+	
+	
 	void read_subgraph_variants_task::execute()
 	{
-		m_vcf_reader.set_parsed_fields(vcf_field::ALL);
 		m_variant_handler.process_variants();
 	}
 }

@@ -95,6 +95,7 @@ namespace vcf2multialign {
 		status_logger								*m_status_logger{nullptr};
 		error_logger								*m_error_logger{nullptr};
 		vector_type const							*m_reference{nullptr};
+		mmap_handle const							*m_vcf_input_handle{nullptr};
 		std::string const							*m_null_allele_seq{nullptr};
 		alt_checker const							*m_alt_checker{nullptr};
 		subgraph_map const							*m_subgraph_starting_points{nullptr};
@@ -118,6 +119,7 @@ namespace vcf2multialign {
 			error_logger &error_logger,
 			std::size_t const hw_concurrency,
 			vcf_reader &&reader,
+			mmap_handle const &vcf_input_handle,
 			vector_type const &reference,
 			std::string const &null_allele_seq,
 			alt_checker const &checker,
@@ -141,6 +143,7 @@ namespace vcf2multialign {
 			m_status_logger(&status_logger),
 			m_error_logger(&error_logger),
 			m_reference(&reference),
+			m_vcf_input_handle(&vcf_input_handle),
 			m_null_allele_seq(&null_allele_seq),
 			m_alt_checker(&checker),
 			m_subgraph_starting_points(&subgraph_starting_points),
@@ -183,10 +186,7 @@ namespace vcf2multialign {
 		void init_read_subgraph_variants_task(
 			read_subgraph_variants_task &task,
 			std::size_t const task_idx,
-			char const *buffer_start,
-			char const *buffer_end,
-			std::size_t const start_lineno,
-			std::size_t const variant_count
+			graph_range &&range
 		);
 			
 		void start_merge_task(std::size_t const lhs_idx, std::size_t const rhs_idx);

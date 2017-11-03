@@ -25,7 +25,7 @@ namespace vcf2multialign {
 	void alt_checker::check_variant(transient_variant const &var)
 	{
 		auto const lineno(var.lineno());
-		auto &valid_alts(m_valid_alts_by_lineno.at(lineno));
+		auto &valid_alts(m_valid_alts_by_lineno.at(lineno - m_last_header_lineno - 1));
 
 		// Check that the alt sequence is something that can be handled.
 		valid_alts.clear();

@@ -36,6 +36,7 @@ namespace {
 		task_set											m_tasks;
 		v2m::vector_type									m_reference;
 		v2m::vcf_mmap_input									m_vcf_input;
+		v2m::mmap_handle									m_vcf_handle;
 		
 		v2m::error_logger									m_error_logger;
 		v2m::status_logger									m_status_logger;
@@ -66,6 +67,7 @@ namespace {
 			bool const should_overwrite_files,
 			bool const should_reduce_samples
 		):
+			m_vcf_input(m_vcf_handle),
 			m_null_allele_seq(null_allele_seq),
 			m_sv_handling_method(sv_handling_method),
 			m_chunk_size(chunk_size),
@@ -80,7 +82,7 @@ namespace {
 		generate_context(generate_context const &) = delete;
 		generate_context(generate_context &&) = delete;
 		
-		void cleanup() { delete this; }
+		void cleanup() { m_status_logger.uninstall(); delete this; }
 		
 		void load_and_generate(
 			char const *reference_fname,
@@ -171,7 +173,8 @@ namespace {
 			v2m::file_istream ref_fasta_stream;
 			
 			v2m::open_file_for_reading(reference_fname, ref_fasta_stream);
-			m_vcf_input.handle().open(variants_fname);
+			m_vcf_handle.open(variants_fname);
+			m_vcf_input.reset_range();
 			
 			if (report_fname)
 			{
@@ -239,6 +242,7 @@ namespace {
 					m_error_logger,
 					hw_concurrency,
 					std::move(reader),
+					m_vcf_handle,
 					m_reference,
 					m_null_allele_seq,
 					m_alt_checker,
