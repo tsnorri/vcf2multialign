@@ -7,17 +7,6 @@
 #include <vcf2multialign/error_logger.hh>
 
 
-#ifdef __GNUC__
-#   if __GNUC__ < 7
-// XXX Hack.
-namespace std {
-	using std::experimental::optional;
-	using std::experimental::nullopt;
-}
-#	endif
-#endif
-
-
 namespace v2m = vcf2multialign;
 
 
