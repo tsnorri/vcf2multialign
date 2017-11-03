@@ -6,8 +6,10 @@
 #ifndef VCF2MULTIALIGN_UTIL_HH
 #define VCF2MULTIALIGN_UTIL_HH
 
+#include <atomic>
 #include <boost/iterator/iterator_facade.hpp>
 #include <iostream>
+#include <memory>
 
 
 namespace vcf2multialign {

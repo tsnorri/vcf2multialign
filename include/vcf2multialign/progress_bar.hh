@@ -6,6 +6,8 @@
 #ifndef VCF2MULTIALIGN_PROGRESS_BAR_HH
 #define VCF2MULTIALIGN_PROGRESS_BAR_HH
 
+#include <chrono>
+#include <iostream>
 #include <vcf2multialign/types.hh>
 
 
