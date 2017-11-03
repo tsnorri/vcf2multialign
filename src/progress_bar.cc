@@ -39,10 +39,11 @@ namespace vcf2multialign {
 		{
 			length -= PERCENT_WIDTH;
 			
-			stream << '\r' << title ;
+			stream << '\r' << title;
 			for (std::size_t i(0); i < pad; ++i)
 				stream << ' ';
 			
+			// Output the elapsed time.
 			if (TIME_WIDTH < length)
 			{
 				length -= TIME_WIDTH;
@@ -54,6 +55,7 @@ namespace vcf2multialign {
 				stream << (boost::format("%02d:%02d:%02d ") % hours % minutes % seconds);
 			}
 			
+			// Output the progress bar.
 			auto const v(value * length);
 			auto const integral(std::floor(v));
 			auto const fraction(v - integral);
@@ -64,6 +66,7 @@ namespace vcf2multialign {
 		
 			if (v != integral)
 			{
+				// Divide the fraction by the block size, 1/8th.
 				auto const block_idx(static_cast <std::size_t>(std::floor(fraction / 0.125)));
 				stream << blocks[block_idx];
 
@@ -74,6 +77,7 @@ namespace vcf2multialign {
 			//stream << u8"▏";
 		}
 		
+		// Display the value as percentage.
 		stream << (boost::format("% 4.0f%%") % (100.0 * value)) << std::flush;
 		
 	}
