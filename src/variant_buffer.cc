@@ -103,10 +103,10 @@ namespace vcf2multialign {
 		while (!variants.empty())
 		{
 			auto node(variants.extract(variants.cbegin()));
-			auto &value(node.value());
-	
+			auto &var(node.value());
+			
 			// Process the input.
-			m_d.m_delegate->handle_variant(value);
+			m_d.m_delegate->handle_variant(var);
 	
 			// Return the node.
 			return_node_to_buffer(std::move(node));
