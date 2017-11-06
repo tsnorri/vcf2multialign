@@ -49,8 +49,8 @@ namespace vcf2multialign {
 				length -= TIME_WIDTH;
 				auto const current_time(ch::steady_clock::now());
 				ch::duration <double> const elapsed_seconds(current_time - start_time);
-				auto const seconds(ch::duration_cast <ch::seconds> (elapsed_seconds).count());
-				auto const minutes(ch::duration_cast <ch::minutes> (elapsed_seconds).count());
+				auto const seconds(ch::duration_cast <ch::seconds> (elapsed_seconds).count() % 60);
+				auto const minutes(ch::duration_cast <ch::minutes> (elapsed_seconds).count() % 60);
 				auto const hours(ch::duration_cast <ch::hours> (elapsed_seconds).count());
 				stream << (boost::format("%02d:%02d:%02d ") % hours % minutes % seconds);
 			}
