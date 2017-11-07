@@ -30,8 +30,6 @@ namespace {
 			v2m::vector_source <v2m::vector_type> &vs
 		)
 		{
-			std::cerr << "read sequence of length " << seq_length << '.' << std::endl;
-			
 			// Use ADL.
 			using std::swap;
 			seq->resize(seq_length);
@@ -41,44 +39,77 @@ namespace {
 		
 		void finish() {}
 	};
+	
+	
+	class read_context : public v2m::status_logger_delegate
+	{
+	protected:
+		typedef v2m::vector_source <v2m::vector_type>		vector_source;
+		typedef v2m::fasta_reader <vector_source, callback>	fasta_reader;
+		
+	protected:
+		fasta_reader m_reader;
+		
+	public:
+		virtual std::size_t step_count() const { return 0; }
+		virtual std::size_t current_step() const { return m_reader.current_line(); }
+		
+		void read_single_fasta_seq(
+			v2m::file_istream &ref_fasta_stream,
+			v2m::vector_type &reference,
+			v2m::status_logger &status_logger
+		)
+		{
+			vector_source vs(1, false);
+			
+			{
+				// Approximate the size of the reference from the size of the FASTA file.
+				int const fd(ref_fasta_stream->handle());
+				struct stat sb;
+				auto const st(fstat(fd, &sb));
+				if (0 != st)
+				{
+					auto const err_str(strerror(errno));
+					auto const msg(boost::str(boost::format("Unable to stat the reference file: %s") % err_str));
+					v2m::fail(msg.c_str());
+				}
+				
+				// Preallocate space for the reference.
+				status_logger.log([size = sb.st_size](){
+					std::cerr << "Preallocating a vector of size " << size << "…" << std::flush;
+				});
+				std::unique_ptr <v2m::vector_type> vec_ptr;
+				vs.get_vector(vec_ptr);
+				vec_ptr->reserve(sb.st_size);
+				vs.put_vector(vec_ptr);
+				status_logger.log([](){
+					std::cerr << " done." << std::endl;
+				}, false);
+			}
+			
+			callback cb(reference);
+			status_logger.set_delegate(*this);
+			status_logger.log_message_counting("Reading the reference FASTA into memory…");
+			m_reader.read_from_stream(ref_fasta_stream, vs, cb);
+			status_logger.finish_logging();
+			status_logger.log([size = reference.size()](){
+				std::cerr << "Read sequence of length " << size << '.' << std::endl;
+			});
+		}
+	};
 }
 
 
 namespace vcf2multialign {
 	
 	// Read the contents of a FASTA file into a single sequence.
-	void read_single_fasta_seq(file_istream &ref_fasta_stream, vector_type &reference)
+	void read_single_fasta_seq(
+		file_istream &ref_fasta_stream,
+		vector_type &reference,
+		status_logger &status_logger
+	)
 	{
-		typedef vector_source <vector_type> vector_source;
-		typedef fasta_reader <vector_source, callback> fasta_reader;
-		
-		vector_source vs(1, false);
-		
-		{
-			// Approximate the size of the reference from the size of the FASTA file.
-			int const fd(ref_fasta_stream->handle());
-			struct stat sb;
-			auto const st(fstat(fd, &sb));
-			if (0 != st)
-			{
-				auto const err_str(strerror(errno));
-				auto const msg(boost::str(boost::format("Unable to stat the reference file: %s") % err_str));
-				fail(msg.c_str());
-			}
-			
-			// Preallocate space for the reference.
-			std::cerr << "Preallocating a vector of size " << sb.st_size << "…";
-			std::unique_ptr <vector_type> vec_ptr;
-			vs.get_vector(vec_ptr);
-			vec_ptr->reserve(sb.st_size);
-			vs.put_vector(vec_ptr);
-			std::cerr << " done." << std::endl;
-		}
-		
-		callback cb(reference);
-		fasta_reader reader;
-		
-		std::cerr << "Reading reference FASTA into memory… " << std::flush;
-		reader.read_from_stream(ref_fasta_stream, vs, cb);
+		read_context ctx;
+		ctx.read_single_fasta_seq(ref_fasta_stream, reference, status_logger);
 	}
 }

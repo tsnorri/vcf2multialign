@@ -27,8 +27,9 @@ namespace vcf2multialign {
 	{
 	protected:
 		preparation_task_delegate	*m_delegate{nullptr};
-		vector_type const			*m_reference{nullptr};
+		vector_type					*m_reference{nullptr};
 		
+		std::string					m_ref_fname;
 		ploidy_map					m_ploidy;
 		variant_set					m_skipped_variants;
 		subgraph_map				m_subgraph_starting_points;
@@ -45,7 +46,8 @@ namespace vcf2multialign {
 			preparation_task_delegate &delegate,
 			status_logger &status_logger,
 			error_logger &error_logger,
-			vector_type const &reference,
+			vector_type &reference,
+			std::string const &ref_fname,
 			class vcf_reader &&vcf_reader,
 			sv_handling const sv_handling_method,
 			bool const should_check_ref
@@ -53,6 +55,7 @@ namespace vcf2multialign {
 			parsing_task(status_logger, error_logger, std::move(vcf_reader)),
 			m_delegate(&delegate),
 			m_reference(&reference),
+			m_ref_fname(ref_fname),
 			m_sv_handling_method(sv_handling_method),
 			m_should_check_ref(should_check_ref)
 		{

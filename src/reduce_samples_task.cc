@@ -365,6 +365,9 @@ namespace vcf2multialign {
 		m_progress_counter.calculate_step_count(m_alt_checker->records_with_valid_alts(), m_generated_path_count, m_remaining_merge_tasks);
 		
 		// Update status.
+		m_status_logger->log([range_count](){
+			std::cerr << "Split the variants into " << range_count << " subgraphs." << std::endl;
+		});
 		m_status_logger->log_message_progress_bar("Reducing samples…");
 		
 		// Start each task.

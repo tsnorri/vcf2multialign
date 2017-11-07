@@ -5,6 +5,7 @@
 
 #include <vcf2multialign/check_overlapping_non_nested_variants.hh>
 #include <vcf2multialign/find_subgraph_starting_points.hh>
+#include <vcf2multialign/read_single_fasta_seq.hh>
 #include <vcf2multialign/tasks/preparation_task.hh>
 
 
@@ -118,10 +119,21 @@ namespace vcf2multialign {
 		// Update the status in the main queue by calling dispatch_async and synchronize between phases.
 		auto main_queue(dispatch_get_main_queue());
 		
+		// Read the reference FASTA.
+		{
+			v2m::file_istream ref_fasta_stream;
+			v2m::open_file_for_reading(m_ref_fname.c_str(), ref_fasta_stream);
+			
+			// Read the reference file and place its contents into reference.
+			// If minimum path length was not given, set it to the square root of the reference sequence length.
+			v2m::read_single_fasta_seq(ref_fasta_stream, *m_reference, *m_status_logger);
+		}
+		
 		// Check the ploidy from the first record.
 		m_status_logger->log([](){
 			std::cerr << "Checking ploidy…" << std::endl;
 		});
+		m_status_logger->set_delegate(*this);
 		check_ploidy();
 		
 		// Compare REF to the reference vector.

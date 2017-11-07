@@ -9,7 +9,6 @@
 #include <thread>
 #include <vcf2multialign/dispatch_fn.hh>
 #include <vcf2multialign/generate_haplotypes.hh>
-#include <vcf2multialign/read_single_fasta_seq.hh>
 #include <vcf2multialign/tasks/all_haplotypes_task.hh>
 #include <vcf2multialign/tasks/preparation_task.hh>
 #include <vcf2multialign/tasks/reduce_samples_task.hh>
@@ -170,9 +169,6 @@ namespace {
 		v2m::vcf_reader reader(m_vcf_input);
 		
 		{
-			v2m::file_istream ref_fasta_stream;
-			
-			v2m::open_file_for_reading(reference_fname, ref_fasta_stream);
 			m_vcf_handle.open(variants_fname);
 			m_vcf_input.reset_range();
 			
@@ -189,15 +185,6 @@ namespace {
 			
 			std::cerr << "Reading the VCF header…" << std::endl;
 			reader.read_header();
-			
-			// Read the reference file and place its contents into reference.
-			// If minimu path length was not given, set it to the square root of the reference sequence length.
-			v2m::read_single_fasta_seq(ref_fasta_stream, m_reference);
-			if (m_should_reduce_samples && 0 == m_min_path_length)
-			{
-				m_min_path_length = std::ceil(std::sqrt(m_reference.size()));
-				std::cerr << "Set minimum path length to " << m_min_path_length << '.' << std::endl;
-			}
 		}
 		
 		std::unique_ptr <v2m::task> task(
@@ -206,6 +193,7 @@ namespace {
 				m_status_logger,
 				m_error_logger,
 				m_reference,
+				reference_fname,
 				std::move(reader),
 				m_sv_handling_method,
 				should_check_ref
@@ -232,6 +220,12 @@ namespace {
 		
 		if (m_should_reduce_samples)
 		{
+			if (0 == m_min_path_length)
+			{
+				m_min_path_length = std::ceil(std::sqrt(m_reference.size()));
+				std::cerr << "Set minimum path length to " << m_min_path_length << '.' << std::endl;
+			}
+			
 			auto const sample_ploidy_sum(boost::accumulate(m_ploidy | boost::adaptors::map_values, 0));
 			auto const hw_concurrency(std::thread::hardware_concurrency());
 			
