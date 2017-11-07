@@ -12,6 +12,14 @@ On Linux the following libraries are required:
 - [libdispatch](http://nickhutchinson.me/libdispatch/) (provided as a Git submodule)
 - [libpthread_workqueue](https://github.com/mheily/libpwq) (provided as a Git submodule)
 - [libkqueue](https://github.com/mheily/libkqueue)
+- [libblocksruntime](https://github.com/mheily/blocks-runtime)
+
+
+## Installing Build Requirements on Ubuntu
+
+Please use the following command:
+
+    sudo apt install libblocksruntime-dev libkqueue-dev gengetopt ragel cmake
 
 ## Build Requirements
 
@@ -27,7 +35,7 @@ On Linux the following libraries are required:
 
 1. `git clone https://github.com/tsnorri/vcf2multialign.git`
 2. `cd vcf2multialign`
-3. `GIT_ALLOW_PROTOCOL=hg git submodule update --init --recursive`
+3. `GIT_ALLOW_PROTOCOL=hg:https git submodule update --init --recursive`
 4. `cp linux-static.local.mk local.mk`
 5. Edit local.mk
 6. `make -j4`
