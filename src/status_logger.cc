@@ -64,6 +64,7 @@ namespace vcf2multialign {
 		dispatch_suspend(*m_message_timer);
 		m_indicator_type = none;
 		m_need_clear_line = false;
+		m_timer_active = false;
 		std::cerr << std::endl;
 	}
 	
@@ -80,8 +81,7 @@ namespace vcf2multialign {
 			m_start_time = ch::steady_clock::now();
 		}
 
-		dispatch(this).source_set_event_handler <&status_logger::update_mt>(*m_message_timer);
-		dispatch_resume(*m_message_timer);
+		dispatch(this).async <&status_logger::resume_timer>(dispatch_get_main_queue());
 	}
 	
 	
@@ -97,8 +97,7 @@ namespace vcf2multialign {
 			m_start_time = ch::steady_clock::now();
 		}
 		
-		dispatch(this).source_set_event_handler <&status_logger::update_mt>(*m_message_timer);
-		dispatch_resume(*m_message_timer);
+		dispatch(this).async <&status_logger::resume_timer>(dispatch_get_main_queue());
 	}
 	
 	
@@ -110,6 +109,8 @@ namespace vcf2multialign {
 	
 	void status_logger::update_mt()
 	{
+		if (!m_timer_active)
+			return;
 		
 		switch (m_indicator_type)
 		{
@@ -117,13 +118,15 @@ namespace vcf2multialign {
 			{
 				std::lock_guard <std::mutex> guard(m_message_mutex);
 				m_need_clear_line = true;
+				auto const current_step(m_delegate->current_step());
 				
 				auto fmt(
 					boost::format("%s % d ")
 					% m_message
-					% boost::io::group(std::setw(m_window_width - m_message_length - 2), m_delegate->step_count())
+					% boost::io::group(std::setw(m_window_width - m_message_length - 2), current_step)
 				);
-				std::cerr << '\r' << fmt << std::flush;
+				//std::cerr << '\r' << fmt << std::flush;
+				std::cerr << "\33[2K\r" << fmt << std::flush;
 				break;
 			}
 			
@@ -148,12 +151,21 @@ namespace vcf2multialign {
 	}
 	
 	
+	void status_logger::resume_timer()
+	{
+		m_timer_active = true;
+		dispatch(this).source_set_event_handler <&status_logger::update_mt>(*m_message_timer);
+		dispatch_resume(*m_message_timer);
+	}
+	
+	
 	void status_logger::clear_line_mt()
 	{
 		if (m_need_clear_line)
 		{
 			m_need_clear_line = false;
-			std::cerr << '\r';
+			//std::cerr << '\r';
+			std::cerr << "\33[2K\r";
 		}
 	}
 	
@@ -165,5 +177,6 @@ namespace vcf2multialign {
 		m_window_width = ws.ws_col;
 		if (!m_window_width)
 			m_window_width = 80;
+		update_mt();
 	}
 }

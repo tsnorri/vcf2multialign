@@ -45,6 +45,7 @@ namespace vcf2multialign {
 		std::size_t							m_window_width{0};
 		std::size_t							m_message_length{0};
 		std::atomic <indicator_type>		m_indicator_type{none};
+		std::atomic_bool					m_timer_active{false};
 		bool								m_need_clear_line{false};
 		
 	public:
@@ -64,16 +65,18 @@ namespace vcf2multialign {
 		void update();
 		
 		template <typename t_fn>
-		void log(t_fn fn)
+		void log(t_fn fn, bool clear_line = true)
 		{
-			dispatch_async_fn(dispatch_get_main_queue(), [this, fn{std::move(fn)}](){
-				clear_line_mt();
+			dispatch_async_fn(dispatch_get_main_queue(), [this, fn{std::move(fn)}, clear_line](){
+				if (clear_line)
+					clear_line_mt();
 				fn();
 				update_mt();
 			});
 		}
 		
 	protected:
+		void resume_timer();
 		void update_mt();
 		void clear_line_mt();
 		void finish_logging_mt();
