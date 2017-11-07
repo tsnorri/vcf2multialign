@@ -6,6 +6,7 @@
 #ifndef VCF2MULTIALIGN_FASTA_READER_HH
 #define VCF2MULTIALIGN_FASTA_READER_HH
 
+#include <atomic>
 #include <iostream>
 #include <iterator>
 #include <vcf2multialign/util.hh>
@@ -44,9 +45,17 @@ namespace vcf2multialign {
 		typedef t_vector_source						vector_source;
 		typedef typename vector_source::vector_type	vector_type;
 		
+	protected:
+		std::atomic_size_t							m_lineno{0};
+		
 	public:
-		void read_from_stream(std::istream &stream, vector_source &vector_source, t_callback &cb) const
+		std::size_t current_line() const { return m_lineno; }
+		
+		
+		void read_from_stream(std::istream &stream, vector_source &vector_source, t_callback &cb)
 		{
+			m_lineno = 0;
+			
 			std::size_t const size(1024 * 1024);
 			std::size_t seq_length(0);
 			vector_type buffer(size, 0);
@@ -67,7 +76,7 @@ namespace vcf2multialign {
 				
 				while (stream.getline(buffer_data, size - 1, '\n'))
 				{
-					++i;
+					++m_lineno;
 					
 					// Discard comments.
 					auto const first(buffer_data[0]);
@@ -120,9 +129,6 @@ namespace vcf2multialign {
 					auto const it(buffer.begin());
 					std::copy(it, it + count, seq->begin() + seq_length);
 					seq_length += count;
-
-					if (0 == i % 100000)
-						std::cerr << "Handled " << i << " lines…" << std::endl;
 				}
 				
 				if (seq_length)
