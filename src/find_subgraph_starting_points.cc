@@ -49,7 +49,7 @@ namespace vcf2multialign {
 					goto loop_end_2;
 				
 				// If we've moved past the previous subgraph, record the current starting point.
-				if (current_subgraph_end <= var_lineno)
+				if (current_subgraph_end <= pos)
 				{
 					auto const line_start(reader.line_start());
 					subgraph_starting_points.emplace(
