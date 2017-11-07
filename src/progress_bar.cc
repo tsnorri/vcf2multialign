@@ -39,7 +39,8 @@ namespace vcf2multialign {
 		{
 			length -= PERCENT_WIDTH;
 			
-			stream << '\r' << title;
+			//stream << '\r' << title;
+			stream << "\33[2K\r" << title;
 			for (std::size_t i(0); i < pad; ++i)
 				stream << ' ';
 			
