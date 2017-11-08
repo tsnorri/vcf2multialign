@@ -14,6 +14,7 @@
 #include <sdsl/int_vector.hpp>
 #include <set>
 #include <vcf2multialign/dispatch_fn.hh>
+#include <vcf2multialign/graph_range.hh>
 #include <vcf2multialign/util.hh>
 
 
@@ -53,6 +54,7 @@ namespace vcf2multialign {
 	}
 	
 	
+	// Represent a set of ALT index sequences in a subgraph.
 	// FIXME: everything that uses consecutive indices here should be replaced with std::vectors or bimaps with vector views for O(1) random access.
 	class reduced_subgraph
 	{
@@ -89,8 +91,7 @@ namespace vcf2multialign {
 		sample_bimap						m_samples_by_sequence_idx;	// Initialized in invert_sequences_by_sample().
 		path_map							m_generated_paths;
 		path_eq_map							m_generated_paths_eq;
-		std::size_t							m_start_lineno{0};
-		std::size_t							m_variant_count{0};
+		graph_range							m_subgraph_range;
 		
 	public:
 		reduced_subgraph() = default;
@@ -100,20 +101,20 @@ namespace vcf2multialign {
 			sample_bimap &&samples_by_sequence_idx,
 			path_map &&generated_paths,
 			path_eq_map &&generated_paths_eq,
-			std::size_t const start_lineno,
-			std::size_t const variant_count
+			graph_range &&subgraph_range
 		):
 			m_sequences(std::move(sequences)),
 			m_samples_by_sequence_idx(std::move(samples_by_sequence_idx)),
 			m_generated_paths(std::move(generated_paths)),
 			m_generated_paths_eq(std::move(generated_paths_eq)),
-			m_start_lineno(start_lineno),
-			m_variant_count(variant_count)
+			m_subgraph_range(std::move(subgraph_range))
 		{
 		}
 		
-		std::size_t start_lineno() const { return m_start_lineno; }
-		std::size_t variant_count() const { return m_variant_count; }
+		std::size_t start_lineno() const { return m_subgraph_range.start_lineno(); }
+		std::size_t variant_count() const { return m_subgraph_range.variant_count(); }
+		std::size_t seq_position(std::size_t const var_lineno) const { return m_subgraph_range.seq_position(var_lineno); }
+		bool contains_var_lineno(std::size_t const var_lineno) const { return m_subgraph_range.contains_var_lineno(var_lineno); }
 		
 		sequence_type const &path_sequence(path_index const idx) const
 		{

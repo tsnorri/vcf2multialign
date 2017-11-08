@@ -98,29 +98,6 @@ namespace vcf2multialign {
 	};
 	
 	char const *to_string(sv_type const svt);
-	
-	
-	struct graph_range
-	{
-		std::size_t	range_start_offset{0};
-		std::size_t	range_length{0};
-		std::size_t start_lineno{0};
-		std::size_t	variant_count{0};
-		
-		graph_range() = default;
-		graph_range(
-			std::size_t	range_start_offset_,
-			std::size_t	range_length_,
-			std::size_t start_lineno_,
-			std::size_t	variant_count_
-		):
-			range_start_offset(range_start_offset_),
-			range_length(range_length_),
-			start_lineno(start_lineno_),
-			variant_count(variant_count_)
-		{
-		}
-	};
 }
 
 #endif

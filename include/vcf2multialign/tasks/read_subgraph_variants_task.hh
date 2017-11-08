@@ -28,13 +28,8 @@ namespace vcf2multialign {
 		public parsing_task_vh
 	{
 	protected:
-		struct sequence
-		{
-			reduced_subgraph::sequence_type			sequence_vector;
-			std::size_t								position{0};
-		};
-		
-		typedef std::map <sample_id, sequence>		sequence_map;
+		typedef reduced_subgraph::sequence_type		sequence_type;
+		typedef std::map <sample_id, sequence_type>	sequence_map;
 		
 	protected:
 		read_subgraph_variants_task_delegate		*m_delegate{nullptr};

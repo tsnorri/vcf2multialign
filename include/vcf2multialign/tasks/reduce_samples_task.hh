@@ -79,8 +79,8 @@ namespace vcf2multialign {
 		
 		
 	protected:
-		dispatch_ptr <dispatch_semaphore_t>			m_semaphore{};	// FIXME: make use of this.
-		dispatch_ptr <dispatch_semaphore_t>			m_write_semaphore{};
+		dispatch_ptr <dispatch_semaphore_t>			m_subgraph_semaphore;
+		dispatch_ptr <dispatch_semaphore_t>			m_write_semaphore;
 
 		std::mutex									m_subgraph_mutex;
 		subgraph_vector								m_subgraphs;
@@ -136,8 +136,8 @@ namespace vcf2multialign {
 		):
 			task(),
 			sequence_writer_task_delegate(),
-			m_semaphore(dispatch_semaphore_create(2 * hw_concurrency)), // FIXME: some other value?
-			m_write_semaphore(dispatch_semaphore_create(2 * hw_concurrency)), // FIXME: arbitrary value.
+			m_subgraph_semaphore(dispatch_semaphore_create(4 * hw_concurrency)), // FIXME: some other value?
+			m_write_semaphore(dispatch_semaphore_create(4 * hw_concurrency)), // FIXME: arbitrary value.
 			m_path_permutation(generated_path_count),
 			m_reader(std::move(reader)),
 			m_delegate(&delegate),

@@ -74,7 +74,8 @@ namespace vcf2multialign {
 	{
 		auto const &lhs(m_subgraphs[lhs_idx]);
 		auto const &rhs(m_subgraphs[rhs_idx]);
-		std::unique_ptr <task> task(new merge_subgraph_paths_task(*this, m_semaphore, lhs, rhs, lhs_idx, m_generated_path_count));
+		std::unique_ptr <task> task(new merge_subgraph_paths_task(*this, *m_status_logger, lhs, rhs, lhs_idx, m_generated_path_count));
+		
 		m_delegate->store_and_execute(std::move(task));
 	}
 	
@@ -147,7 +148,11 @@ namespace vcf2multialign {
 		// std::memory_order_seq_cst):
 		// “–– everything that happened-before a store in one thread becomes a visible
 		// side effect in the thread that did a load –– ”
-		if (0 == --m_remaining_merge_tasks)
+		
+		std::size_t const remaining_merge_tasks(--m_remaining_merge_tasks);
+		m_status_logger->set_message(boost::str(boost::format("Reducing samples… (%d subgraphs to be merged)") % remaining_merge_tasks));
+		
+		if (0 == remaining_merge_tasks)
 		{
 			m_status_logger->finish_logging();
 			m_progress_counter.reset_step_count(m_alt_checker->records_with_valid_alts());
@@ -234,7 +239,7 @@ namespace vcf2multialign {
 			subgraph_start_lineno = subgraph.start_lineno();
 			
 			always_assert(subgraph_start_lineno <= var_lineno);
-			if (var_lineno < subgraph_start_lineno + subgraph_var_count)
+			if (subgraph.contains_var_lineno(var_lineno))
 				break;
 			
 			// Update m_path_permutation.
@@ -253,7 +258,7 @@ namespace vcf2multialign {
 		}
 		
 		// Enumerate the genotypes in the permutation order.
-		auto const pos_in_subgraph(var.variant_index() - (subgraph_start_lineno - first_var_lineno));
+		auto const pos_in_subgraph(m_subgraph_iterator->seq_position(var_lineno));
 		std::size_t sample_no(0);
 		static_assert(0 == REF_SAMPLE_NUMBER);
 		cb(REF_SAMPLE_NUMBER, 0, 0, true);	// REF.
@@ -272,6 +277,8 @@ namespace vcf2multialign {
 	
 	void reduce_samples_task::task_did_finish(read_subgraph_variants_task &task, reduced_subgraph &&rsg)
 	{
+		dispatch_semaphore_signal(*m_subgraph_semaphore);
+		
 		// Store the reduced subgraph. Use the mutex to make this thread-safe.
 		std::lock_guard <std::mutex> lock_guard(m_subgraph_mutex);
 		// Tasks are numbered in subgraph starting point order.
@@ -294,8 +301,10 @@ namespace vcf2multialign {
 	{
 		std::vector <graph_range> graph_ranges;
 		
+		// FIXME: the following block contains some duplicated code.
 		// Create a task for each sufficiently long range.
 		{
+			std::vector <std::size_t> skipped_lines;
 			auto const &input(m_reader.vcf_input());
 			auto const buffer_start(input.buffer_start());
 			auto const buffer_end(input.buffer_end());
@@ -313,7 +322,9 @@ namespace vcf2multialign {
 				while (current_lineno < var_lineno)
 				{
 					// valid_alts() is O(1).
-					if (m_alt_checker->valid_alts(current_lineno).size())
+					if (m_alt_checker->valid_alts(current_lineno).empty())
+						skipped_lines.emplace_back(current_lineno);
+					else
 						++current_range_variant_count;
 					
 					++current_lineno;
@@ -322,15 +333,26 @@ namespace vcf2multialign {
 				
 				if (m_min_path_length <= current_range_variant_count)
 				{
+					// Mark skipped lines in a bit vector.
+					std::size_t const total_lines(current_lineno - current_start_lineno + 1);
+					sdsl::bit_vector skipped_lines_b(total_lines, 0);
+					for (auto const skipped_line : skipped_lines)
+					{
+						std::size_t const line_idx(skipped_line - current_start_lineno);
+						skipped_lines_b[line_idx] = 1;
+					}
+					
 					graph_ranges.emplace_back(
 						current_start - buffer_start,
 						next_subgraph_start - current_start,
 						current_start_lineno,
-						current_range_variant_count
+						current_range_variant_count,
+						std::move(skipped_lines_b)
 					);
 					current_range_variant_count = 0;
 					current_start = next_subgraph_start;
 					current_start_lineno = current_lineno;
+					skipped_lines.clear();
 				}
 			}
 		
@@ -338,18 +360,30 @@ namespace vcf2multialign {
 			auto const lineno_limit(1 + m_record_count + m_reader.last_header_lineno());
 			while (current_lineno < lineno_limit)
 			{
-				if (m_alt_checker->valid_alts(current_lineno).size())
+				if (m_alt_checker->valid_alts(current_lineno).empty())
+					skipped_lines.emplace_back(current_lineno);
+				else
 					++current_range_variant_count;
 				
 				++current_lineno;
 			}
 			assert(lineno_limit == current_lineno);
 			
+			// Mark skipped lines in a bit vector.
+			std::size_t const total_lines(current_lineno - current_start_lineno + 1);
+			sdsl::bit_vector skipped_lines_b(total_lines, 0);
+			for (auto const skipped_line : skipped_lines)
+			{
+				std::size_t const line_idx(skipped_line - current_start_lineno);
+				skipped_lines_b[line_idx] = 1;
+			}
+			
 			graph_ranges.emplace_back(
 				current_start - buffer_start,
 				buffer_end - current_start,
 				current_start_lineno,
-				current_range_variant_count
+				current_range_variant_count,
+				std::move(skipped_lines_b)
 			);
 		}
 		
@@ -374,6 +408,9 @@ namespace vcf2multialign {
 		std::size_t task_idx(0);
 		for (auto &range : graph_ranges)
 		{
+			auto const st(dispatch_semaphore_wait(*m_subgraph_semaphore, DISPATCH_TIME_FOREVER));
+			always_assert(0 == st);
+			
 			auto *task(new read_subgraph_variants_task);
 			std::unique_ptr <class task> task_ptr(task);
 			init_read_subgraph_variants_task(

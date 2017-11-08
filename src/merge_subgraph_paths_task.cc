@@ -10,7 +10,7 @@ namespace vcf2multialign {
 	
 	void merge_subgraph_paths_task::calculate_edge_weight(
 		graph_type const &graph,
-		edge_cost_map_type &edge_costs,
+		edge_cost_vector_type &edge_costs,
 		std::size_t const li,
 		std::size_t const ri
 	)
@@ -24,11 +24,9 @@ namespace vcf2multialign {
 		auto const lhs(graph.redNode(li));
 		auto const rhs(graph.blueNode(ri));
 		auto const edge(graph.edge(lhs, rhs));
-
-		{
-			std::lock_guard <std::mutex> lock_guard(m_graph_mutex);
-			edge_costs.set(edge, weight);
-		}
+		auto const edge_id(graph_type::id(edge));
+		always_assert(edge_id < edge_costs.size());
+		edge_costs[edge_id] = weight;
 		
 		m_delegate->task_did_calculate_edge_weight(*this);
 	}
@@ -74,33 +72,41 @@ namespace vcf2multialign {
 		dispatch_queue_t queue(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0));
 		dispatch_ptr <dispatch_group_t> group(dispatch_group_create());
 		
+		// Use a std::vector since contents of its contained objects in different elements
+		// may be modified concurrently without data races.
 		graph_type graph(m_path_count, m_path_count);
-		edge_cost_map_type edge_costs(graph);
+		edge_cost_map_type edge_cost_map(graph);
 		
 		{
+			edge_cost_vector_type edge_costs(1 + graph.maxEdgeId(), 0);
 			for (std::size_t i(0); i < m_path_count; ++i)
 			{
 				for (std::size_t j(0); j < m_path_count; ++j)
 				{
-					dispatch_semaphore_wait(*m_semaphore, DISPATCH_TIME_FOREVER);
 					dispatch_group_async_fn(*group, queue, [this, &graph, &edge_costs, i, j](){
 						calculate_edge_weight(graph, edge_costs, i, j);
-						dispatch_semaphore_signal(*m_semaphore);
 					});
 				}
 			}
+			
+			dispatch_group_wait(*group, DISPATCH_TIME_FOREVER);
+			
+			// Copy the values to edge_cost_map.
+			std::size_t i(0);
+			for (auto const weight : edge_costs)
+			{
+				auto const edge(graph_type::edgeFromId(i));
+				edge_cost_map.set(edge, weight);
+				++i;
+			}
 		}
 		
-		dispatch_group_wait(*group, DISPATCH_TIME_FOREVER);
 		std::vector <reduced_subgraph::path_index> matchings(
 			m_path_count,
 			std::numeric_limits <reduced_subgraph::path_index>::max()
 		);
 
-		dispatch_semaphore_wait(*m_semaphore, DISPATCH_TIME_FOREVER);
-		auto const matching_weight(find_minimum_cost_matching(graph, edge_costs, matchings));
-		dispatch_semaphore_signal(*m_semaphore);
-		
+		auto const matching_weight(find_minimum_cost_matching(graph, edge_cost_map, matchings));
 		m_delegate->task_did_finish(*this, std::move(matchings), matching_weight);
 	}
 }

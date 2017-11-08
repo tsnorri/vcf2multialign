@@ -15,24 +15,31 @@ namespace vcf2multialign {
 	{
 		// Fill m_sequences_by_variant by pairs of sample_id -> sequence of alt indices.
 		
+		auto const var_lineno(var.lineno());
 		auto const var_pos(var.zero_based_pos());
 		auto const &var_ref(var.ref());
 		auto const var_ref_size(var_ref.size());
 		auto const var_end(var_pos + var_ref_size);
+		auto const seq_position(m_subgraph_range.seq_position(var_lineno));
+		
+		// (Sample * chromosome) number, zeroed when handling each variant.
 		std::size_t i(0);
 		
 		m_variant_handler.enumerate_sample_genotypes(
 			var,
 			[
 				this,
+				seq_position,
 				&i,
 				&var,
+				var_lineno,
+				var_pos,
 				var_end
 			]
 			(
 				std::size_t const sample_no,
-				uint8_t chr_idx,
-				uint8_t const alt_idx,
+				uint8_t const chr_idx,
+				uint8_t alt_idx,
 				bool const is_phased
 			) {
 				always_assert(0 == chr_idx || is_phased, "Variant file not phased");
@@ -41,12 +48,11 @@ namespace vcf2multialign {
 				// with the co-ordinates of a previous variant in
 				// the current sample. If it does, substitute with
 				// a zero.
-				if (chr_idx)
+				if (alt_idx)
 				{
-					auto const var_pos(var.pos());
 					if (var_pos < m_endpoints[i])
 					{
-						chr_idx = 0;
+						alt_idx = 0;
 
 						// FIXME: log overlapping (per-sample) variants.
 					}
@@ -57,18 +63,19 @@ namespace vcf2multialign {
 				}
 				
 				sample_id const sid(sample_no, chr_idx);
-				auto it(m_sequences_by_sample.find(sid));	// FIXME: O(log n)
+				auto it(m_sequences_by_sample.find(sid));	// FIXME: O(log n), we can do better.
+				
 				if (m_sequences_by_sample.cend() == it)
 				{
 					auto &seq(m_sequences_by_sample[sid]);
-					seq.sequence_vector.width(m_alt_field_width);
-					seq.sequence_vector.resize(m_subgraph_range.variant_count);
-					seq.sequence_vector[seq.position++] = alt_idx;
+					seq.width(m_alt_field_width);
+					seq.resize(m_subgraph_range.variant_count());
+					seq[seq_position] = alt_idx;
 				}
 				else
 				{
 					auto &seq(it->second);
-					seq.sequence_vector[seq.position++] = alt_idx;
+					seq[seq_position] = alt_idx;
 				}
 				
 				++i;
@@ -100,7 +107,7 @@ namespace vcf2multialign {
 		{
 			auto it(m_sequences_by_sample.begin());
 			auto &seq(it->second);
-			samples_by_sequence[std::move(seq.sequence_vector)].emplace(it->first);
+			samples_by_sequence[std::move(seq)].emplace(it->first);
 			m_sequences_by_sample.erase(it);
 		}
 		
@@ -294,8 +301,7 @@ namespace vcf2multialign {
 			std::move(samples_by_sequence_idx),
 			std::move(generated_paths),
 			std::move(generated_paths_eq),
-			m_subgraph_range.start_lineno,
-			m_subgraph_range.variant_count
+			std::move(m_subgraph_range)
 		);
 		
 		m_delegate->task_did_finish(*this, std::move(rsg));
@@ -307,9 +313,9 @@ namespace vcf2multialign {
 		reader.set_parsed_fields(vcf_field::ALL);
 		
 		// Make the reader handle the subgraph range.
-		m_vcf_input.set_range_start_lineno(m_subgraph_range.start_lineno);
-		m_vcf_input.set_range_start_offset(m_subgraph_range.range_start_offset);
-		m_vcf_input.set_range_length(m_subgraph_range.range_length);
+		m_vcf_input.set_range_start_lineno(m_subgraph_range.start_lineno());
+		m_vcf_input.set_range_start_offset(m_subgraph_range.range_start_offset());
+		m_vcf_input.set_range_length(m_subgraph_range.range_length());
 	}
 	
 	
