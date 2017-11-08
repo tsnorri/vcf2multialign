@@ -3,10 +3,20 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#ifndef VCF2MULTIALIGN_CXX14COMPAT_HH
-#define VCF2MULTIALIGN_CXX14COMPAT_HH
+#ifndef VCF2MULTIALIGN_CXX_COMPAT_HH
+#define VCF2MULTIALIGN_CXX_COMPAT_HH
 
-#include <experimental/string_view>
+#ifdef __cpp_lib_optional
+#	include <optional>
+#else
+#	include <experimental/optional>
+#endif
+
+#ifdef __cpp_lib_string_view
+#	include <string_view>
+#else
+#	include <experimental/string_view>
+#endif
 
 
 #if __cplusplus < 201402L
@@ -30,12 +40,16 @@ namespace std {
 #endif
 
 
-#if __cplusplus < 201703L
-// XXX Hack.
+#ifndef __cpp_lib_optional
 namespace std {
-	using std::experimental::string_view;
 	using std::experimental::optional;
 	using std::experimental::nullopt;
+}
+#endif
+
+#ifdef __cpp_lib_string_view
+namespace std {
+	using std::experimental::string_view;
 }
 #endif
 
