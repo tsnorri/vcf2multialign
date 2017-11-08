@@ -34,7 +34,7 @@ namespace vcf2multialign {
 			m_signal_source = std::move(signal_source);
 		}
 		
-		dispatch_source_set_timer(*m_message_timer, dispatch_time(DISPATCH_TIME_NOW, 0), 100000000, 10000000);
+		dispatch_source_set_timer(*m_message_timer, dispatch_time(DISPATCH_TIME_NOW, 0), 333 * 1000 * 1000, 33 * 1000 * 1000);
 		dispatch(this).source_set_event_handler <&status_logger::handle_window_size_change_mt>(*m_signal_source);
 		dispatch(this).async <&status_logger::handle_window_size_change_mt>(main_queue);
 		
@@ -66,6 +66,15 @@ namespace vcf2multialign {
 		m_need_clear_line = false;
 		m_timer_active = false;
 		std::cerr << std::endl;
+	}
+	
+	
+	void status_logger::set_message(std::string const &message)
+	{
+		auto const message_len(strlen_utf8(message));
+		std::lock_guard <std::mutex> guard(m_message_mutex);
+		m_message = message;
+		m_message_length = message_len;
 	}
 	
 	

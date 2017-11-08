@@ -57,6 +57,7 @@ namespace vcf2multialign {
 		}
 		
 		void set_delegate(status_logger_delegate &delegate) { m_delegate = &delegate; }
+		void set_message(std::string const &message);
 		void install();
 		void uninstall();
 		void finish_logging();
