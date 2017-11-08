@@ -34,6 +34,8 @@ namespace std {
 // XXX Hack.
 namespace std {
 	using std::experimental::string_view;
+	using std::experimental::optional;
+	using std::experimental::nullopt;
 }
 #endif
 

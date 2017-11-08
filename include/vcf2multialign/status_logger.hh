@@ -7,6 +7,8 @@
 #define VCF2MULTIALIGN_STATUS_LOGGER_HH
 
 #include <boost/format.hpp>
+#include <chrono>
+#include <mutex>
 #include <vcf2multialign/dispatch_fn.hh>
 #include <vcf2multialign/types.hh>
 #include <vcf2multialign/util.hh>
