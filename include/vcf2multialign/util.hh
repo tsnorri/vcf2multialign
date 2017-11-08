@@ -12,6 +12,9 @@
 
 namespace vcf2multialign {
 	
+	inline void fail() { abort(); }
+	
+	
 	inline void fail(char const *message)
 	{
 		std::cerr << message << std::endl;
