@@ -6,13 +6,13 @@
 #ifndef VCF2MULTIALIGN_CXX_COMPAT_HH
 #define VCF2MULTIALIGN_CXX_COMPAT_HH
 
-#ifdef __cpp_lib_optional
+#if __cplusplus < 201603L
 #	include <optional>
 #else
 #	include <experimental/optional>
 #endif
 
-#ifdef __cpp_lib_string_view
+#if __cplusplus < 201603L
 #	include <string_view>
 #else
 #	include <experimental/string_view>
@@ -22,7 +22,7 @@
 #if __cplusplus < 201402L
 namespace std {
 	template <typename t_input_it_1, typename t_input_it_2>
-	bool equal(t_input_it_1 it_1, t_input_it_1 const end_1, t_input_it_2 it_2, t_input_it_2 const end_2)
+}}}	bool equal(t_input_it_1 it_1, t_input_it_1 const end_1, t_input_it_2 it_2, t_input_it_2 const end_2)
 	{
 		while (it_1 != end_1 && it_2 != end_2)
 		{
@@ -40,15 +40,10 @@ namespace std {
 #endif
 
 
-#ifndef __cpp_lib_optional
+#if __cplusplus < 201603L
 namespace std {
 	using std::experimental::optional;
 	using std::experimental::nullopt;
-}
-#endif
-
-#ifdef __cpp_lib_string_view
-namespace std {
 	using std::experimental::string_view;
 }
 #endif
