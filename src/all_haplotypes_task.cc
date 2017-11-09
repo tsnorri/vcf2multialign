@@ -59,7 +59,7 @@ namespace vcf2multialign {
 	
 	void all_haplotypes_task::update_haplotypes(bool const output_reference)
 	{
-		size_t i(0);
+		std::size_t i(0);
 		while (m_sample_names_it != m_sample_names_end)
 		{
 			auto const &sample_name(m_sample_names_it->first);
@@ -69,7 +69,7 @@ namespace vcf2multialign {
 			auto it(find_or_create_haplotype(sample_no, current_ploidy));
 			auto &haplotype_vec(it->second);
 		
-			for (size_t j(1); j <= current_ploidy; ++j)
+			for (std::size_t j(1); j <= current_ploidy; ++j)
 			{
 				auto const fname(boost::str(boost::format("%s-%u") % sample_name % j));
 				open_file_for_writing(fname.c_str(), haplotype_vec[j - 1].output_stream, m_should_overwrite_files);

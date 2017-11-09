@@ -37,7 +37,7 @@ namespace vcf2multialign {
 	template <
 		typename t_vector_source,
 		typename t_callback = detail::fasta_reader_cb <t_vector_source>,
-		size_t t_initial_size = 128
+		std::size_t t_initial_size = 128
 	>
 	class fasta_reader
 	{

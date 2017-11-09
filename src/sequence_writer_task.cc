@@ -12,7 +12,7 @@ namespace vcf2multialign {
 	{
 		m_vcf_reader.reset();
 		m_vcf_reader.set_parsed_fields(vcf_field::ALT);
-		size_t last_position(0);
+		std::size_t last_position(0);
 		bool should_continue(false);
 		do {
 			m_vcf_reader.fill_buffer();

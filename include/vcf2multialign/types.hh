@@ -30,7 +30,7 @@ namespace vcf2multialign {
 	template <typename t_ostream>
 	struct haplotype
 	{
-		size_t current_pos{0};
+		std::size_t current_pos{0};
 		t_ostream output_stream;
 	};
 	

@@ -68,19 +68,19 @@ namespace vcf2multialign {
 	{
 		typedef alt_map <t_ostream> alt_map_type;
 		
-		size_t			start_pos{0};
-		size_t			current_pos{0};
-		size_t			end_pos{0};
-		size_t			heaviest_path_length{0};
-		size_t			lineno{0};
+		std::size_t		start_pos{0};
+		std::size_t		current_pos{0};
+		std::size_t		end_pos{0};
+		std::size_t		heaviest_path_length{0};
+		std::size_t		lineno{0};
 		alt_map_type	alt_haplotypes;
 		
 		variant_overlap(
-			size_t const start_pos_,
-			size_t const current_pos_,
-			size_t const end_pos_,
-			size_t const heaviest_path_length_,
-			size_t const lineno_
+			std::size_t const start_pos_,
+			std::size_t const current_pos_,
+			std::size_t const end_pos_,
+			std::size_t const heaviest_path_length_,
+			std::size_t const lineno_
 		):
 			start_pos(start_pos_),
 			current_pos(current_pos_),
@@ -92,11 +92,11 @@ namespace vcf2multialign {
 		}
 		
 		variant_overlap(
-			size_t const start_pos_,
-			size_t const current_pos_,
-			size_t const end_pos_,
-			size_t const heaviest_path_length_,
-			size_t const lineno_,
+			std::size_t const start_pos_,
+			std::size_t const current_pos_,
+			std::size_t const end_pos_,
+			std::size_t const heaviest_path_length_,
+			std::size_t const lineno_,
 			alt_map_type &&alts
 		):
 			start_pos(start_pos_),
@@ -115,7 +115,7 @@ namespace vcf2multialign {
 	class sequence_writer
 	{
 	protected:
-		typedef std::vector <size_t>					sample_number_vector;
+		typedef std::vector <std::size_t>				sample_number_vector;
 		typedef variant_overlap <t_ostream>				variant_overlap_type;
 		typedef std::stack <variant_overlap_type>		overlap_stack_type;
 		typedef haplotype_map <t_ostream>				haplotype_map_type;
@@ -153,9 +153,9 @@ namespace vcf2multialign {
 		void finish();
 		
 	protected:
-		void fill_streams(haplotype_ptr_map_type &haplotypes, size_t const fill_amt) const;
+		void fill_streams(haplotype_ptr_map_type &haplotypes, std::size_t const fill_amt) const;
 		void output_reference(std::size_t const output_start_pos, std::size_t const output_end_pos);
-		std::size_t process_overlap_stack(size_t const var_pos);
+		std::size_t process_overlap_stack(std::size_t const var_pos);
 	};
 }
 

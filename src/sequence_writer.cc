@@ -39,7 +39,7 @@ namespace vcf2multialign {
 	
 	// Fill the streams with '-'.
 	template <typename t_ostream, typename t_variant>
-	void sequence_writer <t_ostream, t_variant>::fill_streams(haplotype_ptr_map_type &haplotypes, size_t const fill_amt) const
+	void sequence_writer <t_ostream, t_variant>::fill_streams(haplotype_ptr_map_type &haplotypes, std::size_t const fill_amt) const
 	{
 		for (auto &kv : haplotypes)
 		{
@@ -84,7 +84,7 @@ namespace vcf2multialign {
 
 	
 	template <typename t_ostream, typename t_variant>
-	std::size_t sequence_writer <t_ostream, t_variant>::process_overlap_stack(size_t const var_pos)
+	std::size_t sequence_writer <t_ostream, t_variant>::process_overlap_stack(std::size_t const var_pos)
 	{
 		std::size_t retval(0);
 		while (true)
@@ -166,7 +166,7 @@ namespace vcf2multialign {
 					auto &alt_ptrs(kv.second);
 					auto &ref_ptrs(m_ref_haplotype_ptrs[sample_name]);
 					
-					for (size_t i(0), count(alt_ptrs.size()); i < count; ++i)
+					for (std::size_t i(0), count(alt_ptrs.size()); i < count; ++i)
 					{
 						always_assert(! (alt_ptrs[i] && ref_ptrs[i]), "Inconsistent haplotype pointers");
 						
@@ -385,7 +385,7 @@ namespace vcf2multialign {
 			
 			auto const count(haplotype_vector.size());
 			haplotype_ptr_vector.resize(count);
-			for (size_t i(0); i < count; ++i)
+			for (std::size_t i(0); i < count; ++i)
 				haplotype_ptr_vector[i] = &haplotype_vector[i];
 		}
 	}

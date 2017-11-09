@@ -21,7 +21,7 @@ namespace vcf2multialign {
 		if (m_delegate->valid_alts(lineno).empty())
 			return;
 		
-		size_t const var_pos(var.zero_based_pos());
+		std::size_t const var_pos(var.zero_based_pos());
 		always_assert(var_pos < m_reference->size(), [this, lineno](){
 			std::cerr
 			<< "Variant position on line " << lineno

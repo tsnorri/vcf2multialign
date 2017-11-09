@@ -29,12 +29,12 @@ namespace vcf2multialign { namespace detail {
 
 	// Split a t_string into string_views.
 	template <bool t_emplace_back, typename t_string, typename t_invalid_pos>
-	size_t read_fields(
+	std::size_t read_fields(
 		t_string const &string,
 		t_invalid_pos const invalid_pos,
 		char const *string_start,
 		char const *sep,
-		size_t const count,
+		std::size_t const count,
 		std::vector <std::string_view> &res
 	)
 	{
@@ -46,7 +46,7 @@ namespace vcf2multialign { namespace detail {
 			res.resize(count);
 		
 		typename t_string::size_type sep_pos(0);
-		size_t i(0);
+		std::size_t i(0);
 		bool should_break(false);
 		while (i < count)
 		{
@@ -78,10 +78,10 @@ namespace vcf2multialign { namespace detail {
 	
 	// Split a string into string_views.
 	template <bool t_emplace_back>
-	size_t read_fields(
+	std::size_t read_fields(
 		std::string const &string,
 		char const *sep,
-		size_t const count,
+		std::size_t const count,
 		std::vector <std::string_view> &res
 	)
 	{
@@ -90,10 +90,10 @@ namespace vcf2multialign { namespace detail {
 	
 	
 	template <bool t_emplace_back>
-	size_t read_fields(
+	std::size_t read_fields(
 		std::string_view const &sv,
 		char const *sep,
-		size_t const count,
+		std::size_t const count,
 		std::vector <std::string_view> &res
 	)
 	{
@@ -175,7 +175,7 @@ namespace vcf2multialign {
 	
 	
 	// Return the 1-based number of the given sample.
-	size_t vcf_reader::sample_no(std::string const &sample_name) const
+	std::size_t vcf_reader::sample_no(std::string const &sample_name) const
 	{
 		auto const it(m_sample_names.find(sample_name));
 		if (it == m_sample_names.cend())

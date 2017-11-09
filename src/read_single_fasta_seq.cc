@@ -16,7 +16,7 @@ namespace {
 	
 	struct callback {
 		v2m::vector_type *reference;
-		size_t i{0};
+		std::size_t i{0};
 		
 		callback(v2m::vector_type &reference_):
 			reference(&reference_)
@@ -26,7 +26,7 @@ namespace {
 		void handle_sequence(
 			std::string const &identifier,
 			std::unique_ptr <v2m::vector_type> &seq,
-			size_t const &seq_length,
+			std::size_t const &seq_length,
 			v2m::vector_source <v2m::vector_type> &vs
 		)
 		{

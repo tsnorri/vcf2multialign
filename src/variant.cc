@@ -9,7 +9,7 @@
 
 namespace vcf2multialign {
 
-	size_t variant_base::zero_based_pos() const
+	std::size_t variant_base::zero_based_pos() const
 	{
 		always_assert(0 != m_pos, "Unexpected position");
 		return m_pos - 1;

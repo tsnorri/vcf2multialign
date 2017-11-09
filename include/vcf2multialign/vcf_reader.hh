@@ -87,8 +87,8 @@ namespace vcf2multialign {
 		std::size_t lineno() const { return m_lineno; }
 		std::size_t last_header_lineno() const { return m_input->last_header_lineno(); }
 		char const *line_start() const { return m_line_start; }
-		size_t sample_no(std::string const &sample_name) const;
-		size_t sample_count() const { return m_sample_names.size(); }
+		std::size_t sample_no(std::string const &sample_name) const;
+		std::size_t sample_count() const { return m_sample_names.size(); }
 		sample_name_map const &sample_names() const { return m_sample_names; }
 		void set_parsed_fields(vcf_field max_field) { m_max_parsed_field = max_field; }
 		std::size_t counter_value() const { return m_counter; } // Thread-safe.
