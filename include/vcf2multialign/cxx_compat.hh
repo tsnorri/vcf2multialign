@@ -40,11 +40,11 @@ namespace std {
 #endif
 
 
-#if __cplusplus < 201603L
+#ifndef __cpp_lib_optional
 namespace std {
 	using std::experimental::optional;
 	using std::experimental::nullopt;
-	using std::experimental::string_view;
+	//using std::experimental::string_view; // FIXME: libc++ has std::string_view but does not define __cpp_lib_string_view in <string_view>.
 }
 #endif
 
