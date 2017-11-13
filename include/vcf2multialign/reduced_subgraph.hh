@@ -115,6 +115,7 @@ namespace vcf2multialign {
 		std::size_t variant_count() const { return m_subgraph_range.variant_count(); }
 		std::size_t seq_position(std::size_t const var_lineno) const { return m_subgraph_range.seq_position(var_lineno); }
 		bool contains_var_lineno(std::size_t const var_lineno) const { return m_subgraph_range.contains_var_lineno(var_lineno); }
+		bool has_valid_alts(std::size_t const var_lineno) const { return m_subgraph_range.has_valid_alts(var_lineno); }
 		
 		sequence_type const &path_sequence(path_index const idx) const
 		{
@@ -154,6 +155,8 @@ namespace vcf2multialign {
 	
 	inline std::ostream &operator<<(std::ostream &os, reduced_subgraph const &sg)
 	{
+		os << "start_lineno: " << sg.start_lineno() << " variant_count: " << sg.variant_count() << std::endl;
+
 		std::size_t const count(sg.m_sequences[0].size());
 		for (std::size_t i(0); i < count; ++i)
 		{

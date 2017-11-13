@@ -78,6 +78,7 @@ namespace vcf2multialign {
 		
 		std::size_t seq_position(std::size_t const var_lineno) const;
 		bool contains_var_lineno(std::size_t const var_lineno) const;
+		bool has_valid_alts(std::size_t const var_lineno) const;
 		std::size_t range_start_offset() const { return m_range_start_offset; }
 		std::size_t range_length() const { return m_range_length; }
 		std::size_t start_lineno() const { return m_start_lineno; }
