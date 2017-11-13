@@ -26,7 +26,7 @@ namespace vcf2multialign {
 		// (Sample * chromosome) number, zeroed when handling each variant.
 		std::size_t i(0);
 		
-		m_variant_handler.enumerate_sample_genotypes(
+		variant_handler().enumerate_sample_genotypes(
 			var,
 			[
 				this,
@@ -322,6 +322,6 @@ namespace vcf2multialign {
 	
 	void read_subgraph_variants_task::execute()
 	{
-		m_variant_handler.process_variants();
+		variant_handler().process_variants();
 	}
 }

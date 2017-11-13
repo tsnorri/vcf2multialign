@@ -16,7 +16,7 @@ namespace vcf2multialign {
 	
 	void sequence_writer_task::execute()
 	{
-		m_variant_handler.process_variants();
+		variant_handler().process_variants();
 	}
 	
 	

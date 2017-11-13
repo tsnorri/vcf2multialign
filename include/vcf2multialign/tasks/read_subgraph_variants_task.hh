@@ -85,10 +85,10 @@ namespace vcf2multialign {
 			m_generated_path_count(generated_path_count),
 			m_alt_field_width(1 << sdsl::bits::hi(checker.max_alt_field_size()))
 		{
-			m_vcf_reader.set_input(m_vcf_input);
+			parsing_task_vh::vcf_reader().set_input(m_vcf_input);
 		}
 		
-		void finish_copy_or_move() { m_vcf_reader.set_input(m_vcf_input); }
+		void finish_copy_or_move() { vcf_reader().set_input(m_vcf_input); }
 		
 		std::size_t task_idx() const { return m_task_idx; }
 		virtual void execute() override;

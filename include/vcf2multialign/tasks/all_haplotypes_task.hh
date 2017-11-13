@@ -118,7 +118,7 @@ namespace vcf2multialign {
 		
 		// status_logger_delegate
 		virtual std::size_t step_count() const override { return m_record_count; }
-		virtual std::size_t current_step() const override { return m_vcf_reader.counter_value(); }
+		virtual std::size_t current_step() const override { return vcf_reader().counter_value(); }
 		
 		// sequence_writer_delegate
 		virtual std::vector <uint8_t> const &valid_alts(std::size_t const lineno) const override { return m_alt_checker->valid_alts(lineno); }
@@ -126,7 +126,7 @@ namespace vcf2multialign {
 		virtual void enumerate_sample_genotypes(
 			variant const &var,
 			std::function <void(std::size_t, uint8_t, uint8_t, bool)> const &cb	// sample_no, chr_idx, alt_idx, is_phased
-		) override { m_variant_handler.enumerate_sample_genotypes(var, cb); }
+		) override { variant_handler().enumerate_sample_genotypes(var, cb); }
 		// Rest comes from variant_stats.
 		
 	protected:

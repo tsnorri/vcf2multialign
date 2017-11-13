@@ -131,7 +131,7 @@ namespace vcf2multialign {
 		m_status_logger->log_message_progress_bar("Generating haplotypes…");
 		
 		m_sequence_writer.prepare(m_haplotypes);
-		m_variant_handler.process_variants();
+		variant_handler().process_variants();
 	}
 	
 	
@@ -166,8 +166,10 @@ namespace vcf2multialign {
 	
 	void all_haplotypes_task::execute()
 	{
+		auto &vr(vcf_reader());
+		
 		// Prepare sample names for enumeration and calculate rounds.
-		auto const &sample_names(m_vcf_reader.sample_names());
+		auto const &sample_names(vr.sample_names());
 		auto const sample_count(sample_names.size());
 		m_total_rounds = std::ceil(1.0 * sample_count / m_chunk_size);
 		
@@ -178,7 +180,7 @@ namespace vcf2multialign {
 			std::cerr << "Generating haplotype sequences…" << std::endl;
 		});
 
-		m_vcf_reader.set_parsed_fields(vcf_field::ALL);
+		vr.set_parsed_fields(vcf_field::ALL);
 
 		m_start_time = std::chrono::system_clock::now();
 		generate_sequences(m_out_reference_fname->operator bool());

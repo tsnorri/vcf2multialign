@@ -49,12 +49,13 @@ namespace vcf2multialign {
 	
 	void preparation_task::check_ploidy()
 	{
-		m_vcf_reader.reset();
-		m_vcf_reader.set_parsed_fields(vcf_field::ALL);
+		auto &vr(vcf_reader());
+		vr.reset();
+		vr.set_parsed_fields(vcf_field::ALL);
 		
-		m_vcf_reader.fill_buffer();
-		if (!m_vcf_reader.parse([this](transient_variant const &var) -> bool {
-			for (auto const &kv : m_vcf_reader.sample_names())
+		vr.fill_buffer();
+		if (!vr.parse([this, &vr](transient_variant const &var) -> bool {
+			for (auto const &kv : vr.sample_names())
 			{
 				auto const sample_no(kv.second);
 				auto const &sample(var.sample(sample_no));
@@ -72,17 +73,18 @@ namespace vcf2multialign {
 	void preparation_task::check_ref()
 	{
 		auto main_queue(dispatch_get_main_queue());
+		auto &reader(vcf_reader());
 
-		m_vcf_reader.reset();
-		m_vcf_reader.set_parsed_fields(v2m::vcf_field::REF);
+		reader.reset();
+		reader.set_parsed_fields(v2m::vcf_field::REF);
 		bool found_mismatch(false);
 		std::size_t i(0);
 		
 		bool should_continue(false);
 		do {
-			m_vcf_reader.fill_buffer();
-			should_continue = m_vcf_reader.parse(
-				[this, &found_mismatch, &i, main_queue]
+			reader.fill_buffer();
+			should_continue = reader.parse(
+				[this, &reader, &found_mismatch, &i, main_queue]
 				(v2m::transient_variant const &var)
 				-> bool
 			{
@@ -118,6 +120,7 @@ namespace vcf2multialign {
 	{
 		// Update the status in the main queue by calling dispatch_async and synchronize between phases.
 		auto main_queue(dispatch_get_main_queue());
+		auto &reader(vcf_reader());
 		
 		// Read the reference FASTA.
 		{
@@ -143,7 +146,7 @@ namespace vcf2multialign {
 		{
 			m_status_logger->log_message_counting("Comparing the REF column to the reference…");
 			check_ref();
-			m_record_count = m_vcf_reader.counter_value();
+			m_record_count = reader.counter_value();
 			m_status_logger->finish_logging();
 		
 			did_count = true;
@@ -158,7 +161,7 @@ namespace vcf2multialign {
 			m_status_logger->log_message_counting(msg);
 		
 		auto const conflict_count(check_overlapping_non_nested_variants(
-			m_vcf_reader,
+			reader,
 			m_sv_handling_method,
 			m_skipped_variants,
 			*m_status_logger,
@@ -166,7 +169,7 @@ namespace vcf2multialign {
 		));
 			
 		if (!did_count)
-			m_record_count = m_vcf_reader.counter_value();
+			m_record_count = reader.counter_value();
 		
 		m_status_logger->finish_logging();
 		
@@ -186,20 +189,20 @@ namespace vcf2multialign {
 			m_status_logger->log_message_progress_bar("Checking valid ALTs…");
 			class alt_checker temp_checker(
 				m_record_count,
-				m_vcf_reader.last_header_lineno(),
+				reader.last_header_lineno(),
 				m_sv_handling_method,
 				m_skipped_variants,
 				*m_error_logger
 			);
 				
 			m_alt_checker = std::move(temp_checker);
-			m_alt_checker.check_all_variants(m_vcf_reader);
+			m_alt_checker.check_all_variants(reader);
 			m_status_logger->finish_logging();
 		}
 		
 		// Find subgraphs connected by single edges.
 		m_status_logger->log_message_progress_bar("Finding subgraphs connected by single edges…");
-		find_subgraph_starting_points(m_vcf_reader, m_skipped_variants, m_subgraph_starting_points);
+		find_subgraph_starting_points(reader, m_skipped_variants, m_subgraph_starting_points);
 		m_status_logger->finish_logging();
 		
 		dispatch_async_fn(main_queue, [this](){

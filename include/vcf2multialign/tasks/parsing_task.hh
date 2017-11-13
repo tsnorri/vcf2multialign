@@ -36,94 +36,146 @@ namespace vcf2multialign {
 	//
 	// vcf_reader has the following pointer:
 	//      vcf_input				*m_input; (owned by generate_context)
-	class parsing_task_base : public task
+	class parsing_task : public task
 	{
+	protected:
+		struct vcf_reader_container
+		{
+			class vcf_reader vcf_reader;
+			
+			vcf_reader_container() = default;
+			vcf_reader_container(class vcf_reader const &vcf_reader_): vcf_reader(vcf_reader_) { vcf_reader.reset(); }
+			
+			vcf_reader_container(vcf_reader_container const &other):
+				vcf_reader(other.vcf_reader)
+			{
+				vcf_reader.reset();
+			}
+			
+			vcf_reader_container(vcf_reader_container &&other):
+				vcf_reader(std::move(other.vcf_reader))
+			{
+				vcf_reader.reset();
+			}
+			
+			vcf_reader_container &operator=(vcf_reader_container const &other) &
+			{
+				vcf_reader = other.vcf_reader;
+				vcf_reader.reset();
+				return *this;
+			}
+			
+			vcf_reader_container &operator=(vcf_reader_container &&other) &
+			{
+				vcf_reader = std::move(other.vcf_reader);
+				vcf_reader.reset();
+				return *this;
+			}
+		};
+		
 	protected:
 		status_logger						*m_status_logger{nullptr};
 		error_logger						*m_error_logger{nullptr};
-		vcf_reader							m_vcf_reader;
+		vcf_reader_container				m_vrc;
 		
 	public:
-		parsing_task_base() = default;
+		parsing_task() = default;
 		
-		parsing_task_base(
+		parsing_task(
 			status_logger &status_logger,
 			error_logger &error_logger,
 			class vcf_reader const &vcf_reader
 		):
 			m_status_logger(&status_logger),
 			m_error_logger(&error_logger),
-			m_vcf_reader(vcf_reader)
+			m_vrc(vcf_reader)
 		{
 		}
 		
-		parsing_task_base(
+		parsing_task(
 			status_logger &status_logger,
 			error_logger &error_logger,
 			class vcf_reader &&vcf_reader
 		):
 			m_status_logger(&status_logger),
 			m_error_logger(&error_logger),
-			m_vcf_reader(std::move(vcf_reader))
-		{
-		}
-		
-		virtual ~parsing_task_base() {}
-		virtual void execute() = 0;
-		
-		class vcf_reader &vcf_reader() { return m_vcf_reader; }
-	};
-	
-	
-	class parsing_task : public parsing_task_base
-	{
-	protected:
-		void finish_copy()
-		{
-			m_vcf_reader.reset();
-		}
-		
-	public:
-		using parsing_task_base::parsing_task_base;
-		
-		parsing_task(parsing_task const &other):
-			parsing_task_base(other)
-		{
-			finish_copy();
-		}
-		
-		parsing_task(parsing_task &&other):
-			parsing_task_base(std::move(other))
+			m_vrc(std::move(vcf_reader))
 		{
 		}
 		
 		virtual ~parsing_task() {}
+		virtual void execute() = 0;
 		
-		parsing_task &operator=(parsing_task const &other) &
-		{
-			parsing_task_base::operator=(other);
-			finish_copy();
-			return *this;
-		}
-		
-		parsing_task &operator=(parsing_task &&other) &
-		{
-			parsing_task_base::operator=(std::move(other));
-			return *this;
-		}
+		class vcf_reader const &vcf_reader() const { return m_vrc.vcf_reader; }
+		class vcf_reader &vcf_reader() { return m_vrc.vcf_reader; }
 	};
 	
 	
-	class parsing_task_vh_base : public parsing_task, public variant_handler_delegate
+	class parsing_task_vh : public parsing_task, public variant_handler_delegate
 	{
 	protected:
-		alt_checker const	*m_alt_checker{nullptr};
-		variant_handler		m_variant_handler;
+		class variant_handler_container
+		{
+		protected:
+			parsing_task_vh	*m_task{nullptr};
+			variant_handler	m_variant_handler;
+			
+		public:
+			class variant_handler const &variant_handler() const { return m_variant_handler; }
+			class variant_handler &variant_handler() { return m_variant_handler; }
+			
+			variant_handler_container() = default;
+			
+			// Use perfect forwarding for the remaining arguments.
+			template <typename ... t_args>
+			variant_handler_container(parsing_task_vh &task, t_args && ... args):
+				m_task(&task),
+				m_variant_handler(std::forward <t_args> (args)...)
+			{
+			}
+			
+			variant_handler_container(variant_handler_container const &other):
+				m_variant_handler(other.m_variant_handler)
+			{
+				finish_copy_or_move();
+			}
+			
+			variant_handler_container(variant_handler_container &&other):
+				m_variant_handler(std::move(other.m_variant_handler))
+			{
+				finish_copy_or_move();
+			}
+			
+			variant_handler_container &operator=(variant_handler_container const &other) &
+			{
+				m_variant_handler = other.m_variant_handler;
+				finish_copy_or_move();
+				return *this;
+			}
+			
+			variant_handler_container &operator=(variant_handler_container &&other) &
+			{
+				m_variant_handler = std::move(other.m_variant_handler);
+				finish_copy_or_move();
+				return *this;
+			}
+			
+		protected:
+			void finish_copy_or_move()
+			{
+				m_variant_handler.variant_buffer().set_vcf_reader(m_task->vcf_reader());
+				m_variant_handler.set_delegate(*m_task);
+			}
+		};
+		
+	protected:
+		alt_checker const			*m_alt_checker{nullptr};
+		variant_handler_container	m_vhc;
 	
 	public:
-		parsing_task_vh_base() = default;
+		parsing_task_vh() = default;
 		
-		parsing_task_vh_base(
+		parsing_task_vh(
 			dispatch_ptr <dispatch_queue_t> const &worker_queue,	// Needs to be serial.
 			status_logger &status_logger,
 			error_logger &error_logger,
@@ -135,62 +187,23 @@ namespace vcf2multialign {
 		):
 			parsing_task(status_logger, error_logger, vcf_reader),
 			m_alt_checker(&checker),
-			m_variant_handler(
+			m_vhc(
+				*this,
 				worker_queue,
 				dispatch_ptr <dispatch_queue_t>(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)),
-				m_vcf_reader,
+				m_vrc.vcf_reader,
 				reference,
 				sv_handling_method,
 				skipped_variants,
 				error_logger
 			)
 		{
-			m_variant_handler.set_delegate(*this);
-		}
-		
-		virtual ~parsing_task_vh_base() {}
-	};
-	
-	
-	class parsing_task_vh : public parsing_task_vh_base
-	{
-	protected:
-		void finish_copy_or_move()
-		{
-			m_variant_handler.variant_buffer().set_vcf_reader(m_vcf_reader);
-			m_variant_handler.set_delegate(*this);
-		}
-	
-	public:
-		using parsing_task_vh_base::parsing_task_vh_base;
-		
-		parsing_task_vh(parsing_task_vh const &other):
-			parsing_task_vh_base(other)
-		{
-			finish_copy_or_move();
-		}
-		
-		parsing_task_vh(parsing_task_vh &&other):
-			parsing_task_vh_base(std::move(other))
-		{
-			finish_copy_or_move();
+			m_vhc.variant_handler().set_delegate(*this);
 		}
 		
 		virtual ~parsing_task_vh() {}
-		
-		parsing_task_vh &operator=(parsing_task_vh const &other) &
-		{
-			parsing_task_vh_base::operator=(other);
-			finish_copy_or_move();
-			return *this;
-		}
-		
-		parsing_task_vh &operator=(parsing_task_vh &&other) &
-		{
-			parsing_task_vh_base::operator=(std::move(other));
-			finish_copy_or_move();
-			return *this;
-		}
+		class variant_handler const &variant_handler() const { return m_vhc.variant_handler(); }
+		class variant_handler &variant_handler() { return m_vhc.variant_handler(); }
 		
 		// variant_handler_delegate
 		virtual std::vector <uint8_t> const &valid_alts(std::size_t const lineno) const override { return m_alt_checker->valid_alts(lineno); }

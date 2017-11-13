@@ -72,7 +72,7 @@ namespace vcf2multialign {
 		
 		// status_logger_delegate
 		virtual std::size_t step_count() const override { return m_record_count; }
-		virtual std::size_t current_step() const override { return m_vcf_reader.counter_value(); }
+		virtual std::size_t current_step() const override { return vcf_reader().counter_value(); }
 		
 	protected:
 		void check_ploidy();
