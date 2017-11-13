@@ -126,6 +126,8 @@ namespace vcf2multialign {
 			
 			variant_handler_container() = default;
 			
+			variant_handler_container(parsing_task_vh &task): m_task(&task) {}
+			
 			// Use perfect forwarding for the remaining arguments.
 			template <typename ... t_args>
 			variant_handler_container(parsing_task_vh &task, t_args && ... args):
@@ -175,7 +177,7 @@ namespace vcf2multialign {
 		
 	protected:
 		alt_checker const			*m_alt_checker{nullptr};
-		variant_handler_container	m_vhc;
+		variant_handler_container	m_vhc{*this};
 	
 	public:
 		parsing_task_vh() = default;
@@ -203,7 +205,6 @@ namespace vcf2multialign {
 				error_logger
 			)
 		{
-			m_vhc.variant_handler().set_delegate(*this);
 		}
 		
 		virtual ~parsing_task_vh() {}

@@ -49,7 +49,9 @@ namespace vcf2multialign {
 			class variant_buffer &variant_buffer() { return m_variant_buffer; }
 			
 			variant_buffer_container() = default;
-				
+			
+			variant_buffer_container(variant_handler &handler): m_handler(&handler) {}
+			
 			// Use perfect forwarding for the remaining arguments.
 			template <typename ... t_args>
 			variant_buffer_container(variant_handler &handler, t_args && ... args):
@@ -94,7 +96,7 @@ namespace vcf2multialign {
 		
 		vector_type	const								*m_reference{};
 		
-		variant_buffer_container						m_vbc;
+		variant_buffer_container						m_vbc{*this};
 		variant_set const								*m_skipped_variants{};
 		
 		sv_handling										m_sv_handling_method{};
