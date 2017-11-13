@@ -132,6 +132,7 @@ namespace vcf2multialign {
 				m_task(&task),
 				m_variant_handler(std::forward <t_args> (args)...)
 			{
+				finish_copy_or_move();
 			}
 			
 			variant_handler_container(variant_handler_container const &other):

@@ -35,8 +35,57 @@ namespace vcf2multialign {
 	};
 	
 	
-	class variant_handler_base : public variant_buffer_delegate
+	class variant_handler : public variant_buffer_delegate
 	{
+	protected:
+		class variant_buffer_container
+		{
+		protected:
+			variant_handler	*m_handler{nullptr};
+			variant_buffer	m_variant_buffer;
+			
+		public:
+			class variant_buffer const &variant_buffer() const { return m_variant_buffer; }
+			class variant_buffer &variant_buffer() { return m_variant_buffer; }
+			
+			variant_buffer_container() = default;
+				
+			// Use perfect forwarding for the remaining arguments.
+			template <typename ... t_args>
+			variant_buffer_container(variant_handler &handler, t_args && ... args):
+				m_handler(&handler),
+				m_variant_buffer(std::forward <t_args> (args)...)
+			{
+				m_variant_buffer.set_delegate(*m_handler);
+			}
+			
+			variant_buffer_container(variant_buffer_container const &other):
+				m_variant_buffer(other.m_variant_buffer)
+			{
+				m_variant_buffer.set_delegate(*m_handler);
+			}
+			
+			variant_buffer_container(variant_buffer_container &&other):
+				m_variant_buffer(std::move(other.m_variant_buffer))
+			{
+				m_variant_buffer.set_delegate(*m_handler);
+			}
+			
+			variant_buffer_container &operator=(variant_buffer_container const &other) &
+			{
+				m_variant_buffer = other.m_variant_buffer;
+				m_variant_buffer.set_delegate(*m_handler);
+				return *this;
+			}
+			
+			variant_buffer_container &operator=(variant_buffer_container &&other) &
+			{
+				m_variant_buffer = std::move(other.m_variant_buffer);
+				m_variant_buffer.set_delegate(*m_handler);
+				return *this;
+			}
+		};
+		
 	protected:
 		dispatch_ptr <dispatch_queue_t>					m_parsing_queue{};
 		
@@ -45,13 +94,13 @@ namespace vcf2multialign {
 		
 		vector_type	const								*m_reference{};
 		
-		variant_buffer									m_variant_buffer;
+		variant_buffer_container						m_vbc;
 		variant_set const								*m_skipped_variants{};
 		
 		sv_handling										m_sv_handling_method{};
 		
 	public:
-		variant_handler_base(
+		variant_handler(
 			dispatch_ptr <dispatch_queue_t> const &worker_queue,	// Needs to be serial.
 			dispatch_ptr <dispatch_queue_t> const &parsing_queue,	// May be concurrent since only variant_buffer's read_input is called there.
 			class vcf_reader &vcf_reader,
@@ -63,47 +112,17 @@ namespace vcf2multialign {
 			m_parsing_queue(parsing_queue),
 			m_error_logger(&error_logger),
 			m_reference(&reference),
-			m_variant_buffer(vcf_reader, worker_queue, *this),
+			m_vbc(*this, vcf_reader, worker_queue, *this),
 			m_skipped_variants(&skipped_variants),
 			m_sv_handling_method(sv_handling_method)
 		{
 		}
 		
-		variant_handler_base() = default;
-		virtual ~variant_handler_base() {}
+		variant_handler() = default;
+		virtual ~variant_handler() {}
 		
-	protected:
-		virtual void finish() = 0;
-		virtual void handle_variant(variant &var) = 0;
-	};
-	
-	
-	class variant_handler : public variant_handler_base
-	{
-	protected:
-		void finish_copy()
-		{
-			m_variant_buffer.set_delegate(*this);
-		}
-		
-	public:
-		using variant_handler_base::variant_handler_base;
-		
-		variant_handler(variant_handler const &other):
-			variant_handler_base(other)
-		{
-			finish_copy();
-		}
-		
-		variant_handler &operator=(variant_handler const &other) &
-		{
-			variant_handler_base::operator=(other);
-			finish_copy();
-			return *this;
-		}
-		
-	public:
-		class variant_buffer &variant_buffer() { return m_variant_buffer; }
+		class variant_buffer const &variant_buffer() const { return m_vbc.variant_buffer(); }
+		class variant_buffer &variant_buffer() { return m_vbc.variant_buffer(); }
 		void set_delegate(variant_handler_delegate &delegate) { m_delegate = &delegate; }
 		
 		void process_variants();
@@ -113,6 +132,7 @@ namespace vcf2multialign {
 		);
 
 	protected:
+		// variant_buffer_delegate.
 		virtual void handle_variant(variant &var) override;
 		virtual void finish() override;
 	};

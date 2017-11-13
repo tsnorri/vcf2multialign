@@ -67,10 +67,11 @@ namespace vcf2multialign {
 	
 	void variant_handler::process_variants()
 	{
-		auto &reader(m_variant_buffer.reader());
+		auto &vb(variant_buffer());
+		auto &reader(vb.reader());
 		reader.reset();
 		m_delegate->prepare(reader);
 		
-		dispatch(&m_variant_buffer).async <&variant_buffer::read_input>(*m_parsing_queue);
+		dispatch(&vb).async <&variant_buffer::read_input>(*m_parsing_queue);
 	}
 }
