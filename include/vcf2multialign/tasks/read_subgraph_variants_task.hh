@@ -45,7 +45,6 @@ namespace vcf2multialign {
 		std::size_t									m_start_lineno{0};
 		std::size_t									m_variant_count{0};
 		std::size_t									m_alt_field_width{0};
-		move_guard <read_subgraph_variants_task>	m_move_guard{*this};		// Needs to be the last one.
 		
 	public:
 		read_subgraph_variants_task() = default;
@@ -88,8 +87,6 @@ namespace vcf2multialign {
 			parsing_task_vh::vcf_reader().set_input(m_vcf_input);
 		}
 		
-		void finish_copy_or_move() { vcf_reader().set_input(m_vcf_input); }
-		
 		std::size_t task_idx() const { return m_task_idx; }
 		virtual void execute() override;
 		
@@ -97,6 +94,13 @@ namespace vcf2multialign {
 		virtual void prepare(class vcf_reader &reader) override;
 		void handle_variant(variant &var) override;
 		void finish() override;
+		
+		// variant_handler_container
+		virtual void finish_copy_or_move() override
+		{
+			parsing_task_vh::finish_copy_or_move();
+			vcf_reader().set_input(m_vcf_input);
+		}
 		
 	protected:
 		void invert_sequences_by_sample(

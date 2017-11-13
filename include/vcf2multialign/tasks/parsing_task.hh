@@ -166,6 +166,7 @@ namespace vcf2multialign {
 			{
 				m_variant_handler.variant_buffer().set_vcf_reader(m_task->vcf_reader());
 				m_variant_handler.set_delegate(*m_task);
+				m_task->finish_copy_or_move();
 			}
 		};
 		
@@ -209,6 +210,9 @@ namespace vcf2multialign {
 		// variant_handler_delegate
 		virtual std::vector <uint8_t> const &valid_alts(std::size_t const lineno) const override { return m_alt_checker->valid_alts(lineno); }
 		virtual bool is_valid_alt(std::size_t const lineno, uint8_t const alt_idx) const override { return m_alt_checker->is_valid_alt(lineno, alt_idx); }
+		
+		// variant_handler_container
+		virtual void finish_copy_or_move() {}
 	};
 }
 

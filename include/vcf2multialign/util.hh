@@ -104,33 +104,6 @@ namespace vcf2multialign {
 	std::size_t strlen_utf8(std::string const &str);
 	
 	
-	// Make a call to finish_copy_or_move() after using std::move() or similar.
-	template <typename t_owner>
-	class move_guard
-	{
-	protected:
-		t_owner *m_owner{nullptr};
-		
-	public:
-		move_guard() = default;
-		move_guard(t_owner &owner): m_owner(&owner) {}
-		move_guard(move_guard const &) = delete;
-		move_guard(move_guard &&) = delete;
-		
-		move_guard &operator=(move_guard &&other) &
-		{
-			m_owner->finish_copy_or_move();
-			return *this;
-		}
-		
-		move_guard &operator=(move_guard const &other) &
-		{
-			m_owner->finish_copy_or_move();
-			return *this;
-		}
-	};
-	
-	
 	template <typename t_item>
 	class infix_ostream_fn
 	{
