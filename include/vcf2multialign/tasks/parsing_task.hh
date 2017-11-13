@@ -164,9 +164,12 @@ namespace vcf2multialign {
 		protected:
 			void finish_copy_or_move()
 			{
-				m_variant_handler.variant_buffer().set_vcf_reader(m_task->vcf_reader());
-				m_variant_handler.set_delegate(*m_task);
-				m_task->finish_copy_or_move();
+				if (m_task)
+				{
+					m_variant_handler.variant_buffer().set_vcf_reader(m_task->vcf_reader());
+					m_variant_handler.set_delegate(*m_task);
+					m_task->finish_copy_or_move();
+				}
 			}
 		};
 		
