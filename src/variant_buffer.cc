@@ -11,20 +11,20 @@ namespace vcf2multialign {
 
 	void variant_buffer::return_node_to_buffer(variant_set::node_type &&node)
 	{
-		std::lock_guard <std::mutex> guard(m_buffer_mutex);
-		m_buffer.emplace_back(std::move(node));
+		std::lock_guard <std::mutex> guard(m_nm.buffer_mutex);
+		m_nm.buffer.emplace_back(std::move(node));
 	}
 	
 	
 	bool variant_buffer::get_node_from_buffer(variant_set::node_type &node)
 	{
-		std::lock_guard <std::mutex> guard(m_buffer_mutex);
-		auto const bufsize(m_buffer.size());
+		std::lock_guard <std::mutex> guard(m_nm.buffer_mutex);
+		auto const bufsize(m_nm.buffer.size());
 		if (bufsize)
 		{
 			using std::swap;
-			swap(node, m_buffer[bufsize - 1]);
-			m_buffer.pop_back();
+			swap(node, m_nm.buffer[bufsize - 1]);
+			m_nm.buffer.pop_back();
 			return true;
 		}
 		return false;
@@ -33,15 +33,15 @@ namespace vcf2multialign {
 	
 	void variant_buffer::read_input()
 	{
-		m_d.m_previous_pos = 0;
+		m_previous_pos = 0;
 		
 		bool should_continue(false);
 		do
 		{
 			// Read from the stream.
-			m_d.m_reader->fill_buffer();
+			m_reader->fill_buffer();
 			
-			should_continue = m_d.m_reader->parse([this](transient_variant const &transient_variant) -> bool {
+			should_continue = m_reader->parse([this](transient_variant const &transient_variant) -> bool {
 				
 				using std::swap;
 				
@@ -50,7 +50,7 @@ namespace vcf2multialign {
 				if (! get_node_from_buffer(node))
 				{
 					// No handles in the buffer, create a new one and retrieve it.
-					node = m_d.m_factory.extract(m_d.m_factory.emplace());
+					node = m_factory.extract(m_factory.emplace());
 				}
 				
 				// Copy the variant to node.
@@ -58,43 +58,43 @@ namespace vcf2multialign {
 				
 				// Check if the variant has a new POS value.
 				auto const variant_pos(node.value().pos());
-				if (variant_pos != m_d.m_previous_pos)
+				if (variant_pos != m_previous_pos)
 				{
-					m_d.m_previous_pos = variant_pos;
+					m_previous_pos = variant_pos;
 					variant_set prepared_variants;
-					swap(m_d.m_prepared_variants, prepared_variants);
+					swap(m_prepared_variants, prepared_variants);
 		
 					auto fn = [this, pr = std::move(prepared_variants)]() mutable {
 						process_input(pr);
 					};
-					dispatch_async_fn(*m_d.m_worker_queue, std::move(fn));
+					dispatch_async_fn(*m_worker_queue, std::move(fn));
 					
 					// Wait for our turn to continue.
 					// Do this only after the worker queue has received something to process so that
 					// a long span of variants with the same POS don't cause a deadlock.
-					auto const st(dispatch_semaphore_wait(*m_d.m_process_sema, DISPATCH_TIME_FOREVER));
+					auto const st(dispatch_semaphore_wait(*m_process_sema, DISPATCH_TIME_FOREVER));
 					always_assert(0 == st, "dispatch_semaphore_wait returned early");
 				}
 				
 				// Add the node to the input list.
-				m_d.m_prepared_variants.insert(std::move(node));
+				m_prepared_variants.insert(std::move(node));
 				
 				return true;
 			});
 		} while (should_continue);
 
-		if (!m_d.m_prepared_variants.empty())
+		if (!m_prepared_variants.empty())
 		{
 			using std::swap;
 			variant_set prepared_variants;
-			swap(m_d.m_prepared_variants, prepared_variants);
+			swap(m_prepared_variants, prepared_variants);
 			auto fn = [this, pr = std::move(prepared_variants)]() mutable {
 				process_input(pr);
 			};
-			dispatch_async_fn(*m_d.m_worker_queue, std::move(fn));
+			dispatch_async_fn(*m_worker_queue, std::move(fn));
 		}
 		
-		dispatch(m_d.m_delegate).async <&variant_buffer_delegate::finish>(*m_d.m_worker_queue);
+		dispatch(m_delegate).async <&variant_buffer_delegate::finish>(*m_worker_queue);
 	}
 	
 	
@@ -106,12 +106,12 @@ namespace vcf2multialign {
 			auto &var(node.value());
 			
 			// Process the input.
-			m_d.m_delegate->handle_variant(var);
+			m_delegate->handle_variant(var);
 	
 			// Return the node.
 			return_node_to_buffer(std::move(node));
 	
-			dispatch_semaphore_signal(*m_d.m_process_sema);
+			dispatch_semaphore_signal(*m_process_sema);
 		}
 	}
 }

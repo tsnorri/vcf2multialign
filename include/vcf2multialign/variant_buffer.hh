@@ -41,36 +41,27 @@ namespace vcf2multialign {
 		typedef boost::container::multiset <variant, cmp_variant>	variant_set;
 		typedef std::vector <variant_set::node_type>				variant_vector;
 		
-		// Movable instance variables.
-		struct data
+		struct nonmovable
 		{
-			vcf_reader							*m_reader{};
-			variant_buffer_delegate				*m_delegate{};
-			dispatch_ptr <dispatch_queue_t>		m_worker_queue{};
-			dispatch_ptr <dispatch_semaphore_t>	m_process_sema{};
-			variant_set							m_factory;
-			variant_set							m_prepared_variants;
-			std::size_t							m_previous_pos{};
+			std::mutex		buffer_mutex{};
+			variant_vector	buffer;			// Actually movable but not copyable.
 			
-			data() = default;
-			
-			data(
-				vcf_reader &reader,
-				dispatch_ptr <dispatch_queue_t> const &worker_queue,
-				variant_buffer_delegate &delegate
-			):
-				m_reader(&reader),
-				m_delegate(&delegate),
-				m_worker_queue(worker_queue),
-				m_process_sema(dispatch_semaphore_create(10), false)
-			{
-			}
+			nonmovable() = default;
+			nonmovable(nonmovable const &) {}
+			nonmovable(nonmovable &&) {}
+			nonmovable &operator=(nonmovable const &other) & { return *this; }
+			nonmovable &operator=(nonmovable &&other) & { return *this; }
 		};
 		
 	protected:
-		std::mutex							m_buffer_mutex{};
-		variant_vector						m_buffer;
-		data								m_d{};
+		nonmovable							m_nm{};
+		vcf_reader							*m_reader{};
+		variant_buffer_delegate				*m_delegate{};
+		dispatch_ptr <dispatch_queue_t>		m_worker_queue{};
+		dispatch_ptr <dispatch_semaphore_t>	m_process_sema{};
+		variant_set							m_factory;
+		variant_set							m_prepared_variants;
+		std::size_t							m_previous_pos{};
 		
 	protected:
 		void return_node_to_buffer(variant_set::node_type &&node);
@@ -79,53 +70,24 @@ namespace vcf2multialign {
 	public:
 		variant_buffer() = default;
 		
-		variant_buffer(variant_buffer const &other):
-			m_d(other.m_d)
-		{
-		}
-		
-		variant_buffer(variant_buffer &&other)
-		{
-			using std::swap;
-			swap(*this, other);
-		}
-		
-		variant_buffer &operator=(variant_buffer const &other) &
-		{
-			m_d = other.m_d;
-			return *this;
-		}
-		
-		variant_buffer &operator=(variant_buffer &&other) &
-		{
-			using std::swap;
-			swap(*this, other);
-			return *this;
-		}
-		
 		variant_buffer(
 			vcf_reader &reader,
 			dispatch_ptr <dispatch_queue_t> const &worker_queue,
 			variant_buffer_delegate &delegate
 		):
-			m_d(reader, worker_queue, delegate)
+			m_reader(&reader),
+			m_delegate(&delegate),
+			m_worker_queue(worker_queue),
+			m_process_sema(dispatch_semaphore_create(10), false)
 		{
 		}
 		
-		vcf_reader &reader() { return *m_d.m_reader; }
+		vcf_reader &reader() { return *m_reader; }
 		void read_input();
 		void process_input(variant_set &variants);
-		void set_vcf_reader(vcf_reader &reader) { m_d.m_reader = &reader; }
-		void set_delegate(variant_buffer_delegate &delegate) { m_d.m_delegate = &delegate; }
+		void set_vcf_reader(vcf_reader &reader) { m_reader = &reader; }
+		void set_delegate(variant_buffer_delegate &delegate) { m_delegate = &delegate; }
 	};
-	
-	
-	inline void swap(variant_buffer &lhs, variant_buffer &rhs)
-	{
-		using std::swap;
-		swap(lhs.m_d, rhs.m_d);
-		swap(lhs.m_buffer, rhs.m_buffer);
-	}
 }
 
 #endif
