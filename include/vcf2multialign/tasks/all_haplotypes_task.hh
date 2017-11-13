@@ -121,8 +121,8 @@ namespace vcf2multialign {
 		virtual std::size_t current_step() const override { return m_vcf_reader.counter_value(); }
 		
 		// sequence_writer_delegate
-		virtual std::vector <uint8_t> const &valid_alts(std::size_t const lineno) const override { return m_checker->valid_alts(lineno); }
-		virtual bool is_valid_alt(std::size_t const lineno, uint8_t const alt_idx) const override { return m_checker->is_valid_alt(lineno, alt_idx); }
+		virtual std::vector <uint8_t> const &valid_alts(std::size_t const lineno) const override { return m_alt_checker->valid_alts(lineno); }
+		virtual bool is_valid_alt(std::size_t const lineno, uint8_t const alt_idx) const override { return m_alt_checker->is_valid_alt(lineno, alt_idx); }
 		virtual void enumerate_sample_genotypes(
 			variant const &var,
 			std::function <void(std::size_t, uint8_t, uint8_t, bool)> const &cb	// sample_no, chr_idx, alt_idx, is_phased

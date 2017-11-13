@@ -24,39 +24,49 @@ namespace vcf2multialign {
 		virtual void handled_all_haplotypes(sequence_writer_task &task) = 0;
 		
 		virtual void enumerate_sample_genotypes(
-			transient_variant const &var,
+			variant const &var,
 			std::function <void(std::size_t, uint8_t, uint8_t, bool)> const &cb	// sample_no, chr_idx, alt_idx, is_phased
 		) = 0;
 	};
 	
 	
 	class sequence_writer_task :
-		public parsing_task,
+		public parsing_task_vh,
 		public variant_stats,
-		public sequence_writer_delegate <transient_variant>
+		public sequence_writer_delegate <variant>
 	{
 	protected:
-		typedef sequence_writer <channel_ostream, transient_variant> sequence_writer_type;
+		typedef sequence_writer <channel_ostream, variant> sequence_writer_type;
 			
 	protected:
 		sequence_writer_type						m_sequence_writer;
 		sequence_writer_task_delegate				*m_delegate{nullptr};
-		alt_checker const							*m_alt_checker{nullptr};
 		
 	public:
 		sequence_writer_task(
 			sequence_writer_task_delegate &delegate,
+			dispatch_ptr <dispatch_queue_t> const &worker_queue,
 			class status_logger &status_logger,
 			class error_logger &error_logger,
 			class vcf_reader const &vcf_reader,
 			class alt_checker const &alt_checker,
+			variant_set const &skipped_variants,
 			vector_type const &reference,
-			std::string const &null_allele_seq
+			std::string const &null_allele_seq,
+			sv_handling const sv_handling_method
 		):
-			parsing_task(status_logger, error_logger, vcf_reader),
+			parsing_task_vh(
+				worker_queue,
+				status_logger,
+				error_logger,
+				vcf_reader,
+				alt_checker,
+				reference,
+				sv_handling_method,
+				skipped_variants
+			),
 			m_sequence_writer(reference, null_allele_seq),
-			m_delegate(&delegate),
-			m_alt_checker(&alt_checker)
+			m_delegate(&delegate)
 		{
 			m_sequence_writer.set_delegate(*this);
 		}
@@ -68,16 +78,20 @@ namespace vcf2multialign {
 		virtual class error_logger &error_logger() override { return *m_error_logger; }
 		virtual class status_logger &status_logger() override { return *m_status_logger; }
 		
+		// variant_handler_delegate
+		virtual void prepare(class vcf_reader &reader) override;
+		void handle_variant(variant &var) override;
+		void finish() override;
+		
 		// sequence_writer_delegate
 		virtual std::vector <uint8_t> const &valid_alts(std::size_t const lineno) const override { return m_alt_checker->valid_alts(lineno); }
 		virtual bool is_valid_alt(std::size_t const lineno, uint8_t const alt_idx) const override { return m_alt_checker->is_valid_alt(lineno, alt_idx); }
 		virtual void enumerate_sample_genotypes(
-			transient_variant const &var,
+			variant const &var,
 			std::function <void(std::size_t, uint8_t, uint8_t, bool)> const &cb	// sample_no, chr_idx, alt_idx, is_phased
 		) override { m_delegate->enumerate_sample_genotypes(var, cb); }
 		virtual void handled_all_haplotypes() override { m_delegate->handled_all_haplotypes(*this); }
 		// Rest comes from variant_stats.
-		
 	};
 }
 

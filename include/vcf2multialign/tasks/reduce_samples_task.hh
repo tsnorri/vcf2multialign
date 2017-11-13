@@ -66,16 +66,15 @@ namespace vcf2multialign {
 		public sequence_writer_task_delegate
 	{
 	public:
-		typedef haplotype_map <channel_ostream>		haplotype_map_type;
-		typedef std::vector <reduced_subgraph>		subgraph_vector;
+		typedef haplotype_map <channel_ostream>			haplotype_map_type;
+		typedef std::vector <reduced_subgraph>			subgraph_vector;
 		typedef std::vector <
 			std::vector <
 				reduced_subgraph::path_index
 			>
-		>											path_matchings_type;
-		typedef std::atomic <
-			merge_subgraph_paths_task::weight_type
-		>											atomic_weight_type;
+		>												path_matchings_type;
+		typedef merge_subgraph_paths_task::weight_type	weight_type;
+		typedef std::atomic <weight_type>				atomic_weight_type;
 		
 		
 	protected:
@@ -91,6 +90,9 @@ namespace vcf2multialign {
 		subgraph_vector::const_iterator				m_subgraph_iterator{};
 		vcf_reader									m_reader;
 		detail::reduce_samples_progress_counter		m_progress_counter;
+		
+		std::atomic_int32_t							m_running_subgraph_tasks{0};
+		std::atomic_int32_t							m_running_merge_tasks{0};
 		
 		reduce_samples_task_delegate				*m_delegate{nullptr};
 		status_logger								*m_status_logger{nullptr};
@@ -110,6 +112,7 @@ namespace vcf2multialign {
 		std::size_t									m_sample_ploidy_sum{0};
 		std::size_t									m_min_path_length{0};
 		bool										m_should_overwrite_files{false};
+		bool										m_should_print_subgraph_handling{false};
 		
 	public:
 		reduce_samples_task() = default;
@@ -132,12 +135,13 @@ namespace vcf2multialign {
 			std::size_t const generated_path_count,
 			std::size_t const sample_ploidy_sum,
 			std::size_t const min_path_length,
-			bool const should_overwrite_files
+			bool const should_overwrite_files,
+			bool const should_print_subgraph_handling
 		):
 			task(),
 			sequence_writer_task_delegate(),
-			m_subgraph_semaphore(dispatch_semaphore_create(4 * hw_concurrency)), // FIXME: some other value?
-			m_write_semaphore(dispatch_semaphore_create(4 * hw_concurrency)), // FIXME: arbitrary value.
+			m_subgraph_semaphore(dispatch_semaphore_create(2 * hw_concurrency)), // FIXME: some other value?
+			m_write_semaphore(dispatch_semaphore_create(2 * hw_concurrency)), // FIXME: some other value?
 			m_path_permutation(generated_path_count),
 			m_reader(std::move(reader)),
 			m_delegate(&delegate),
@@ -155,7 +159,8 @@ namespace vcf2multialign {
 			m_generated_path_count(generated_path_count),
 			m_sample_ploidy_sum(sample_ploidy_sum),
 			m_min_path_length(min_path_length),
-			m_should_overwrite_files(should_overwrite_files)
+			m_should_overwrite_files(should_overwrite_files),
+			m_should_print_subgraph_handling(should_print_subgraph_handling)
 		{
 			m_status_logger->set_delegate(m_progress_counter);
 			std::iota(m_path_permutation.begin(), m_path_permutation.end(), 0);
@@ -168,7 +173,7 @@ namespace vcf2multialign {
 		virtual void task_did_finish(
 			merge_subgraph_paths_task &task,
 			std::vector <reduced_subgraph::path_index> &&matchings,
-			merge_subgraph_paths_task::weight_type const matching_weight
+			weight_type const matching_weight
 		) override;
 		virtual void task_did_calculate_edge_weight(merge_subgraph_paths_task &task) override { m_progress_counter.merge_subgraph_paths_task_did_calculate_edge_weight(); }
 		
@@ -180,11 +185,27 @@ namespace vcf2multialign {
 		virtual void handled_all_haplotypes(sequence_writer_task &task) override;
 		virtual void task_did_finish(sequence_writer_task &task) override;
 		virtual void enumerate_sample_genotypes(
-			transient_variant const &var,
+			variant const &var,
 			std::function <void(std::size_t, uint8_t, uint8_t, bool)> const &cb	// sample_no, chr_idx, alt_idx, is_phased
 		) override;
 			
 	protected:
+		std::size_t count_variants_in_range(
+			std::size_t current_lineno,
+			std::size_t const var_lineno,
+			std::vector <std::size_t> &skipped_lines
+		);
+		
+		void add_graph_range(
+			std::size_t const start_lineno,
+			std::size_t const end_lineno,
+			std::size_t	const range_start_offset,
+			std::size_t	const range_length,
+			std::size_t const variant_count,
+			std::vector <std::size_t> const &skipped_lines,
+			std::vector <graph_range> &graph_ranges
+		);
+		
 		void init_read_subgraph_variants_task(
 			read_subgraph_variants_task &task,
 			std::size_t const task_idx,

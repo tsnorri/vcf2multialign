@@ -20,6 +20,7 @@ namespace vcf2multialign {
 		auto const &var_ref(var.ref());
 		auto const var_ref_size(var_ref.size());
 		auto const var_end(var_pos + var_ref_size);
+		assert(m_subgraph_range.contains_var_lineno(var_lineno));
 		auto const seq_position(m_subgraph_range.seq_position(var_lineno));
 		
 		// (Sample * chromosome) number, zeroed when handling each variant.
@@ -53,7 +54,7 @@ namespace vcf2multialign {
 					if (var_pos < m_endpoints[i])
 					{
 						alt_idx = 0;
-
+						
 						// FIXME: log overlapping (per-sample) variants.
 					}
 					else

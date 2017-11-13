@@ -117,7 +117,7 @@ namespace vcf2multialign {
 	class parsing_task_vh_base : public parsing_task, public variant_handler_delegate
 	{
 	protected:
-		alt_checker const	*m_checker{nullptr};
+		alt_checker const	*m_alt_checker{nullptr};
 		variant_handler		m_variant_handler;
 	
 	public:
@@ -134,7 +134,7 @@ namespace vcf2multialign {
 			variant_set const &skipped_variants
 		):
 			parsing_task(status_logger, error_logger, vcf_reader),
-			m_checker(&checker),
+			m_alt_checker(&checker),
 			m_variant_handler(
 				worker_queue,
 				dispatch_ptr <dispatch_queue_t>(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)),
@@ -193,8 +193,8 @@ namespace vcf2multialign {
 		}
 		
 		// variant_handler_delegate
-		virtual std::vector <uint8_t> const &valid_alts(std::size_t const lineno) const override { return m_checker->valid_alts(lineno); }
-		virtual bool is_valid_alt(std::size_t const lineno, uint8_t const alt_idx) const override { return m_checker->is_valid_alt(lineno, alt_idx); }
+		virtual std::vector <uint8_t> const &valid_alts(std::size_t const lineno) const override { return m_alt_checker->valid_alts(lineno); }
+		virtual bool is_valid_alt(std::size_t const lineno, uint8_t const alt_idx) const override { return m_alt_checker->is_valid_alt(lineno, alt_idx); }
 	};
 }
 

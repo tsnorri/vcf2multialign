@@ -76,6 +76,13 @@ namespace vcf2multialign {
 		auto const &rhs(m_subgraphs[rhs_idx]);
 		std::unique_ptr <task> task(new merge_subgraph_paths_task(*this, *m_status_logger, lhs, rhs, lhs_idx, m_generated_path_count));
 		
+		if (m_should_print_subgraph_handling)
+		{
+			m_status_logger->log([lhs_idx, running_merge_tasks = ++m_running_merge_tasks](){
+				std::cerr << "Starting merge task " << lhs_idx << ", running " << running_merge_tasks << std::endl;
+			});
+		}
+		
 		m_delegate->store_and_execute(std::move(task));
 	}
 	
@@ -132,7 +139,7 @@ namespace vcf2multialign {
 	void reduce_samples_task::task_did_finish(
 		merge_subgraph_paths_task &task,
 		std::vector <reduced_subgraph::path_index> &&matchings,
-		merge_subgraph_paths_task::weight_type const matching_weight
+		weight_type const matching_weight
 	)
 	{
 		m_progress_counter.merge_subgraph_paths_task_did_finish();
@@ -152,24 +159,39 @@ namespace vcf2multialign {
 		std::size_t const remaining_merge_tasks(--m_remaining_merge_tasks);
 		m_status_logger->set_message(boost::str(boost::format("Reducing samples… (%d subgraphs to be merged)") % remaining_merge_tasks));
 		
+		if (m_should_print_subgraph_handling)
+		{
+			m_status_logger->log([idx, remaining_merge_tasks, running_merge_tasks = --m_running_merge_tasks](){
+				std::cerr << "Finished merge task " << idx << ". There are " << running_merge_tasks << " currently running and " << remaining_merge_tasks << " remaining."  << std::endl;
+			});
+		}
+		
 		if (0 == remaining_merge_tasks)
 		{
 			m_status_logger->finish_logging();
 			m_progress_counter.reset_step_count(m_alt_checker->records_with_valid_alts());
 			
-			m_status_logger->log([weight = std::size_t(m_matching_weight)](){
+			m_status_logger->log([weight = weight_type(m_matching_weight)](){
 				std::cerr << "Total matching weight was " << weight << '.' << std::endl;
 			});
+			
+			dispatch_ptr <dispatch_queue_t> writer_worker_queue(
+				dispatch_queue_create("fi.iki.tsnorri.vcf2multialign.writer-worker-queue", DISPATCH_QUEUE_SERIAL),
+				false
+			);
 			
 			m_status_logger->log_message_progress_bar("Writing the sequences…");
 			auto task(new sequence_writer_task(
 				*this,
+				writer_worker_queue,
 				*m_status_logger,
 				*m_error_logger,
 				m_reader,
 				*m_alt_checker,
+				*m_skipped_variants,
 				*m_reference,
-				*m_null_allele_seq
+				*m_null_allele_seq,
+				m_sv_handling_method
 			));
 				
 			std::unique_ptr <class task> task_ptr(task);
@@ -220,7 +242,7 @@ namespace vcf2multialign {
 	
 	
 	void reduce_samples_task::enumerate_sample_genotypes(
-		transient_variant const &var,
+		variant const &var,
 		std::function <void(std::size_t, uint8_t, uint8_t, bool)> const &cb	// sample_no, chr_idx, alt_idx, is_phased
 	)
 	{
@@ -240,7 +262,13 @@ namespace vcf2multialign {
 			
 			always_assert(subgraph_start_lineno <= var_lineno);
 			if (subgraph.contains_var_lineno(var_lineno))
-				break;
+			{
+				if (subgraph.has_valid_alts(var_lineno))
+					break;
+				
+				// Skip this variant.
+				goto loop_end;
+			}
 			
 			// Update m_path_permutation.
 			auto const subgraph_idx(m_subgraph_iterator - m_subgraphs.cbegin());
@@ -255,22 +283,42 @@ namespace vcf2multialign {
 			}
 			
 			++m_subgraph_iterator;
+
+			// The end should not be reached since the last variant should be
+			// contained in the last graph range.
+			if (m_subgraphs.cend() == m_subgraph_iterator)
+				fail();
 		}
 		
-		// Enumerate the genotypes in the permutation order.
-		auto const pos_in_subgraph(m_subgraph_iterator->seq_position(var_lineno));
-		std::size_t sample_no(0);
-		static_assert(0 == REF_SAMPLE_NUMBER);
-		cb(REF_SAMPLE_NUMBER, 0, 0, true);	// REF.
-		for (auto const path_idx : m_path_permutation)
 		{
-			auto const &sequence(m_subgraph_iterator->path_sequence(path_idx));
-			auto const alt_idx(sequence[pos_in_subgraph]);
+			// Enumerate the genotypes in the permutation order.
+			auto const pos_in_subgraph(m_subgraph_iterator->seq_position(var_lineno));
+			std::size_t sample_no(0);
+			static_assert(0 == REF_SAMPLE_NUMBER);
+			cb(REF_SAMPLE_NUMBER, 0, 0, true);	// REF.
+			for (auto const path_idx : m_path_permutation)
+			{
+				auto const &sequence(m_subgraph_iterator->path_sequence(path_idx));
+#ifndef NDEBUG
+				if (sequence.size() <= pos_in_subgraph)
+				{
+					std::cerr << "Got a path sequence of size " << sequence.size()
+					<< " while calculated position was " << pos_in_subgraph << '.' << std::endl;
+					
+					std::cerr << "Variant: " << var << std::endl;
+					std::cerr << "Subgraph: " << *m_subgraph_iterator << std::endl;
+					fail();
+				}
+#endif
+				auto const alt_idx(sequence[pos_in_subgraph]);
 			
-			// REF is zero, see the assertion above.
-			cb(++sample_no, 0, alt_idx, true);
+				// REF is zero, see the static assertion above.
+				cb(++sample_no, 0, alt_idx, true);
+			}
 		}
 		
+		// FIXME: check if we should call this function in case the variant doesn't have valid alts.
+	loop_end:
 		m_progress_counter.sequence_writer_task_did_handle_variant();
 	}
 	
@@ -286,14 +334,74 @@ namespace vcf2multialign {
 		m_subgraphs[subgraph_idx] = std::move(rsg);
 		m_subgraph_bitmap[subgraph_idx] = true;
 		
+		if (m_should_print_subgraph_handling)
+		{
+			m_status_logger->log([subgraph_idx, running_subgraph_tasks = --m_running_subgraph_tasks, subgraph_bitmap = m_subgraph_bitmap](){
+				std::cerr << "Finished subgraph task " << subgraph_idx << ", currently running " << running_subgraph_tasks << ". subgraph_bitmap is now:" << std::endl;
+				for (int const i : subgraph_bitmap)
+					std::cerr << i;
+				std::cerr << std::endl;
+			});
+		}
+		
 		// Start merging tasks if possible.
 		// Currently start_merge_task requires the lock above.
 		if (subgraph_idx && m_subgraph_bitmap[subgraph_idx - 1])
 			start_merge_task(subgraph_idx - 1, subgraph_idx);
 		
 		auto const last_idx(m_subgraph_bitmap.size() - 1);
-		if (subgraph_idx < last_idx && m_subgraph_bitmap[last_idx])
-			start_merge_task(subgraph_idx, subgraph_idx + 1);
+		if (subgraph_idx < last_idx && m_subgraph_bitmap[1 + subgraph_idx])
+			start_merge_task(subgraph_idx, 1 + subgraph_idx);
+	}
+	
+	
+	std::size_t reduce_samples_task::count_variants_in_range(
+		std::size_t current_lineno,
+		std::size_t const next_sg_start_lineno,
+		std::vector <std::size_t> &skipped_lines
+	)
+	{
+		std::size_t retval(0);
+		while (current_lineno < next_sg_start_lineno)
+		{
+			// valid_alts() is O(1).
+			if (m_alt_checker->valid_alts(current_lineno).empty())
+				skipped_lines.emplace_back(current_lineno);
+			else
+				++retval;
+			
+			++current_lineno;
+		}
+		return retval;
+	}
+	
+	
+	void reduce_samples_task::add_graph_range(
+		std::size_t const start_lineno,
+		std::size_t const next_sg_start_lineno,
+		std::size_t	const range_start_offset,
+		std::size_t	const range_length,
+		std::size_t const variant_count,
+		std::vector <std::size_t> const &skipped_lines,
+		std::vector <graph_range> &graph_ranges
+	)
+	{
+		// Mark skipped lines in a bit vector.
+		std::size_t const total_lines(next_sg_start_lineno - start_lineno);
+		assert(variant_count <= total_lines);
+		sdsl::bit_vector skipped_lines_b(total_lines, 0);
+		for (auto const skipped_line : skipped_lines)
+		{
+			std::size_t const line_idx(skipped_line - start_lineno);
+			skipped_lines_b[line_idx] = 1;
+		}
+		
+		graph_range range(range_start_offset, range_length, start_lineno, variant_count, std::move(skipped_lines_b));
+			
+		assert(range.contains_var_lineno(start_lineno));
+		assert(range.contains_var_lineno(next_sg_start_lineno - 1));
+		
+		graph_ranges.emplace_back(std::move(range));
 	}
 	
 	
@@ -301,7 +409,6 @@ namespace vcf2multialign {
 	{
 		std::vector <graph_range> graph_ranges;
 		
-		// FIXME: the following block contains some duplicated code.
 		// Create a task for each sufficiently long range.
 		{
 			std::vector <std::size_t> skipped_lines;
@@ -316,39 +423,24 @@ namespace vcf2multialign {
 			for (auto const &kv : *m_subgraph_starting_points)
 			{
 				auto const next_subgraph_start(kv.first);
-				auto const var_lineno(kv.second);
+				auto const next_sg_start_lineno(kv.second);
 				
 				// Check how many variants in the current range may be handled.
-				while (current_lineno < var_lineno)
-				{
-					// valid_alts() is O(1).
-					if (m_alt_checker->valid_alts(current_lineno).empty())
-						skipped_lines.emplace_back(current_lineno);
-					else
-						++current_range_variant_count;
-					
-					++current_lineno;
-				}
-				assert(var_lineno == current_lineno);
+				current_range_variant_count += count_variants_in_range(current_lineno, next_sg_start_lineno, skipped_lines);
+				current_lineno = next_sg_start_lineno;
 				
 				if (m_min_path_length <= current_range_variant_count)
 				{
-					// Mark skipped lines in a bit vector.
-					std::size_t const total_lines(current_lineno - current_start_lineno + 1);
-					sdsl::bit_vector skipped_lines_b(total_lines, 0);
-					for (auto const skipped_line : skipped_lines)
-					{
-						std::size_t const line_idx(skipped_line - current_start_lineno);
-						skipped_lines_b[line_idx] = 1;
-					}
-					
-					graph_ranges.emplace_back(
+					add_graph_range(
+						current_start_lineno,
+						current_lineno,
 						current_start - buffer_start,
 						next_subgraph_start - current_start,
-						current_start_lineno,
 						current_range_variant_count,
-						std::move(skipped_lines_b)
+						skipped_lines,
+						graph_ranges
 					);
+					
 					current_range_variant_count = 0;
 					current_start = next_subgraph_start;
 					current_start_lineno = current_lineno;
@@ -358,32 +450,17 @@ namespace vcf2multialign {
 		
 			// Add the final graph_range to cover the remaining range.
 			auto const lineno_limit(1 + m_record_count + m_reader.last_header_lineno());
-			while (current_lineno < lineno_limit)
-			{
-				if (m_alt_checker->valid_alts(current_lineno).empty())
-					skipped_lines.emplace_back(current_lineno);
-				else
-					++current_range_variant_count;
-				
-				++current_lineno;
-			}
-			assert(lineno_limit == current_lineno);
+			current_range_variant_count += count_variants_in_range(current_lineno, lineno_limit, skipped_lines);
+			current_lineno = lineno_limit;
 			
-			// Mark skipped lines in a bit vector.
-			std::size_t const total_lines(current_lineno - current_start_lineno + 1);
-			sdsl::bit_vector skipped_lines_b(total_lines, 0);
-			for (auto const skipped_line : skipped_lines)
-			{
-				std::size_t const line_idx(skipped_line - current_start_lineno);
-				skipped_lines_b[line_idx] = 1;
-			}
-			
-			graph_ranges.emplace_back(
+			add_graph_range(
+				current_start_lineno,
+				current_lineno,
 				current_start - buffer_start,
 				buffer_end - current_start,
-				current_start_lineno,
 				current_range_variant_count,
-				std::move(skipped_lines_b)
+				skipped_lines,
+				graph_ranges
 			);
 		}
 		
@@ -410,6 +487,13 @@ namespace vcf2multialign {
 		{
 			auto const st(dispatch_semaphore_wait(*m_subgraph_semaphore, DISPATCH_TIME_FOREVER));
 			always_assert(0 == st);
+			
+			if (m_should_print_subgraph_handling)
+			{
+				m_status_logger->log([task_idx, running_subgraph_tasks = ++m_running_subgraph_tasks](){
+					std::cerr << "Starting subgraph task " << task_idx << ", currently running " << running_subgraph_tasks << std::endl;
+				});
+			}
 			
 			auto *task(new read_subgraph_variants_task);
 			std::unique_ptr <class task> task_ptr(task);

@@ -54,6 +54,7 @@ namespace {
 		
 		bool												m_should_overwrite_files{false};
 		bool												m_should_reduce_samples{false};
+		bool												m_should_print_subgraph_handling{false};
 		
 	public:
 		generate_context(
@@ -64,7 +65,8 @@ namespace {
 			std::size_t const min_path_length,
 			std::size_t const generated_path_count,
 			bool const should_overwrite_files,
-			bool const should_reduce_samples
+			bool const should_reduce_samples,
+			bool const print_subgraph_handling
 		):
 			m_vcf_input(m_vcf_handle),
 			m_null_allele_seq(null_allele_seq),
@@ -73,7 +75,8 @@ namespace {
 			m_min_path_length(min_path_length),
 			m_generated_path_count(generated_path_count),
 			m_should_overwrite_files(should_overwrite_files),
-			m_should_reduce_samples(should_reduce_samples)
+			m_should_reduce_samples(should_reduce_samples),
+			m_should_print_subgraph_handling(print_subgraph_handling)
 		{
 			finish_init(out_reference_fname);
 		}
@@ -248,7 +251,8 @@ namespace {
 					m_generated_path_count,
 					sample_ploidy_sum,
 					m_min_path_length,
-					m_should_overwrite_files
+					m_should_overwrite_files,
+					m_should_print_subgraph_handling
 				)
 			);
 			
@@ -330,7 +334,8 @@ namespace vcf2multialign {
 		sv_handling const sv_handling_method,
 		bool const should_overwrite_files,
 		bool const should_check_ref,
-		bool const should_reduce_samples
+		bool const should_reduce_samples,
+		bool const print_subgraph_handling
 	)
 	{
 		// generate_context needs to be allocated on the heap because later dispatch_main is called.
@@ -343,7 +348,8 @@ namespace vcf2multialign {
 			min_path_length,
 			generated_path_count,
 			should_overwrite_files,
-			should_reduce_samples
+			should_reduce_samples,
+			print_subgraph_handling
 		));
 			
 		ctx->load_and_generate(
