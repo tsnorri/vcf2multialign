@@ -40,11 +40,12 @@ namespace std {
 #endif
 
 
-#ifndef __cpp_lib_optional
+// FIXME: libc++ defines __cpp_lib_experimental_optional but has std::optional.
+#ifndef __cpp_lib_experimental_optional
 namespace std {
-	//using std::experimental::optional;
-	//using std::experimental::nullopt;
-	//using std::experimental::string_view; // FIXME: libc++ has std::string_view but does not define __cpp_lib_string_view in <string_view>.
+	using std::experimental::optional;
+	using std::experimental::nullopt;
+	//using std::experimental::string_view;
 }
 #endif
 
