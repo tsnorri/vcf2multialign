@@ -168,6 +168,9 @@ namespace vcf2multialign {
 			});
 		}
 		
+		m_delegate->remove_task(task);
+		// task is now invalid.
+		
 		if (0 == remaining_merge_tasks)
 		{
 			m_logger->status_logger.finish_logging();
@@ -212,6 +215,9 @@ namespace vcf2multialign {
 	
 	void reduce_samples_task::task_did_finish(sequence_writer_task &task)
 	{
+		m_delegate->remove_task(task);
+		// task is now invalid.
+		
 		// Wait with a dispatch group that every file has finished writing.
 		auto tuple(wait_for_files(m_haplotypes));
 		auto group(std::get <0>(tuple));
@@ -315,6 +321,9 @@ namespace vcf2multialign {
 		auto const subgraph_idx(task.task_idx());
 		m_subgraphs[subgraph_idx] = std::move(rsg);
 		m_subgraph_bitmap[subgraph_idx] = true;
+		
+		m_delegate->remove_task(task);
+		// task is now invalid.
 		
 		if (m_generate_config->should_print_subgraph_handling)
 		{

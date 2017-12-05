@@ -140,10 +140,12 @@ namespace vcf2multialign {
 				std::chrono::duration <double> elapsed_seconds(end_time - start_time);
 				std::cerr << "Sequence generation took " << (elapsed_seconds.count() / 60.0) << " minutes in total." << std::endl;
 			});
+
+			m_delegate->remove_task(task);
+			// task is now invalid.
 		
 			auto main_queue(dispatch_get_main_queue());
-			dispatch_async_fn(main_queue, [this, &task](){
-				m_delegate->remove_task(task);
+			dispatch_async_fn(main_queue, [this](){
 				m_delegate->task_did_finish(*this);
 			});
 		});

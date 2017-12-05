@@ -109,6 +109,8 @@ namespace {
 	
 	void generate_context::remove_task(v2m::task &task)
 	{
+		std::lock_guard <std::mutex> lock_guard(m_tasks_mutex);
+		
 		// Use the C++14 templated find.
 		auto it(m_tasks.find(task));
 		v2m::always_assert(m_tasks.cend() != it);
