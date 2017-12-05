@@ -213,25 +213,9 @@ namespace vcf2multialign {
 	void reduce_samples_task::task_did_finish(sequence_writer_task &task)
 	{
 		// Wait with a dispatch group that every file has finished writing.
-		dispatch_queue_t queue(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0));
-		dispatch_ptr <dispatch_group_t> group(dispatch_group_create());
-		for (auto &kv : m_haplotypes)
-		{
-			// Actually there's only one element in each kv.second.
-			for (auto &haplotype : kv.second)
-			{
-				// Make sure that dispatch_group_notify_fn does not fire before this
-				// block has been executed.
-				// FIXME: copying group may not be strictly needed since we call dispatch_group_async_fn with the same group.
-				dispatch_group_async_fn(*group, queue, [&haplotype, group](){
-					// Flush buffers and close. This is safe b.c.
-					// set_closing_group() is called in the same thread as close().
-					haplotype.output_stream->set_closing_group(group);
-					haplotype.output_stream.close();
-				});
-			}
-		}
-		
+		auto tuple(wait_for_files(m_haplotypes));
+		auto group(std::get <0>(tuple));
+		auto queue(std::get <1>(tuple));
 		dispatch_group_notify_fn(*group, queue, [this](){
 			// finish_logging() gets called in handled_all_haplotypes(). 
 			m_delegate->task_did_finish(*this);

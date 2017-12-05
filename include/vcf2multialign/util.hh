@@ -10,6 +10,7 @@
 #include <boost/iterator/iterator_facade.hpp>
 #include <iostream>
 #include <memory>
+#include <vcf2multialign/types.hh>
 
 
 namespace vcf2multialign {

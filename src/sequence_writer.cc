@@ -3,6 +3,7 @@
  This code is licensed under MIT license (see LICENSE for details).
  */
 
+#include <vcf2multialign/file_handling.hh>
 #include <vcf2multialign/sequence_writer.hh>
 #include <vcf2multialign/variant.hh>
 

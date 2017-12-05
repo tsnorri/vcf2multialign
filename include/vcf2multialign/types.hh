@@ -8,7 +8,6 @@
 
 #include <map>
 #include <set>
-#include <vcf2multialign/file_handling.hh>
 #include <vector>
 
 

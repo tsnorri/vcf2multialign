@@ -49,9 +49,10 @@ namespace vcf2multialign {
 		
 		auto it(create_haplotype(REF_SAMPLE_NUMBER, 1));
 		auto &haplotype_vec(it->second);
-		open_file_for_writing(
+		open_file_channel_for_writing(
 			m_generate_config->out_reference_fname->c_str(),
 			haplotype_vec[0].output_stream,
+			m_write_semaphore,
 			m_generate_config->should_overwrite_files
 		);
 	}
@@ -72,9 +73,10 @@ namespace vcf2multialign {
 			for (std::size_t j(1); j <= current_ploidy; ++j)
 			{
 				auto const fname(boost::str(boost::format("%s-%u") % sample_name % j));
-				open_file_for_writing(
+				open_file_channel_for_writing(
 					fname.c_str(),
 					haplotype_vec[j - 1].output_stream,
+					m_write_semaphore,
 					m_generate_config->should_overwrite_files
 				);
 			}
@@ -91,7 +93,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void all_haplotypes_task::generate_sequences(bool const output_reference)
+	bool all_haplotypes_task::prepare_next_round(sequence_writer_task &task, bool const output_reference)
 	{
 		// Open files for the samples. If no files were opened, exit.
 		m_haplotypes.clear();
@@ -99,28 +101,8 @@ namespace vcf2multialign {
 	
 		auto const haplotype_count(m_haplotypes.size());
 		if (0 == haplotype_count)
-		{
-			auto const start_time(m_start_time);
-			m_logger->status_logger.log([start_time](){
-				// Save the stream state.
-				boost::io::ios_flags_saver ifs(std::cerr);
+			return false;
 		
-				// Change FP notation.
-				std::cerr << std::fixed;
-			
-				auto const end_time(std::chrono::system_clock::now());
-				std::chrono::duration <double> elapsed_seconds(end_time - start_time);
-				std::cerr << "Sequence generation took " << (elapsed_seconds.count() / 60.0) << " minutes in total." << std::endl;
-			});
-			
-			auto main_queue(dispatch_get_main_queue());
-			dispatch_async_fn(main_queue, [this](){
-				m_delegate->task_did_finish(*this);
-			});
-			
-			return;
-		}
-	
 		++m_current_round;
 		m_round_start_time = std::chrono::system_clock::now();
 	
@@ -134,59 +116,107 @@ namespace vcf2multialign {
 		});
 		m_logger->status_logger.log_message_progress_bar("Generating haplotypes…");
 		
-		m_sequence_writer.prepare(m_haplotypes);
-		variant_handler().process_variants();
+		task.prepare(m_haplotypes);
+		return true;
 	}
 	
 	
-	void all_haplotypes_task::handle_variant(variant &var)
+	void all_haplotypes_task::do_finish(sequence_writer_task &task)
 	{
-		variant_stats::handle_variant(var);
-		m_sequence_writer.handle_variant(var);
-	}
-	
-	
-	void all_haplotypes_task::finish()
-	{
-		m_sequence_writer.finish();
-		m_logger->status_logger.finish_logging();
+		auto tuple(wait_for_files(m_haplotypes));
+		auto group(std::get <0>(tuple));
+		auto queue(std::get <1>(tuple));
 		
-		auto const round_start_time(m_round_start_time);
-		m_logger->status_logger.log([round_start_time](){
-			// Save the stream state.
-			boost::io::ios_flags_saver ifs(std::cerr);
+		dispatch_group_notify_fn(*group, queue, [this, &task](){
+			auto const start_time(m_start_time);
+			m_logger->status_logger.log([start_time](){
+				// Save the stream state.
+				boost::io::ios_flags_saver ifs(std::cerr);
 	
-			// Change FP notation.
-			std::cerr << std::fixed;
+				// Change FP notation.
+				std::cerr << std::fixed;
 		
-			auto const end_time(std::chrono::system_clock::now());
-			std::chrono::duration <double> elapsed_seconds(end_time - round_start_time);
-			std::cerr << "Finished in " << (elapsed_seconds.count() / 60.0) << " minutes." << std::endl;
+				auto const end_time(std::chrono::system_clock::now());
+				std::chrono::duration <double> elapsed_seconds(end_time - start_time);
+				std::cerr << "Sequence generation took " << (elapsed_seconds.count() / 60.0) << " minutes in total." << std::endl;
+			});
+		
+			auto main_queue(dispatch_get_main_queue());
+			dispatch_async_fn(main_queue, [this, &task](){
+				m_delegate->remove_task(task);
+				m_delegate->task_did_finish(*this);
+			});
 		});
-		
-		generate_sequences();
+	}
+	
+	
+	void all_haplotypes_task::task_did_finish(sequence_writer_task &task)
+	{
+		m_logger->status_logger.finish_logging();
+		if (prepare_next_round(task, false))
+			task.execute();
+		else
+			do_finish(task);
 	}
 	
 	
 	void all_haplotypes_task::execute()
 	{
-		auto &vr(vcf_reader());
-		
+		auto concurrent_queue(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0));
+		dispatch_ptr <dispatch_queue_t> parsing_queue(concurrent_queue, true);
+		dispatch_ptr <dispatch_queue_t> worker_queue(
+			dispatch_queue_create("fi.iki.tsnorri.vcf2multialign.worker_queue", DISPATCH_QUEUE_SERIAL),
+			false
+		);
+			
 		// Prepare sample names for enumeration and calculate rounds.
-		auto const &sample_names(vr.sample_names());
+		auto const &sample_names(m_vcf_reader.sample_names());
 		auto const sample_count(sample_names.size());
 		m_total_rounds = std::ceil(1.0 * sample_count / m_generate_config->chunk_size);
-		
+	
 		m_sample_names_it = sample_names.cbegin();
 		m_sample_names_end = sample_names.cend();
-		
+	
+		m_start_time = std::chrono::system_clock::now();
 		m_logger->status_logger.log([](){
 			std::cerr << "Generating haplotype sequences…" << std::endl;
 		});
-
-		vr.set_parsed_fields(vcf_field::ALL);
-
-		m_start_time = std::chrono::system_clock::now();
-		generate_sequences(m_generate_config->out_reference_fname.operator bool());
+		
+		auto task(new sequence_writer_task(
+			*this,
+			*m_generate_config,
+			worker_queue,
+			*m_logger,
+			m_vcf_reader,
+			*m_preprocessing_result
+		));
+			
+		std::unique_ptr <class task> task_ptr(task);
+		task->set_parsed_fields(vcf_field::ALL);
+		
+		if (prepare_next_round(*task, m_generate_config->out_reference_fname.operator bool()))
+			m_delegate->store_and_execute(std::move(task_ptr));
+		else
+			do_finish(*task);
+	}
+	
+	
+	void all_haplotypes_task::enumerate_sample_genotypes(
+		variant const &var,
+		std::function <void(std::size_t, uint8_t, uint8_t, bool)> const &cb	// sample_no, chr_idx, alt_idx, is_phased
+	)
+	{
+		std::size_t sample_no(0);
+		static_assert(0 == REF_SAMPLE_NUMBER);
+		cb(REF_SAMPLE_NUMBER, 0, 0, true);	// REF.
+		for (auto const &sample : var.samples())
+		{
+			// REF is zero, see the static assertion above.
+			++sample_no;
+			std::size_t chr_idx(0);
+			
+			for (auto const &gt : sample.get_genotype())
+				cb(sample_no, chr_idx++, gt.alt, gt.is_phased);
+		}
 	}
 }

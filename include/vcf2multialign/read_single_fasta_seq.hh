@@ -6,6 +6,7 @@
 #ifndef VCF2MULTIALIGN_READ_SINGLE_FASTA_STREAM_HH
 #define VCF2MULTIALIGN_READ_SINGLE_FASTA_STREAM_HH
 
+#include <vcf2multialign/file_handling.hh>
 #include <vcf2multialign/status_logger.hh>
 #include <vcf2multialign/types.hh>
 

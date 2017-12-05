@@ -7,6 +7,7 @@
 
 
 namespace vcf2multialign {
+	
 	std::size_t strlen_utf8(std::string const &str)
 	{
 		std::size_t retval(0);

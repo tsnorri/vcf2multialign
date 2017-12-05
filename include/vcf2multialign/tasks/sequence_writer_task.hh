@@ -42,6 +42,7 @@ namespace vcf2multialign {
 	protected:
 		sequence_writer_type						m_sequence_writer;
 		sequence_writer_task_delegate				*m_delegate{nullptr};
+		vcf_field									m_parsed_fields{vcf_field::ALT};
 		
 	public:
 		sequence_writer_task(
@@ -64,6 +65,8 @@ namespace vcf2multialign {
 		{
 			m_sequence_writer.set_delegate(*this);
 		}
+		
+		void set_parsed_fields(vcf_field const fields) { m_parsed_fields = fields; }
 		
 		void prepare(haplotype_map <channel_ostream> &haplotypes) { m_sequence_writer.prepare(haplotypes); }
 		virtual void execute() override;

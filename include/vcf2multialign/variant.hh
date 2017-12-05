@@ -7,6 +7,7 @@
 #define VCF2MULTIALIGN_VARIANT_HH
 
 #include <boost/function_output_iterator.hpp>
+#include <boost/range/iterator_range_core.hpp>
 #include <vcf2multialign/cxx_compat.hh>
 #include <vcf2multialign/types.hh>
 #include <vcf2multialign/util.hh>

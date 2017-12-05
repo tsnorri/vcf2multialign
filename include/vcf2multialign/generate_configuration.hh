@@ -7,6 +7,7 @@
 #define VCF2MULTIALIGN_GENERATE_CONFIGURATION_HH
 
 #include <boost/optional.hpp>
+#include <string>
 #include <vcf2multialign/types.hh>
 
 

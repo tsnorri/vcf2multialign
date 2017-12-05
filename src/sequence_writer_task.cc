@@ -10,7 +10,7 @@ namespace vcf2multialign {
 	
 	void sequence_writer_task::prepare(class vcf_reader &reader)
 	{
-		reader.set_parsed_fields(vcf_field::ALT);
+		reader.set_parsed_fields(m_parsed_fields);
 	}
 	
 	

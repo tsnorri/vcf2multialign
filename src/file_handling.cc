@@ -73,6 +73,34 @@ namespace vcf2multialign {
 	}
 	
 	
+	std::tuple <
+		dispatch_ptr <dispatch_group_t>,
+		dispatch_queue_t
+	> wait_for_files(haplotype_map <channel_ostream> &haplotypes)
+	{
+		dispatch_queue_t queue(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0));
+		dispatch_ptr <dispatch_group_t> group(dispatch_group_create());
+		for (auto &kv : haplotypes)
+		{
+			// Actually there's only one element in each kv.second.
+			for (auto &haplotype : kv.second)
+			{
+				// Make sure that dispatch_group_notify_fn does not fire before this
+				// block has been executed.
+				// FIXME: copying group may not be strictly needed since we call dispatch_group_async_fn with the same group.
+				dispatch_group_async_fn(*group, queue, [&haplotype, group](){
+					// Flush buffers and close. This is safe b.c.
+					// set_closing_group() is called in the same thread as close().
+					haplotype.output_stream->set_closing_group(group);
+					haplotype.output_stream.close();
+				});
+			}
+		}
+		
+		return {group, queue};
+	}
+	
+	
 	mmap_handle::~mmap_handle()
 	{
 		if (m_mapped_size)

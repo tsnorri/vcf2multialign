@@ -20,9 +20,9 @@ namespace v2m	= vcf2multialign;
 namespace {
 	
 	class generate_context final :
-		public v2m::all_haplotypes_task_delegate,
+		public virtual v2m::all_haplotypes_task_delegate,
 		public v2m::preparation_task_delegate,
-		public v2m::reduce_samples_task_delegate
+		public virtual v2m::reduce_samples_task_delegate
 	{
 	protected:
 		typedef std::set <
@@ -67,16 +67,14 @@ namespace {
 		// preparation_task_delegate
 		virtual void task_did_finish(v2m::preparation_task &task) override;
 		
-		// all_haplotypes_task_delegate
+		// all_haplotypes_task_delegate, reduce_samples_task_delegate
 		virtual void task_did_finish(v2m::all_haplotypes_task &task) override;
-		
-		// reduce_samples_task_delegate
 		virtual void task_did_finish(v2m::reduce_samples_task &task) override;
 		virtual void store_and_execute(std::unique_ptr <v2m::task> &&task) override;
+		virtual void remove_task(v2m::task &task) override;
 		
 	protected:
 		v2m::task *store_task(std::unique_ptr <v2m::task> &&task);
-		void remove(v2m::task &task);
 	};
 	
 	
@@ -109,7 +107,7 @@ namespace {
 	}
 	
 	
-	void generate_context::remove(v2m::task &task)
+	void generate_context::remove_task(v2m::task &task)
 	{
 		// Use the C++14 templated find.
 		auto it(m_tasks.find(task));
@@ -174,8 +172,9 @@ namespace {
 		m_preprocessing_result.alt_checker = std::move(task.alt_checker());
 		m_preprocessing_result.subgraph_starting_points = std::move(task.subgraph_starting_points());
 		auto const record_count(task.step_count());
+		auto const hw_concurrency(std::thread::hardware_concurrency());
 		
-		remove(task);
+		remove_task(task);
 		// task is now invalid.
 		
 		if (m_generate_config.should_reduce_samples)
@@ -187,7 +186,6 @@ namespace {
 			}
 			
 			auto const sample_ploidy_sum(boost::accumulate(m_preprocessing_result.ploidy | boost::adaptors::map_values, 0));
-			auto const hw_concurrency(std::thread::hardware_concurrency());
 			
 			std::unique_ptr <v2m::task> task(
 				new v2m::reduce_samples_task(
@@ -211,20 +209,15 @@ namespace {
 			// going to be handled with a custom variant handler (with enumerate_sample_genotypes
 			// replaced but everything else should be OK as is) and with a custom task.
 			auto concurrent_queue(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0));
-			v2m::dispatch_ptr <dispatch_queue_t> parsing_queue(concurrent_queue, true);
-			v2m::dispatch_ptr <dispatch_queue_t> worker_queue(
-				dispatch_queue_create("fi.iki.tsnorri.vcf2multialign.worker_queue", DISPATCH_QUEUE_SERIAL),
-				false
-			);
 			
 			std::unique_ptr <v2m::task> task(
 				new v2m::all_haplotypes_task(
 					*this,
 					m_generate_config,
-					worker_queue,
 					m_logger,
 					std::move(reader),
 					m_preprocessing_result,
+					hw_concurrency,
 					record_count
 				)
 			);

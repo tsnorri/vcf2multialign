@@ -54,8 +54,10 @@ namespace vcf2multialign {
 	
 	struct reduce_samples_task_delegate
 	{
-		virtual void store_and_execute(std::unique_ptr <task> &&task) = 0;
+		virtual ~reduce_samples_task_delegate() {}
 		virtual void task_did_finish(reduce_samples_task &task) = 0;
+		virtual void store_and_execute(std::unique_ptr <task> &&task) = 0;
+		virtual void remove_task(task &task) = 0;
 	};
 	
 	

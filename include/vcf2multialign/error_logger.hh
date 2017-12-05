@@ -7,6 +7,7 @@
 #define VCF2MULTIALIGN_ERROR_LOGGER_HH
 
 #include <vcf2multialign/dispatch_fn.hh>
+#include <vcf2multialign/file_handling.hh>
 #include <vcf2multialign/types.hh>
 
 

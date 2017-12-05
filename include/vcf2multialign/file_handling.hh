@@ -10,9 +10,12 @@
 #include <boost/iostreams/stream.hpp>
 #include <vcf2multialign/cxx_compat.hh>
 #include <vcf2multialign/channel_sink.hh>
+#include <vcf2multialign/types.hh>
 
 
 namespace vcf2multialign {
+	
+	class channel_sink;
 	
 	// Manage a memory-mapped file.
 	// Ragel works with pointer ranges rather than streams, so using Boost's mapped_file_sink would add complexity.
@@ -55,6 +58,12 @@ namespace vcf2multialign {
 		dispatch_ptr <dispatch_semaphore_t> const &write_semaphore,
 		bool const should_overwrite
 	);
+		
+	// Wait for the files to close.
+	std::tuple <
+		dispatch_ptr <dispatch_group_t>,
+		dispatch_queue_t
+	> wait_for_files(vcf2multialign::haplotype_map <channel_ostream> &haplotypes);
 }
 
 #endif
