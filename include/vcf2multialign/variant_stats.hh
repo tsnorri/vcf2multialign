@@ -6,9 +6,8 @@
 #ifndef VCF2MULTIALIGN_VARIANT_STATS_HH
 #define VCF2MULTIALIGN_VARIANT_STATS_HH
 
-#include <vcf2multialign/error_logger.hh>
+#include <vcf2multialign/logger.hh>
 #include <vcf2multialign/sequence_writer.hh>
-#include <vcf2multialign/status_logger.hh>
 #include <vcf2multialign/types.hh>
 
 
@@ -26,8 +25,7 @@ namespace vcf2multialign {
 		sample_count						m_non_ref_totals;			// In current variant.
 		
 	public:
-		virtual class error_logger &error_logger() = 0;
-		virtual class status_logger &status_logger() = 0;
+		virtual struct logger &logger() = 0;
 
 		void handle_variant(variant_base const &var);
 		

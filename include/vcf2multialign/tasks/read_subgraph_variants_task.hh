@@ -52,8 +52,7 @@ namespace vcf2multialign {
 		read_subgraph_variants_task(
 			read_subgraph_variants_task_delegate &delegate,
 			dispatch_ptr <dispatch_queue_t> const &worker_queue,	// Needs to be serial.
-			status_logger &status_logger,
-			error_logger &error_logger,
+			struct logger &logger,
 			class vcf_reader const &vcf_reader,
 			mmap_handle const &vcf_input_handle,
 			alt_checker const &checker,
@@ -68,8 +67,7 @@ namespace vcf2multialign {
 		):
 			parsing_task_vh(
 				worker_queue,
-				status_logger,
-				error_logger,
+				logger,
 				vcf_reader,
 				checker,
 				reference,

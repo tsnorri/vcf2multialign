@@ -25,14 +25,14 @@ namespace vcf2multialign {
 	{
 		if (m_overlapping_alts.insert(lineno).second)
 		{
-			status_logger().log([lineno, sample_no, chr_idx](){
+			logger().status_logger.log([lineno, sample_no, chr_idx](){
 				std::cerr << "Overlapping alternatives on line " << lineno
 					<< " for sample " << sample_no << ':' << (int) chr_idx
 					<< " (and possibly others); skipping when needed." << std::endl;
 			});
 		}
 	
-		if (error_logger().is_logging_errors())
+		if (logger().error_logger.is_logging_errors())
 			m_skipped_samples.emplace_back(sample_no, alt_idx, chr_idx);
 	}
 	
@@ -55,7 +55,7 @@ namespace vcf2multialign {
 	void variant_stats::handled_haplotypes(variant_base const &var)
 	{
 		// Report errors if needed.
-		auto &el(error_logger());
+		auto &el(logger().error_logger);
 		if (el.is_logging_errors())
 		{
 			auto const lineno(var.lineno());

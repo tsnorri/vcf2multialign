@@ -44,22 +44,21 @@ namespace vcf2multialign {
 		
 		preparation_task(
 			preparation_task_delegate &delegate,
-			status_logger &status_logger,
-			error_logger &error_logger,
+			struct logger &logger,
 			vector_type &reference,
 			std::string const &ref_fname,
 			class vcf_reader &&vcf_reader,
 			sv_handling const sv_handling_method,
 			bool const should_check_ref
 		):
-			parsing_task(status_logger, error_logger, std::move(vcf_reader)),
+			parsing_task(logger, std::move(vcf_reader)),
 			m_delegate(&delegate),
 			m_reference(&reference),
 			m_ref_fname(ref_fname),
 			m_sv_handling_method(sv_handling_method),
 			m_should_check_ref(should_check_ref)
 		{
-			m_status_logger->set_delegate(*this);
+			m_logger->status_logger.set_delegate(*this);
 		}
 		
 		ploidy_map &ploidy_map() { return m_ploidy; }

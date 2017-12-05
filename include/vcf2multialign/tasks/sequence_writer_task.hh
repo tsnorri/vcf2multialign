@@ -46,8 +46,7 @@ namespace vcf2multialign {
 		sequence_writer_task(
 			sequence_writer_task_delegate &delegate,
 			dispatch_ptr <dispatch_queue_t> const &worker_queue,
-			class status_logger &status_logger,
-			class error_logger &error_logger,
+			struct logger &logger,
 			class vcf_reader const &vcf_reader,
 			class alt_checker const &alt_checker,
 			variant_set const &skipped_variants,
@@ -57,8 +56,7 @@ namespace vcf2multialign {
 		):
 			parsing_task_vh(
 				worker_queue,
-				status_logger,
-				error_logger,
+				logger,
 				vcf_reader,
 				alt_checker,
 				reference,
@@ -75,8 +73,7 @@ namespace vcf2multialign {
 		virtual void execute() override;
 		
 		// variant_stats
-		virtual class error_logger &error_logger() override { return *m_error_logger; }
-		virtual class status_logger &status_logger() override { return *m_status_logger; }
+		virtual struct logger &logger() override { return *m_logger; }
 		
 		// variant_handler_delegate
 		virtual void prepare(class vcf_reader &reader) override;

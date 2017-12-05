@@ -95,8 +95,7 @@ namespace vcf2multialign {
 		std::atomic_int32_t							m_running_merge_tasks{0};
 		
 		reduce_samples_task_delegate				*m_delegate{nullptr};
-		status_logger								*m_status_logger{nullptr};
-		error_logger								*m_error_logger{nullptr};
+		struct logger								*m_logger{nullptr};
 		vector_type const							*m_reference{nullptr};
 		mmap_handle const							*m_vcf_input_handle{nullptr};
 		std::string const							*m_null_allele_seq{nullptr};
@@ -119,8 +118,7 @@ namespace vcf2multialign {
 		
 		reduce_samples_task(
 			reduce_samples_task_delegate &delegate,
-			status_logger &status_logger,
-			error_logger &error_logger,
+			struct logger &logger,
 			std::size_t const hw_concurrency,
 			vcf_reader &&reader,
 			mmap_handle const &vcf_input_handle,
@@ -145,8 +143,7 @@ namespace vcf2multialign {
 			m_path_permutation(generated_path_count),
 			m_reader(std::move(reader)),
 			m_delegate(&delegate),
-			m_status_logger(&status_logger),
-			m_error_logger(&error_logger),
+			m_logger(&logger),
 			m_reference(&reference),
 			m_vcf_input_handle(&vcf_input_handle),
 			m_null_allele_seq(&null_allele_seq),
@@ -162,7 +159,7 @@ namespace vcf2multialign {
 			m_should_overwrite_files(should_overwrite_files),
 			m_should_print_subgraph_handling(should_print_subgraph_handling)
 		{
-			m_status_logger->set_delegate(m_progress_counter);
+			m_logger->status_logger.set_delegate(m_progress_counter);
 			std::iota(m_path_permutation.begin(), m_path_permutation.end(), 0);
 		}
 		

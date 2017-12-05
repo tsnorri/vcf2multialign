@@ -8,7 +8,7 @@
 
 #include <vcf2multialign/alt_checker.hh>
 #include <vcf2multialign/file_handling.hh>
-#include <vcf2multialign/status_logger.hh>
+#include <vcf2multialign/logger.hh>
 #include <vcf2multialign/tasks/task.hh>
 #include <vcf2multialign/variant_handler.hh>
 #include <vcf2multialign/vcf_reader.hh>
@@ -74,31 +74,26 @@ namespace vcf2multialign {
 		};
 		
 	protected:
-		status_logger						*m_status_logger{nullptr};
-		error_logger						*m_error_logger{nullptr};
-		vcf_reader_container				m_vrc;
+		logger						*m_logger{nullptr};
+		vcf_reader_container		m_vrc;
 		
 	public:
 		parsing_task() = default;
 		
 		parsing_task(
-			status_logger &status_logger,
-			error_logger &error_logger,
+			struct logger &logger,
 			class vcf_reader const &vcf_reader
 		):
-			m_status_logger(&status_logger),
-			m_error_logger(&error_logger),
+			m_logger(&logger),
 			m_vrc(vcf_reader)
 		{
 		}
 		
 		parsing_task(
-			status_logger &status_logger,
-			error_logger &error_logger,
+			struct logger &logger,
 			class vcf_reader &&vcf_reader
 		):
-			m_status_logger(&status_logger),
-			m_error_logger(&error_logger),
+			m_logger(&logger),
 			m_vrc(std::move(vcf_reader))
 		{
 		}
@@ -184,15 +179,14 @@ namespace vcf2multialign {
 		
 		parsing_task_vh(
 			dispatch_ptr <dispatch_queue_t> const &worker_queue,	// Needs to be serial.
-			status_logger &status_logger,
-			error_logger &error_logger,
+			logger &logger,
 			class vcf_reader const &vcf_reader,
 			alt_checker const &checker,
 			vector_type const &reference,
 			sv_handling const sv_handling_method,
 			variant_set const &skipped_variants
 		):
-			parsing_task(status_logger, error_logger, vcf_reader),
+			parsing_task(logger, vcf_reader),
 			m_alt_checker(&checker),
 			m_vhc(
 				*this,
@@ -202,7 +196,7 @@ namespace vcf2multialign {
 				reference,
 				sv_handling_method,
 				skipped_variants,
-				error_logger
+				logger.error_logger
 			)
 		{
 		}

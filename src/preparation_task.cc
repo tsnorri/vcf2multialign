@@ -98,7 +98,7 @@ namespace vcf2multialign {
 					if (!found_mismatch)
 					{
 						found_mismatch = true;
-						m_status_logger->log([lineno](){
+						m_logger->status_logger.log([lineno](){
 							std::cerr
 								<< "Reference differs from the variant file on line "
 								<< lineno
@@ -107,7 +107,7 @@ namespace vcf2multialign {
 						});
 					}
 				
-					m_error_logger->log_ref_mismatch(lineno, diff_pos);
+					m_logger->error_logger.log_ref_mismatch(lineno, diff_pos);
 				}
 				
 				return true;
@@ -129,14 +129,14 @@ namespace vcf2multialign {
 			
 			// Read the reference file and place its contents into reference.
 			// If minimum path length was not given, set it to the square root of the reference sequence length.
-			v2m::read_single_fasta_seq(ref_fasta_stream, *m_reference, *m_status_logger);
+			v2m::read_single_fasta_seq(ref_fasta_stream, *m_reference, m_logger->status_logger);
 		}
 		
 		// Check the ploidy from the first record.
-		m_status_logger->log([](){
+		m_logger->status_logger.log([](){
 			std::cerr << "Checking ploidy…" << std::endl;
 		});
-		m_status_logger->set_delegate(*this);
+		m_logger->status_logger.set_delegate(*this);
 		check_ploidy();
 		
 		// Compare REF to the reference vector.
@@ -144,10 +144,10 @@ namespace vcf2multialign {
 		bool did_count(false);
 		if (m_should_check_ref)
 		{
-			m_status_logger->log_message_counting("Comparing the REF column to the reference…");
+			m_logger->status_logger.log_message_counting("Comparing the REF column to the reference…");
 			check_ref();
 			m_record_count = reader.counter_value();
-			m_status_logger->finish_logging();
+			m_logger->status_logger.finish_logging();
 		
 			did_count = true;
 		}
@@ -156,22 +156,21 @@ namespace vcf2multialign {
 		// Also mark structural variants that cannot be handled.
 		auto const msg("Checking overlapping variants…");
 		if (did_count)
-			m_status_logger->log_message_progress_bar(msg);
+			m_logger->status_logger.log_message_progress_bar(msg);
 		else
-			m_status_logger->log_message_counting(msg);
+			m_logger->status_logger.log_message_counting(msg);
 		
 		auto const conflict_count(check_overlapping_non_nested_variants(
 			reader,
 			m_sv_handling_method,
 			m_skipped_variants,
-			*m_status_logger,
-			*m_error_logger
+			*m_logger
 		));
 			
 		if (!did_count)
 			m_record_count = reader.counter_value();
 		
-		m_status_logger->finish_logging();
+		m_logger->status_logger.finish_logging();
 		
 		dispatch_async_fn(main_queue, [this, did_count, conflict_count]{
 			auto const skipped_count(m_skipped_variants.size());
@@ -186,24 +185,24 @@ namespace vcf2multialign {
 		
 		// Check valid ALTs.
 		{
-			m_status_logger->log_message_progress_bar("Checking valid ALTs…");
+			m_logger->status_logger.log_message_progress_bar("Checking valid ALTs…");
 			class alt_checker temp_checker(
 				m_record_count,
 				reader.last_header_lineno(),
 				m_sv_handling_method,
 				m_skipped_variants,
-				*m_error_logger
+				m_logger->error_logger
 			);
 				
 			m_alt_checker = std::move(temp_checker);
 			m_alt_checker.check_all_variants(reader);
-			m_status_logger->finish_logging();
+			m_logger->status_logger.finish_logging();
 		}
 		
 		// Find subgraphs connected by single edges.
-		m_status_logger->log_message_progress_bar("Finding subgraphs connected by single edges…");
+		m_logger->status_logger.log_message_progress_bar("Finding subgraphs connected by single edges…");
 		find_subgraph_starting_points(reader, m_skipped_variants, m_subgraph_starting_points);
-		m_status_logger->finish_logging();
+		m_logger->status_logger.finish_logging();
 		
 		dispatch_async_fn(main_queue, [this](){
 			std::cerr << "Found " << m_subgraph_starting_points.size() << " possible starting points." << std::endl;

@@ -37,8 +37,7 @@ namespace {
 		v2m::vcf_mmap_input									m_vcf_input;
 		v2m::mmap_handle									m_vcf_handle;
 		
-		v2m::error_logger									m_error_logger;
-		v2m::status_logger									m_status_logger;
+		v2m::logger											m_logger;
 		
 		v2m::ploidy_map										m_ploidy;
 		v2m::variant_set									m_skipped_variants;
@@ -166,7 +165,7 @@ namespace {
 		bool const should_check_ref
 	)
 	{
-		m_status_logger.install();
+		m_logger.status_logger.install();
 		
 		// It is easier to open the files here rather than in the preparation task.
 		v2m::vcf_reader reader(m_vcf_input);
@@ -177,13 +176,13 @@ namespace {
 			
 			if (report_fname)
 			{
-				m_error_logger.prepare();
+				m_logger.error_logger.prepare();
 				v2m::open_file_for_writing(
 					report_fname,
-					m_error_logger.output_stream(),
+					m_logger.error_logger.output_stream(),
 					m_should_overwrite_files
 				);
-				m_error_logger.write_header();
+				m_logger.error_logger.write_header();
 			}
 			
 			std::cerr << "Reading the VCF header…" << std::endl;
@@ -193,8 +192,7 @@ namespace {
 		std::unique_ptr <v2m::task> task(
 			new v2m::preparation_task(
 				*this,
-				m_status_logger,
-				m_error_logger,
+				m_logger,
 				m_reference,
 				reference_fname,
 				std::move(reader),
@@ -235,8 +233,7 @@ namespace {
 			std::unique_ptr <v2m::task> task(
 				new v2m::reduce_samples_task(
 					*this,
-					m_status_logger,
-					m_error_logger,
+					m_logger,
 					hw_concurrency,
 					std::move(reader),
 					m_vcf_handle,
@@ -274,8 +271,7 @@ namespace {
 				new v2m::all_haplotypes_task(
 					*this,
 					worker_queue,
-					m_status_logger,
-					m_error_logger,
+					m_logger,
 					std::move(reader),
 					m_alt_checker,
 					m_reference,
@@ -301,7 +297,7 @@ namespace {
 		// status_logger's target queue is the main queue where the cancelling is done asynchronously.
 		auto queue(dispatch_get_main_queue());
 		v2m::dispatch_async_fn(queue, [this, queue](){
-			m_status_logger.uninstall();
+			m_logger.status_logger.uninstall();
 			cleanup();
 			exit(EXIT_SUCCESS);
 		});

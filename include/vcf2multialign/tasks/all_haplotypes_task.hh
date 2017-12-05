@@ -6,6 +6,7 @@
 #ifndef VCF2MULTIALIGN_TASKS_ALL_HAPLOTYPES_TASK_HH
 #define VCF2MULTIALIGN_TASKS_ALL_HAPLOTYPES_TASK_HH
 
+#include <vcf2multialign/logger.hh>
 #include <vcf2multialign/sequence_writer.hh>
 #include <vcf2multialign/tasks/parsing_task.hh>
 #include <vcf2multialign/variant_stats.hh>
@@ -66,8 +67,7 @@ namespace vcf2multialign {
 		all_haplotypes_task(
 			all_haplotypes_task_delegate &delegate,
 			dispatch_ptr <dispatch_queue_t> const &worker_queue,
-			class status_logger &status_logger,
-			class error_logger &error_logger,
+			struct logger &logger,
 			class vcf_reader &&vcf_reader,
 			alt_checker const &checker,
 			vector_type const &reference,
@@ -83,8 +83,7 @@ namespace vcf2multialign {
 		):
 			parsing_task_vh(
 				worker_queue,
-				status_logger,
-				error_logger,
+				logger,
 				std::move(vcf_reader),
 				checker,
 				reference,
@@ -101,7 +100,7 @@ namespace vcf2multialign {
 			m_chunk_size(chunk_size),
 			m_should_overwrite_files(should_overwrite_files)
 		{
-			m_status_logger->set_delegate(*this);
+			m_logger->status_logger.set_delegate(*this);
 			m_sequence_writer.set_delegate(*this);
 		}
 		
@@ -113,8 +112,7 @@ namespace vcf2multialign {
 		virtual void execute() override;
 		
 		// variant_stats
-		virtual class error_logger &error_logger() override { return *m_error_logger; }
-		virtual class status_logger &status_logger() override { return *m_status_logger; }
+		virtual struct logger &logger() override { return *m_logger; }
 		
 		// status_logger_delegate
 		virtual std::size_t step_count() const override { return m_record_count; }

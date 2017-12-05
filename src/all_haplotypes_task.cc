@@ -97,7 +97,7 @@ namespace vcf2multialign {
 		if (0 == haplotype_count)
 		{
 			auto const start_time(m_start_time);
-			m_status_logger->log([start_time](){
+			m_logger->status_logger.log([start_time](){
 				// Save the stream state.
 				boost::io::ios_flags_saver ifs(std::cerr);
 		
@@ -123,12 +123,12 @@ namespace vcf2multialign {
 		auto const round_start_time(m_round_start_time);
 		auto const current_round(m_current_round);
 		auto const total_rounds(m_total_rounds);
-		m_status_logger->log([round_start_time, current_round, total_rounds](){
+		m_logger->status_logger.log([round_start_time, current_round, total_rounds](){
 			auto const start_time(std::chrono::system_clock::to_time_t(round_start_time));
 			std::cerr << "Round " << current_round << '/' << total_rounds << std::endl;
 			std::cerr << "Starting on " << std::ctime(&start_time) << std::flush;
 		});
-		m_status_logger->log_message_progress_bar("Generating haplotypes…");
+		m_logger->status_logger.log_message_progress_bar("Generating haplotypes…");
 		
 		m_sequence_writer.prepare(m_haplotypes);
 		variant_handler().process_variants();
@@ -145,10 +145,10 @@ namespace vcf2multialign {
 	void all_haplotypes_task::finish()
 	{
 		m_sequence_writer.finish();
-		m_status_logger->finish_logging();
+		m_logger->status_logger.finish_logging();
 		
 		auto const round_start_time(m_round_start_time);
-		m_status_logger->log([round_start_time](){
+		m_logger->status_logger.log([round_start_time](){
 			// Save the stream state.
 			boost::io::ios_flags_saver ifs(std::cerr);
 	
@@ -176,7 +176,7 @@ namespace vcf2multialign {
 		m_sample_names_it = sample_names.cbegin();
 		m_sample_names_end = sample_names.cend();
 		
-		m_status_logger->log([](){
+		m_logger->status_logger.log([](){
 			std::cerr << "Generating haplotype sequences…" << std::endl;
 		});
 

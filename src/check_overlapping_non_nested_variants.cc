@@ -132,8 +132,7 @@ namespace vcf2multialign {
 		vcf_reader &reader,
 		sv_handling const sv_handling_method,
 		variant_set /* out */ &skipped_variants,
-		status_logger &status_logger,
-		error_logger &error_logger
+		struct logger &logger
 	)
 	{
 		typedef boost::bimap <
@@ -155,8 +154,7 @@ namespace vcf2multialign {
 			should_continue = reader.parse(
 				[
 					&skipped_variants,
-					&status_logger,
-					&error_logger,
+					&logger,
 					&last_position,
 					&end_positions,
 					&conflict_counts,
@@ -181,7 +179,7 @@ namespace vcf2multialign {
 				if (!can_handle_variant_alts(var, sv_handling_method))
 				{
 					skipped_variants.insert(var_lineno);
-					error_logger.log_no_supported_alts(var_lineno);
+					logger.error_logger.log_no_supported_alts(var_lineno);
 					goto loop_end_2;
 				}
 
@@ -219,7 +217,7 @@ namespace vcf2multialign {
 						++conflict_count;
 					
 						// Convert starting to 1-based to get ranges like [x, y] (instead of [x, y)).
-						status_logger.log([var_lineno, other_lineno, pos, end, other_pos, other_end](){
+						logger.status_logger.log([var_lineno, other_lineno, pos, end, other_pos, other_end](){
 							std::cerr
 								<< "Variant on line " << var_lineno << " conflicts with line " << other_lineno
 								<< " ([" << 1 + pos << ", " << end << "] vs. [" << 1 + other_pos << ", " << other_end << "])." << std::endl;
@@ -262,8 +260,8 @@ namespace vcf2multialign {
 			auto const var_lineno(it->second);
 			
 			// Check if the candidate variant is still listed.
-			check_overlap(bad_overlaps.left, conflict_counts, skipped_variants, var_lineno, error_logger);
-			check_overlap(bad_overlaps.right, conflict_counts, skipped_variants, var_lineno, error_logger);
+			check_overlap(bad_overlaps.left, conflict_counts, skipped_variants, var_lineno, logger.error_logger);
+			check_overlap(bad_overlaps.right, conflict_counts, skipped_variants, var_lineno, logger.error_logger);
 			conflict_counts.left.erase(var_lineno);
 		}
 		

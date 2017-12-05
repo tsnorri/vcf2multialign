@@ -51,8 +51,7 @@ namespace vcf2multialign {
 		read_subgraph_variants_task temp_task(
 			*this,
 			worker_queue,
-			*m_status_logger,
-			*m_error_logger,
+			*m_logger,
 			m_reader,
 			*m_vcf_input_handle,
 			*m_alt_checker,
@@ -74,11 +73,11 @@ namespace vcf2multialign {
 	{
 		auto const &lhs(m_subgraphs[lhs_idx]);
 		auto const &rhs(m_subgraphs[rhs_idx]);
-		std::unique_ptr <task> task(new merge_subgraph_paths_task(*this, *m_status_logger, lhs, rhs, lhs_idx, m_generated_path_count));
+		std::unique_ptr <task> task(new merge_subgraph_paths_task(*this, m_logger->status_logger, lhs, rhs, lhs_idx, m_generated_path_count));
 		
 		if (m_should_print_subgraph_handling)
 		{
-			m_status_logger->log([lhs_idx, running_merge_tasks = ++m_running_merge_tasks](){
+			m_logger->status_logger.log([lhs_idx, running_merge_tasks = ++m_running_merge_tasks](){
 				std::cerr << "Starting merge task " << lhs_idx << ", running " << running_merge_tasks << std::endl;
 			});
 		}
@@ -157,21 +156,21 @@ namespace vcf2multialign {
 		// side effect in the thread that did a load –– ”
 		
 		std::size_t const remaining_merge_tasks(--m_remaining_merge_tasks);
-		m_status_logger->set_message(boost::str(boost::format("Reducing samples… (%d subgraphs to be merged)") % remaining_merge_tasks));
+		m_logger->status_logger.set_message(boost::str(boost::format("Reducing samples… (%d subgraphs to be merged)") % remaining_merge_tasks));
 		
 		if (m_should_print_subgraph_handling)
 		{
-			m_status_logger->log([idx, remaining_merge_tasks, running_merge_tasks = --m_running_merge_tasks](){
+			m_logger->status_logger.log([idx, remaining_merge_tasks, running_merge_tasks = --m_running_merge_tasks](){
 				std::cerr << "Finished merge task " << idx << ". There are " << running_merge_tasks << " currently running and " << remaining_merge_tasks << " remaining."  << std::endl;
 			});
 		}
 		
 		if (0 == remaining_merge_tasks)
 		{
-			m_status_logger->finish_logging();
+			m_logger->status_logger.finish_logging();
 			m_progress_counter.reset_step_count(m_alt_checker->records_with_valid_alts());
 			
-			m_status_logger->log([weight = weight_type(m_matching_weight)](){
+			m_logger->status_logger.log([weight = weight_type(m_matching_weight)](){
 				std::cerr << "Total matching weight was " << weight << '.' << std::endl;
 			});
 			
@@ -180,12 +179,11 @@ namespace vcf2multialign {
 				false
 			);
 			
-			m_status_logger->log_message_progress_bar("Writing the sequences…");
+			m_logger->status_logger.log_message_progress_bar("Writing the sequences…");
 			auto task(new sequence_writer_task(
 				*this,
 				writer_worker_queue,
-				*m_status_logger,
-				*m_error_logger,
+				*m_logger,
 				m_reader,
 				*m_alt_checker,
 				*m_skipped_variants,
@@ -208,7 +206,7 @@ namespace vcf2multialign {
 	
 	void reduce_samples_task::handled_all_haplotypes(sequence_writer_task &task)
 	{
-		m_status_logger->finish_logging();
+		m_logger->status_logger.finish_logging();
 	}
 	
 	
@@ -336,7 +334,7 @@ namespace vcf2multialign {
 		
 		if (m_should_print_subgraph_handling)
 		{
-			m_status_logger->log([subgraph_idx, running_subgraph_tasks = --m_running_subgraph_tasks, subgraph_bitmap = m_subgraph_bitmap](){
+			m_logger->status_logger.log([subgraph_idx, running_subgraph_tasks = --m_running_subgraph_tasks, subgraph_bitmap = m_subgraph_bitmap](){
 				std::cerr << "Finished subgraph task " << subgraph_idx << ", currently running " << running_subgraph_tasks << ". subgraph_bitmap is now:" << std::endl;
 				for (int const i : subgraph_bitmap)
 					std::cerr << i;
@@ -476,10 +474,10 @@ namespace vcf2multialign {
 		m_progress_counter.calculate_step_count(m_alt_checker->records_with_valid_alts(), m_generated_path_count, m_remaining_merge_tasks);
 		
 		// Update status.
-		m_status_logger->log([range_count](){
+		m_logger->status_logger.log([range_count](){
 			std::cerr << "Split the variants into " << range_count << " subgraphs." << std::endl;
 		});
-		m_status_logger->log_message_progress_bar("Reducing samples…");
+		m_logger->status_logger.log_message_progress_bar("Reducing samples…");
 		
 		// Start each task.
 		std::size_t task_idx(0);
@@ -490,7 +488,7 @@ namespace vcf2multialign {
 			
 			if (m_should_print_subgraph_handling)
 			{
-				m_status_logger->log([task_idx, running_subgraph_tasks = ++m_running_subgraph_tasks](){
+				m_logger->status_logger.log([task_idx, running_subgraph_tasks = ++m_running_subgraph_tasks](){
 					std::cerr << "Starting subgraph task " << task_idx << ", currently running " << running_subgraph_tasks << std::endl;
 				});
 			}
