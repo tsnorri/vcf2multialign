@@ -39,7 +39,7 @@ namespace vcf2multialign {
 	
 	void all_haplotypes_task::update_haplotypes_with_ref()
 	{
-		assert(m_out_reference_fname->operator bool());
+		assert(m_generate_config->out_reference_fname.operator bool());
 		
 		// Check if reference output was requested.
 		always_assert(
@@ -50,9 +50,9 @@ namespace vcf2multialign {
 		auto it(create_haplotype(REF_SAMPLE_NUMBER, 1));
 		auto &haplotype_vec(it->second);
 		open_file_for_writing(
-			(*m_out_reference_fname)->c_str(),
+			m_generate_config->out_reference_fname->c_str(),
 			haplotype_vec[0].output_stream,
-			m_should_overwrite_files
+			m_generate_config->should_overwrite_files
 		);
 	}
 	
@@ -72,13 +72,17 @@ namespace vcf2multialign {
 			for (std::size_t j(1); j <= current_ploidy; ++j)
 			{
 				auto const fname(boost::str(boost::format("%s-%u") % sample_name % j));
-				open_file_for_writing(fname.c_str(), haplotype_vec[j - 1].output_stream, m_should_overwrite_files);
+				open_file_for_writing(
+					fname.c_str(),
+					haplotype_vec[j - 1].output_stream,
+					m_generate_config->should_overwrite_files
+				);
 			}
 	
 			++m_sample_names_it;
 			++i;
 		
-			if (i == m_chunk_size - (output_reference ? 1 : 0))
+			if (i == m_generate_config->chunk_size - (output_reference ? 1 : 0))
 				break;
 		}
 		
@@ -171,7 +175,7 @@ namespace vcf2multialign {
 		// Prepare sample names for enumeration and calculate rounds.
 		auto const &sample_names(vr.sample_names());
 		auto const sample_count(sample_names.size());
-		m_total_rounds = std::ceil(1.0 * sample_count / m_chunk_size);
+		m_total_rounds = std::ceil(1.0 * sample_count / m_generate_config->chunk_size);
 		
 		m_sample_names_it = sample_names.cbegin();
 		m_sample_names_end = sample_names.cend();
@@ -183,6 +187,6 @@ namespace vcf2multialign {
 		vr.set_parsed_fields(vcf_field::ALL);
 
 		m_start_time = std::chrono::system_clock::now();
-		generate_sequences(m_out_reference_fname->operator bool());
+		generate_sequences(m_generate_config->out_reference_fname.operator bool());
 	}
 }

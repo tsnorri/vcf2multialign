@@ -50,18 +50,16 @@ namespace vcf2multialign {
 			
 		read_subgraph_variants_task temp_task(
 			*this,
+			*m_generate_config,
 			worker_queue,
 			*m_logger,
 			m_reader,
 			*m_vcf_input_handle,
 			*m_alt_checker,
 			*m_reference,
-			m_sv_handling_method,
 			*m_skipped_variants,
-			*m_out_reference_fname,
 			std::move(range),
 			task_idx,
-			m_generated_path_count,
 			m_sample_ploidy_sum
 		);
 		
@@ -73,9 +71,16 @@ namespace vcf2multialign {
 	{
 		auto const &lhs(m_subgraphs[lhs_idx]);
 		auto const &rhs(m_subgraphs[rhs_idx]);
-		std::unique_ptr <task> task(new merge_subgraph_paths_task(*this, m_logger->status_logger, lhs, rhs, lhs_idx, m_generated_path_count));
+		std::unique_ptr <task> task(new merge_subgraph_paths_task(
+			*this,
+			m_logger->status_logger,
+			lhs,
+			rhs,
+			lhs_idx,
+			m_generate_config->generated_path_count
+		));
 		
-		if (m_should_print_subgraph_handling)
+		if (m_generate_config->should_print_subgraph_handling)
 		{
 			m_logger->status_logger.log([lhs_idx, running_merge_tasks = ++m_running_merge_tasks](){
 				std::cerr << "Starting merge task " << lhs_idx << ", running " << running_merge_tasks << std::endl;
@@ -103,7 +108,7 @@ namespace vcf2multialign {
 	{
 		// FIXME: partially duplicate code with all_haplotypes_task.
 		// FIXME: m_generated_path_count (plus some small value) may not exceed the maximum number of open files.
-		for (std::size_t i(0); i < m_generated_path_count; ++i)
+		for (std::size_t i(0), count(m_generate_config->generated_path_count); i < count; ++i)
 		{
 			auto const fname(boost::str(boost::format("%u") % (1 + i)));
 			auto it(create_haplotype(1 + i, 1));
@@ -112,11 +117,11 @@ namespace vcf2multialign {
 				fname.c_str(),
 				haplotype_vec[0].output_stream,
 				m_write_semaphore,
-				m_should_overwrite_files
+				m_generate_config->should_overwrite_files
 			);
 		}
 		
-		if (m_out_reference_fname->operator bool())
+		if (m_generate_config->out_reference_fname.operator bool())
 		{
 			always_assert(
 				m_haplotypes.cend() == m_haplotypes.find(REF_SAMPLE_NUMBER),
@@ -126,10 +131,10 @@ namespace vcf2multialign {
 			auto it(create_haplotype(REF_SAMPLE_NUMBER, 1));
 			auto &haplotype_vec(it->second);
 			open_file_channel_for_writing(
-				(*m_out_reference_fname)->c_str(),
+				m_generate_config->out_reference_fname->c_str(),
 				haplotype_vec[0].output_stream,
 				m_write_semaphore,
-				m_should_overwrite_files
+				m_generate_config->should_overwrite_files
 			);
 		}
 	}
@@ -158,7 +163,7 @@ namespace vcf2multialign {
 		std::size_t const remaining_merge_tasks(--m_remaining_merge_tasks);
 		m_logger->status_logger.set_message(boost::str(boost::format("Reducing samples… (%d subgraphs to be merged)") % remaining_merge_tasks));
 		
-		if (m_should_print_subgraph_handling)
+		if (m_generate_config->should_print_subgraph_handling)
 		{
 			m_logger->status_logger.log([idx, remaining_merge_tasks, running_merge_tasks = --m_running_merge_tasks](){
 				std::cerr << "Finished merge task " << idx << ". There are " << running_merge_tasks << " currently running and " << remaining_merge_tasks << " remaining."  << std::endl;
@@ -182,14 +187,13 @@ namespace vcf2multialign {
 			m_logger->status_logger.log_message_progress_bar("Writing the sequences…");
 			auto task(new sequence_writer_task(
 				*this,
+				*m_generate_config,
 				writer_worker_queue,
 				*m_logger,
 				m_reader,
 				*m_alt_checker,
 				*m_skipped_variants,
-				*m_reference,
-				*m_null_allele_seq,
-				m_sv_handling_method
+				*m_reference
 			));
 				
 			std::unique_ptr <class task> task_ptr(task);
@@ -332,7 +336,7 @@ namespace vcf2multialign {
 		m_subgraphs[subgraph_idx] = std::move(rsg);
 		m_subgraph_bitmap[subgraph_idx] = true;
 		
-		if (m_should_print_subgraph_handling)
+		if (m_generate_config->should_print_subgraph_handling)
 		{
 			m_logger->status_logger.log([subgraph_idx, running_subgraph_tasks = --m_running_subgraph_tasks, subgraph_bitmap = m_subgraph_bitmap](){
 				std::cerr << "Finished subgraph task " << subgraph_idx << ", currently running " << running_subgraph_tasks << ". subgraph_bitmap is now:" << std::endl;
@@ -427,7 +431,7 @@ namespace vcf2multialign {
 				current_range_variant_count += count_variants_in_range(current_lineno, next_sg_start_lineno, skipped_lines);
 				current_lineno = next_sg_start_lineno;
 				
-				if (m_min_path_length <= current_range_variant_count)
+				if (m_generate_config->min_path_length <= current_range_variant_count)
 				{
 					add_graph_range(
 						current_start_lineno,
@@ -471,7 +475,11 @@ namespace vcf2multialign {
 		m_remaining_merge_tasks = range_count - 1;
 		
 		// Calculate the number of steps.
-		m_progress_counter.calculate_step_count(m_alt_checker->records_with_valid_alts(), m_generated_path_count, m_remaining_merge_tasks);
+		m_progress_counter.calculate_step_count(
+			m_alt_checker->records_with_valid_alts(),
+			m_generate_config->generated_path_count,
+			m_remaining_merge_tasks
+		);
 		
 		// Update status.
 		m_logger->status_logger.log([range_count](){
@@ -486,7 +494,7 @@ namespace vcf2multialign {
 			auto const st(dispatch_semaphore_wait(*m_subgraph_semaphore, DISPATCH_TIME_FOREVER));
 			always_assert(0 == st);
 			
-			if (m_should_print_subgraph_handling)
+			if (m_generate_config->should_print_subgraph_handling)
 			{
 				m_logger->status_logger.log([task_idx, running_subgraph_tasks = ++m_running_subgraph_tasks](){
 					std::cerr << "Starting subgraph task " << task_idx << ", currently running " << running_subgraph_tasks << std::endl;

@@ -95,69 +95,51 @@ namespace vcf2multialign {
 		std::atomic_int32_t							m_running_merge_tasks{0};
 		
 		reduce_samples_task_delegate				*m_delegate{nullptr};
+		generate_configuration const				*m_generate_config{nullptr};
 		struct logger								*m_logger{nullptr};
 		vector_type const							*m_reference{nullptr};
 		mmap_handle const							*m_vcf_input_handle{nullptr};
-		std::string const							*m_null_allele_seq{nullptr};
 		alt_checker const							*m_alt_checker{nullptr};
 		subgraph_map const							*m_subgraph_starting_points{nullptr};
 		variant_set const							*m_skipped_variants{nullptr};
-		boost::optional <std::string> const			*m_out_reference_fname{nullptr};
-		sv_handling									m_sv_handling_method{};
 		std::atomic_size_t							m_remaining_merge_tasks{0};
 		atomic_weight_type							m_matching_weight{0};
 		std::size_t									m_record_count{0};
-		std::size_t									m_generated_path_count{0};
 		std::size_t									m_sample_ploidy_sum{0};
-		std::size_t									m_min_path_length{0};
-		bool										m_should_overwrite_files{false};
-		bool										m_should_print_subgraph_handling{false};
 		
 	public:
 		reduce_samples_task() = default;
 		
 		reduce_samples_task(
 			reduce_samples_task_delegate &delegate,
+			generate_configuration const &generate_config,
 			struct logger &logger,
 			std::size_t const hw_concurrency,
 			vcf_reader &&reader,
 			mmap_handle const &vcf_input_handle,
 			vector_type const &reference,
-			std::string const &null_allele_seq,
 			alt_checker const &checker,
 			subgraph_map const &subgraph_starting_points,
 			variant_set const &skipped_variants,
-			boost::optional <std::string> const &out_reference_fname,
-			sv_handling const sv_handling_method,
 			std::size_t const record_count,
-			std::size_t const generated_path_count,
-			std::size_t const sample_ploidy_sum,
-			std::size_t const min_path_length,
-			bool const should_overwrite_files,
-			bool const should_print_subgraph_handling
+			std::size_t const sample_ploidy_sum
 		):
 			task(),
 			sequence_writer_task_delegate(),
 			m_subgraph_semaphore(dispatch_semaphore_create(2 * hw_concurrency)), // FIXME: some other value?
 			m_write_semaphore(dispatch_semaphore_create(2 * hw_concurrency)), // FIXME: some other value?
-			m_path_permutation(generated_path_count),
+			m_path_permutation(generate_config.generated_path_count),
 			m_reader(std::move(reader)),
 			m_delegate(&delegate),
+			m_generate_config(&generate_config),
 			m_logger(&logger),
 			m_reference(&reference),
 			m_vcf_input_handle(&vcf_input_handle),
-			m_null_allele_seq(&null_allele_seq),
 			m_alt_checker(&checker),
 			m_subgraph_starting_points(&subgraph_starting_points),
 			m_skipped_variants(&skipped_variants),
-			m_out_reference_fname(&out_reference_fname),
-			m_sv_handling_method(sv_handling_method),
 			m_record_count(record_count),
-			m_generated_path_count(generated_path_count),
-			m_sample_ploidy_sum(sample_ploidy_sum),
-			m_min_path_length(min_path_length),
-			m_should_overwrite_files(should_overwrite_files),
-			m_should_print_subgraph_handling(should_print_subgraph_handling)
+			m_sample_ploidy_sum(sample_ploidy_sum)
 		{
 			m_logger->status_logger.set_delegate(m_progress_counter);
 			std::iota(m_path_permutation.begin(), m_path_permutation.end(), 0);

@@ -6,6 +6,7 @@
 #ifndef VCF2MULTIALIGN_TASKS_SEQUENCE_WRITER_TASK_HH
 #define VCF2MULTIALIGN_TASKS_SEQUENCE_WRITER_TASK_HH
 
+#include <vcf2multialign/generate_configuration.hh>
 #include <vcf2multialign/sequence_writer.hh>
 #include <vcf2multialign/tasks/parsing_task.hh>
 #include <vcf2multialign/variant_stats.hh>
@@ -45,14 +46,13 @@ namespace vcf2multialign {
 	public:
 		sequence_writer_task(
 			sequence_writer_task_delegate &delegate,
+			generate_configuration const &config,
 			dispatch_ptr <dispatch_queue_t> const &worker_queue,
 			struct logger &logger,
 			class vcf_reader const &vcf_reader,
 			class alt_checker const &alt_checker,
 			variant_set const &skipped_variants,
-			vector_type const &reference,
-			std::string const &null_allele_seq,
-			sv_handling const sv_handling_method
+			vector_type const &reference
 		):
 			parsing_task_vh(
 				worker_queue,
@@ -60,10 +60,10 @@ namespace vcf2multialign {
 				vcf_reader,
 				alt_checker,
 				reference,
-				sv_handling_method,
+				config.sv_handling_method,
 				skipped_variants
 			),
-			m_sequence_writer(reference, null_allele_seq),
+			m_sequence_writer(reference, config.null_allele_seq),
 			m_delegate(&delegate)
 		{
 			m_sequence_writer.set_delegate(*this);

@@ -7,6 +7,7 @@
 #define VCF2MULTIALIGN_TASKS_READ_SUBGRAPH_VARIANTS_TASK_HH
 
 #include <sdsl/bits.hpp>
+#include <vcf2multialign/generate_configuration.hh>
 #include <vcf2multialign/reduced_subgraph.hh>
 #include <vcf2multialign/tasks/parsing_task.hh>
 
@@ -51,18 +52,16 @@ namespace vcf2multialign {
 		
 		read_subgraph_variants_task(
 			read_subgraph_variants_task_delegate &delegate,
+			generate_configuration const &generate_config,
 			dispatch_ptr <dispatch_queue_t> const &worker_queue,	// Needs to be serial.
 			struct logger &logger,
 			class vcf_reader const &vcf_reader,
 			mmap_handle const &vcf_input_handle,
 			alt_checker const &checker,
 			vector_type const &reference,
-			sv_handling const sv_handling_method,
 			variant_set const &skipped_variants,
-			boost::optional <std::string> const &out_reference_fname,
 			graph_range &&range,
 			std::size_t const task_idx, 
-			std::size_t const generated_path_count,
 			std::size_t const sample_ploidy_sum
 		):
 			parsing_task_vh(
@@ -71,7 +70,7 @@ namespace vcf2multialign {
 				vcf_reader,
 				checker,
 				reference,
-				sv_handling_method,
+				generate_config.sv_handling_method,
 				skipped_variants
 			),
 			m_delegate(&delegate),
@@ -79,7 +78,7 @@ namespace vcf2multialign {
 			m_subgraph_range(std::move(range)),
 			m_vcf_input(vcf_input_handle),
 			m_task_idx(task_idx),
-			m_generated_path_count(generated_path_count),
+			m_generated_path_count(generate_config.generated_path_count),
 			m_alt_field_width(1 << sdsl::bits::hi(checker.max_alt_field_size()))
 		{
 			parsing_task_vh::vcf_reader().set_input(m_vcf_input);

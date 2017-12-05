@@ -33,10 +33,11 @@ namespace {
 	protected:
 		std::mutex											m_tasks_mutex{};
 		task_set											m_tasks;
+		
+		v2m::generate_configuration							m_generate_config;
 		v2m::vector_type									m_reference;
 		v2m::vcf_mmap_input									m_vcf_input;
 		v2m::mmap_handle									m_vcf_handle;
-		
 		v2m::logger											m_logger;
 		
 		v2m::ploidy_map										m_ploidy;
@@ -44,40 +45,13 @@ namespace {
 		v2m::subgraph_map									m_subgraph_starting_points;	// Variant line numbers by character pointers.
 		v2m::alt_checker									m_alt_checker;
 		
-		boost::optional <std::string>						m_out_reference_fname;
-		std::string											m_null_allele_seq;
-		v2m::sv_handling									m_sv_handling_method;
-		std::size_t											m_chunk_size{0};
-		std::size_t											m_min_path_length{0};
-		std::size_t											m_generated_path_count{0};
-		
-		bool												m_should_overwrite_files{false};
-		bool												m_should_reduce_samples{false};
-		bool												m_should_print_subgraph_handling{false};
-		
 	public:
 		generate_context(
-			char const *out_reference_fname,
-			char const *null_allele_seq,
-			v2m::sv_handling const sv_handling_method,
-			std::size_t const chunk_size,
-			std::size_t const min_path_length,
-			std::size_t const generated_path_count,
-			bool const should_overwrite_files,
-			bool const should_reduce_samples,
-			bool const print_subgraph_handling
+			v2m::generate_configuration &&config
 		):
-			m_vcf_input(m_vcf_handle),
-			m_null_allele_seq(null_allele_seq),
-			m_sv_handling_method(sv_handling_method),
-			m_chunk_size(chunk_size),
-			m_min_path_length(min_path_length),
-			m_generated_path_count(generated_path_count),
-			m_should_overwrite_files(should_overwrite_files),
-			m_should_reduce_samples(should_reduce_samples),
-			m_should_print_subgraph_handling(print_subgraph_handling)
+			m_generate_config(std::move(config)),
+			m_vcf_input(m_vcf_handle)
 		{
-			finish_init(out_reference_fname);
 		}
 	
 		generate_context(generate_context const &) = delete;
@@ -105,19 +79,9 @@ namespace {
 		virtual void store_and_execute(std::unique_ptr <v2m::task> &&task) override;
 		
 	protected:
-		void finish_init(char const *out_reference_fname);
 		v2m::task *store_task(std::unique_ptr <v2m::task> &&task);
 		void remove(v2m::task &task);
 	};
-	
-	
-	void generate_context::finish_init(
-		char const *out_reference_fname
-	)
-	{
-		if (out_reference_fname)
-			m_out_reference_fname.emplace(out_reference_fname);
-	}
 	
 	
 	v2m::task *generate_context::store_task(std::unique_ptr <v2m::task> &&task)
@@ -180,7 +144,7 @@ namespace {
 				v2m::open_file_for_writing(
 					report_fname,
 					m_logger.error_logger.output_stream(),
-					m_should_overwrite_files
+					m_generate_config.should_overwrite_files
 				);
 				m_logger.error_logger.write_header();
 			}
@@ -196,7 +160,7 @@ namespace {
 				m_reference,
 				reference_fname,
 				std::move(reader),
-				m_sv_handling_method,
+				m_generate_config.sv_handling_method,
 				should_check_ref
 			)
 		);
@@ -214,17 +178,16 @@ namespace {
 		m_alt_checker = std::move(task.alt_checker());
 		m_subgraph_starting_points = std::move(task.subgraph_starting_points());
 		auto const record_count(task.step_count());
-		auto const records_with_valid_alts(m_alt_checker.records_with_valid_alts());
 		
 		remove(task);
 		// task is now invalid.
 		
-		if (m_should_reduce_samples)
+		if (m_generate_config.should_reduce_samples)
 		{
-			if (0 == m_min_path_length)
+			if (0 == m_generate_config.min_path_length)
 			{
-				m_min_path_length = std::ceil(std::sqrt(m_reference.size()));
-				std::cerr << "Set minimum path length to " << m_min_path_length << '.' << std::endl;
+				m_generate_config.min_path_length = std::ceil(std::sqrt(m_reference.size()));
+				std::cerr << "Set minimum path length to " << m_generate_config.min_path_length << '.' << std::endl;
 			}
 			
 			auto const sample_ploidy_sum(boost::accumulate(m_ploidy | boost::adaptors::map_values, 0));
@@ -233,23 +196,17 @@ namespace {
 			std::unique_ptr <v2m::task> task(
 				new v2m::reduce_samples_task(
 					*this,
+					m_generate_config,
 					m_logger,
 					hw_concurrency,
 					std::move(reader),
 					m_vcf_handle,
 					m_reference,
-					m_null_allele_seq,
 					m_alt_checker,
 					m_subgraph_starting_points,
 					m_skipped_variants,
-					m_out_reference_fname,
-					m_sv_handling_method,
 					record_count,
-					m_generated_path_count,
-					sample_ploidy_sum,
-					m_min_path_length,
-					m_should_overwrite_files,
-					m_should_print_subgraph_handling
+					sample_ploidy_sum
 				)
 			);
 			
@@ -257,7 +214,7 @@ namespace {
 		}
 		else
 		{
-			// FIXME: create the queues in a function? The case above (m_should_reduce_samples) is
+			// FIXME: create the queues in a function? The case above (m_generate_config.should_reduce_samples) is
 			// going to be handled with a custom variant handler (with enumerate_sample_genotypes
 			// replaced but everything else should be OK as is) and with a custom task.
 			auto concurrent_queue(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0));
@@ -270,20 +227,15 @@ namespace {
 			std::unique_ptr <v2m::task> task(
 				new v2m::all_haplotypes_task(
 					*this,
+					m_generate_config,
 					worker_queue,
 					m_logger,
 					std::move(reader),
-					m_alt_checker,
 					m_reference,
-					m_null_allele_seq,
+					m_alt_checker,
 					m_ploidy,
 					m_skipped_variants,
-					m_out_reference_fname,
-					m_sv_handling_method,
-					record_count,
-					records_with_valid_alts,
-					m_chunk_size,
-					m_should_overwrite_files
+					record_count
 				)
 			);
 			
@@ -334,9 +286,7 @@ namespace vcf2multialign {
 		bool const print_subgraph_handling
 	)
 	{
-		// generate_context needs to be allocated on the heap because later dispatch_main is called.
-		// The class deallocates itself in cleanup().
-		generate_context *ctx(new generate_context(
+		generate_configuration config(
 			out_reference_fname,
 			null_allele_seq,
 			sv_handling_method,
@@ -346,6 +296,12 @@ namespace vcf2multialign {
 			should_overwrite_files,
 			should_reduce_samples,
 			print_subgraph_handling
+		);
+		
+		// generate_context needs to be allocated on the heap because later dispatch_main is called.
+		// The class deallocates itself in cleanup().
+		generate_context *ctx(new generate_context(
+			std::move(config)
 		));
 			
 		ctx->load_and_generate(

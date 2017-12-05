@@ -6,6 +6,7 @@
 #ifndef VCF2MULTIALIGN_TASKS_ALL_HAPLOTYPES_TASK_HH
 #define VCF2MULTIALIGN_TASKS_ALL_HAPLOTYPES_TASK_HH
 
+#include <vcf2multialign/generate_configuration.hh>
 #include <vcf2multialign/logger.hh>
 #include <vcf2multialign/sequence_writer.hh>
 #include <vcf2multialign/tasks/parsing_task.hh>
@@ -36,10 +37,10 @@ namespace vcf2multialign {
 		
 	protected:
 		all_haplotypes_task_delegate						*m_delegate{nullptr};
+		generate_configuration const						*m_generate_config{nullptr};
 		
 		ploidy_map const									*m_ploidy{nullptr};
 		variant_set const									*m_skipped_variants{nullptr};
-		boost::optional <std::string> const					*m_out_reference_fname{nullptr};
 		
 		haplotype_map_type									m_haplotypes;
 		sequence_writer_type								m_sequence_writer;
@@ -54,8 +55,6 @@ namespace vcf2multialign {
 		std::size_t											m_record_count{0};
 		std::size_t											m_current_round{0};
 		std::size_t											m_total_rounds{0};
-		std::size_t											m_chunk_size{0};
-		bool												m_should_overwrite_files{false};
 		
 	public:
 		all_haplotypes_task() = delete;
@@ -66,20 +65,15 @@ namespace vcf2multialign {
 		
 		all_haplotypes_task(
 			all_haplotypes_task_delegate &delegate,
+			generate_configuration const &generate_config,
 			dispatch_ptr <dispatch_queue_t> const &worker_queue,
 			struct logger &logger,
 			class vcf_reader &&vcf_reader,
-			alt_checker const &checker,
 			vector_type const &reference,
-			std::string const &null_allele_seq,
+			alt_checker const &checker,
 			ploidy_map const &ploidy,
 			variant_set const &skipped_variants,
-			boost::optional <std::string> const &out_reference_fname,
-			sv_handling const sv_handling_method,
-			std::size_t const record_count,
-			std::size_t const records_with_valid_alts, // FIXME: make use of this (or pass alt_checker instead).
-			std::size_t const chunk_size,
-			bool const should_overwrite_files
+			std::size_t const record_count
 		):
 			parsing_task_vh(
 				worker_queue,
@@ -87,18 +81,16 @@ namespace vcf2multialign {
 				std::move(vcf_reader),
 				checker,
 				reference,
-				sv_handling_method,
+				generate_config.sv_handling_method,
 				skipped_variants
 			),
 			variant_stats(),
 			m_delegate(&delegate),
+			m_generate_config(&generate_config),
 			m_ploidy(&ploidy),
 			m_skipped_variants(&skipped_variants),
-			m_out_reference_fname(&out_reference_fname),
-			m_sequence_writer(reference, null_allele_seq),
-			m_record_count(record_count),
-			m_chunk_size(chunk_size),
-			m_should_overwrite_files(should_overwrite_files)
+			m_sequence_writer(reference, generate_config.null_allele_seq),
+			m_record_count(record_count)
 		{
 			m_logger->status_logger.set_delegate(*this);
 			m_sequence_writer.set_delegate(*this);
