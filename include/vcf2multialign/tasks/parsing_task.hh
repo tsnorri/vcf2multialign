@@ -171,7 +171,7 @@ namespace vcf2multialign {
 		};
 		
 	protected:
-		alt_checker const			*m_alt_checker{nullptr};
+		preprocessing_result const	*m_preprocessing_result{nullptr};
 		variant_handler_container	m_vhc{*this};
 	
 	public:
@@ -181,22 +181,19 @@ namespace vcf2multialign {
 			dispatch_ptr <dispatch_queue_t> const &worker_queue,	// Needs to be serial.
 			logger &logger,
 			class vcf_reader const &vcf_reader,
-			alt_checker const &checker,
-			vector_type const &reference,
-			sv_handling const sv_handling_method,
-			variant_set const &skipped_variants
+			preprocessing_result const &result,
+			sv_handling const sv_handling_method
 		):
 			parsing_task(logger, vcf_reader),
-			m_alt_checker(&checker),
+			m_preprocessing_result(&result),
 			m_vhc(
 				*this,
+				logger.error_logger,
 				worker_queue,
 				dispatch_ptr <dispatch_queue_t>(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0)),
 				m_vrc.vcf_reader,
-				reference,
-				sv_handling_method,
-				skipped_variants,
-				logger.error_logger
+				result,
+				sv_handling_method
 			)
 		{
 		}
@@ -206,8 +203,8 @@ namespace vcf2multialign {
 		class variant_handler &variant_handler() { return m_vhc.variant_handler(); }
 		
 		// variant_handler_delegate
-		virtual std::vector <uint8_t> const &valid_alts(std::size_t const lineno) const override { return m_alt_checker->valid_alts(lineno); }
-		virtual bool is_valid_alt(std::size_t const lineno, uint8_t const alt_idx) const override { return m_alt_checker->is_valid_alt(lineno, alt_idx); }
+		virtual std::vector <uint8_t> const &valid_alts(std::size_t const lineno) const override { return m_preprocessing_result->alt_checker.valid_alts(lineno); }
+		virtual bool is_valid_alt(std::size_t const lineno, uint8_t const alt_idx) const override { return m_preprocessing_result->alt_checker.is_valid_alt(lineno, alt_idx); }
 		
 		// variant_handler_container
 		virtual void finish_copy_or_move() {}

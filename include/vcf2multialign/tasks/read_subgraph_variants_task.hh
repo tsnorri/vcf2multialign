@@ -57,9 +57,7 @@ namespace vcf2multialign {
 			struct logger &logger,
 			class vcf_reader const &vcf_reader,
 			mmap_handle const &vcf_input_handle,
-			alt_checker const &checker,
-			vector_type const &reference,
-			variant_set const &skipped_variants,
+			preprocessing_result const &result,
 			graph_range &&range,
 			std::size_t const task_idx, 
 			std::size_t const sample_ploidy_sum
@@ -68,10 +66,8 @@ namespace vcf2multialign {
 				worker_queue,
 				logger,
 				vcf_reader,
-				checker,
-				reference,
-				generate_config.sv_handling_method,
-				skipped_variants
+				result,
+				generate_config.sv_handling_method
 			),
 			m_delegate(&delegate),
 			m_endpoints(sample_ploidy_sum, 0),
@@ -79,7 +75,7 @@ namespace vcf2multialign {
 			m_vcf_input(vcf_input_handle),
 			m_task_idx(task_idx),
 			m_generated_path_count(generate_config.generated_path_count),
-			m_alt_field_width(1 << sdsl::bits::hi(checker.max_alt_field_size()))
+			m_alt_field_width(1 << sdsl::bits::hi(result.alt_checker.max_alt_field_size()))
 		{
 			parsing_task_vh::vcf_reader().set_input(m_vcf_input);
 		}

@@ -97,11 +97,8 @@ namespace vcf2multialign {
 		reduce_samples_task_delegate				*m_delegate{nullptr};
 		generate_configuration const				*m_generate_config{nullptr};
 		struct logger								*m_logger{nullptr};
-		vector_type const							*m_reference{nullptr};
+		preprocessing_result const					*m_preprocessing_result{nullptr};
 		mmap_handle const							*m_vcf_input_handle{nullptr};
-		alt_checker const							*m_alt_checker{nullptr};
-		subgraph_map const							*m_subgraph_starting_points{nullptr};
-		variant_set const							*m_skipped_variants{nullptr};
 		std::atomic_size_t							m_remaining_merge_tasks{0};
 		atomic_weight_type							m_matching_weight{0};
 		std::size_t									m_record_count{0};
@@ -114,13 +111,10 @@ namespace vcf2multialign {
 			reduce_samples_task_delegate &delegate,
 			generate_configuration const &generate_config,
 			struct logger &logger,
-			std::size_t const hw_concurrency,
 			vcf_reader &&reader,
 			mmap_handle const &vcf_input_handle,
-			vector_type const &reference,
-			alt_checker const &checker,
-			subgraph_map const &subgraph_starting_points,
-			variant_set const &skipped_variants,
+			preprocessing_result const &result,
+			std::size_t const hw_concurrency,
 			std::size_t const record_count,
 			std::size_t const sample_ploidy_sum
 		):
@@ -133,11 +127,8 @@ namespace vcf2multialign {
 			m_delegate(&delegate),
 			m_generate_config(&generate_config),
 			m_logger(&logger),
-			m_reference(&reference),
+			m_preprocessing_result(&result),
 			m_vcf_input_handle(&vcf_input_handle),
-			m_alt_checker(&checker),
-			m_subgraph_starting_points(&subgraph_starting_points),
-			m_skipped_variants(&skipped_variants),
 			m_record_count(record_count),
 			m_sample_ploidy_sum(sample_ploidy_sum)
 		{

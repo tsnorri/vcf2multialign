@@ -50,20 +50,16 @@ namespace vcf2multialign {
 			dispatch_ptr <dispatch_queue_t> const &worker_queue,
 			struct logger &logger,
 			class vcf_reader const &vcf_reader,
-			class alt_checker const &alt_checker,
-			variant_set const &skipped_variants,
-			vector_type const &reference
+			struct preprocessing_result const &result
 		):
 			parsing_task_vh(
 				worker_queue,
 				logger,
 				vcf_reader,
-				alt_checker,
-				reference,
-				config.sv_handling_method,
-				skipped_variants
+				result,
+				config.sv_handling_method
 			),
-			m_sequence_writer(reference, config.null_allele_seq),
+			m_sequence_writer(result.reference, config.null_allele_seq),
 			m_delegate(&delegate)
 		{
 			m_sequence_writer.set_delegate(*this);
@@ -81,8 +77,8 @@ namespace vcf2multialign {
 		void finish() override;
 		
 		// sequence_writer_delegate
-		virtual std::vector <uint8_t> const &valid_alts(std::size_t const lineno) const override { return m_alt_checker->valid_alts(lineno); }
-		virtual bool is_valid_alt(std::size_t const lineno, uint8_t const alt_idx) const override { return m_alt_checker->is_valid_alt(lineno, alt_idx); }
+		virtual std::vector <uint8_t> const &valid_alts(std::size_t const lineno) const override { return m_preprocessing_result->alt_checker.valid_alts(lineno); }
+		virtual bool is_valid_alt(std::size_t const lineno, uint8_t const alt_idx) const override { return m_preprocessing_result->alt_checker.is_valid_alt(lineno, alt_idx); }
 		virtual void enumerate_sample_genotypes(
 			variant const &var,
 			std::function <void(std::size_t, uint8_t, uint8_t, bool)> const &cb	// sample_no, chr_idx, alt_idx, is_phased

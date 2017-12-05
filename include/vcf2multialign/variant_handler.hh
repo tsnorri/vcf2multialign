@@ -10,6 +10,7 @@
 #include <map>
 #include <stack>
 #include <vcf2multialign/error_logger.hh>
+#include <vcf2multialign/preprocessing_result.hh>
 #include <vcf2multialign/types.hh>
 #include <vcf2multialign/variant_buffer.hh>
 #include <vcf2multialign/vcf_reader.hh>
@@ -93,29 +94,25 @@ namespace vcf2multialign {
 		
 		variant_handler_delegate						*m_delegate{};
 		error_logger									*m_error_logger{};
-		
-		vector_type	const								*m_reference{};
-		
+		preprocessing_result const						*m_preprocessing_result{};
+
 		variant_buffer_container						m_vbc{*this};
-		variant_set const								*m_skipped_variants{};
 		
 		sv_handling										m_sv_handling_method{};
 		
 	public:
 		variant_handler(
+			error_logger &error_logger,
 			dispatch_ptr <dispatch_queue_t> const &worker_queue,	// Needs to be serial.
 			dispatch_ptr <dispatch_queue_t> const &parsing_queue,	// May be concurrent since only variant_buffer's read_input is called there.
 			class vcf_reader &vcf_reader,
-			vector_type const &reference,
-			sv_handling const sv_handling_method,
-			variant_set const &skipped_variants,
-			error_logger &error_logger
+			preprocessing_result const &result,
+			sv_handling const sv_handling_method
 		):
 			m_parsing_queue(parsing_queue),
 			m_error_logger(&error_logger),
-			m_reference(&reference),
+			m_preprocessing_result(&result),
 			m_vbc(*this, vcf_reader, worker_queue, *this),
-			m_skipped_variants(&skipped_variants),
 			m_sv_handling_method(sv_handling_method)
 		{
 		}

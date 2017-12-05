@@ -64,7 +64,7 @@ namespace vcf2multialign {
 		{
 			auto const &sample_name(m_sample_names_it->first);
 			auto const sample_no(m_sample_names_it->second);
-			auto const current_ploidy(m_ploidy->find(sample_no)->second);
+			auto const current_ploidy(m_preprocessing_result->ploidy.find(sample_no)->second);
 		
 			auto it(find_or_create_haplotype(sample_no, current_ploidy));
 			auto &haplotype_vec(it->second);

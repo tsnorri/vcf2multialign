@@ -8,6 +8,7 @@
 
 #include <vcf2multialign/generate_configuration.hh>
 #include <vcf2multialign/logger.hh>
+#include <vcf2multialign/preprocessing_result.hh>
 #include <vcf2multialign/sequence_writer.hh>
 #include <vcf2multialign/tasks/parsing_task.hh>
 #include <vcf2multialign/variant_stats.hh>
@@ -38,9 +39,7 @@ namespace vcf2multialign {
 	protected:
 		all_haplotypes_task_delegate						*m_delegate{nullptr};
 		generate_configuration const						*m_generate_config{nullptr};
-		
-		ploidy_map const									*m_ploidy{nullptr};
-		variant_set const									*m_skipped_variants{nullptr};
+		preprocessing_result const							*m_preprocessing_result{nullptr};
 		
 		haplotype_map_type									m_haplotypes;
 		sequence_writer_type								m_sequence_writer;
@@ -69,27 +68,21 @@ namespace vcf2multialign {
 			dispatch_ptr <dispatch_queue_t> const &worker_queue,
 			struct logger &logger,
 			class vcf_reader &&vcf_reader,
-			vector_type const &reference,
-			alt_checker const &checker,
-			ploidy_map const &ploidy,
-			variant_set const &skipped_variants,
+			preprocessing_result const &result,
 			std::size_t const record_count
 		):
 			parsing_task_vh(
 				worker_queue,
 				logger,
 				std::move(vcf_reader),
-				checker,
-				reference,
-				generate_config.sv_handling_method,
-				skipped_variants
+				result,
+				generate_config.sv_handling_method
 			),
 			variant_stats(),
 			m_delegate(&delegate),
 			m_generate_config(&generate_config),
-			m_ploidy(&ploidy),
-			m_skipped_variants(&skipped_variants),
-			m_sequence_writer(reference, generate_config.null_allele_seq),
+			m_preprocessing_result(&result),
+			m_sequence_writer(result.reference, generate_config.null_allele_seq),
 			m_record_count(record_count)
 		{
 			m_logger->status_logger.set_delegate(*this);
@@ -111,8 +104,8 @@ namespace vcf2multialign {
 		virtual std::size_t current_step() const override { return vcf_reader().counter_value(); }
 		
 		// sequence_writer_delegate
-		virtual std::vector <uint8_t> const &valid_alts(std::size_t const lineno) const override { return m_alt_checker->valid_alts(lineno); }
-		virtual bool is_valid_alt(std::size_t const lineno, uint8_t const alt_idx) const override { return m_alt_checker->is_valid_alt(lineno, alt_idx); }
+		virtual std::vector <uint8_t> const &valid_alts(std::size_t const lineno) const override { return m_preprocessing_result->alt_checker.valid_alts(lineno); }
+		virtual bool is_valid_alt(std::size_t const lineno, uint8_t const alt_idx) const override { return m_preprocessing_result->alt_checker.is_valid_alt(lineno, alt_idx); }
 		virtual void enumerate_sample_genotypes(
 			variant const &var,
 			std::function <void(std::size_t, uint8_t, uint8_t, bool)> const &cb	// sample_no, chr_idx, alt_idx, is_phased

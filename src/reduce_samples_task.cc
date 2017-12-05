@@ -55,9 +55,7 @@ namespace vcf2multialign {
 			*m_logger,
 			m_reader,
 			*m_vcf_input_handle,
-			*m_alt_checker,
-			*m_reference,
-			*m_skipped_variants,
+			*m_preprocessing_result,
 			std::move(range),
 			task_idx,
 			m_sample_ploidy_sum
@@ -173,7 +171,7 @@ namespace vcf2multialign {
 		if (0 == remaining_merge_tasks)
 		{
 			m_logger->status_logger.finish_logging();
-			m_progress_counter.reset_step_count(m_alt_checker->records_with_valid_alts());
+			m_progress_counter.reset_step_count(m_preprocessing_result->alt_checker.records_with_valid_alts());
 			
 			m_logger->status_logger.log([weight = weight_type(m_matching_weight)](){
 				std::cerr << "Total matching weight was " << weight << '.' << std::endl;
@@ -191,9 +189,7 @@ namespace vcf2multialign {
 				writer_worker_queue,
 				*m_logger,
 				m_reader,
-				*m_alt_checker,
-				*m_skipped_variants,
-				*m_reference
+				*m_preprocessing_result
 			));
 				
 			std::unique_ptr <class task> task_ptr(task);
@@ -364,10 +360,11 @@ namespace vcf2multialign {
 	)
 	{
 		std::size_t retval(0);
+		auto const &alt_checker(m_preprocessing_result->alt_checker);
 		while (current_lineno < next_sg_start_lineno)
 		{
 			// valid_alts() is O(1).
-			if (m_alt_checker->valid_alts(current_lineno).empty())
+			if (alt_checker.valid_alts(current_lineno).empty())
 				skipped_lines.emplace_back(current_lineno);
 			else
 				++retval;
@@ -422,7 +419,7 @@ namespace vcf2multialign {
 			std::size_t current_lineno(current_start_lineno);	// Points to the last line that was checked for valid alts.
 			std::size_t current_range_variant_count(0);
 		
-			for (auto const &kv : *m_subgraph_starting_points)
+			for (auto const &kv : m_preprocessing_result->subgraph_starting_points)
 			{
 				auto const next_subgraph_start(kv.first);
 				auto const next_sg_start_lineno(kv.second);
@@ -476,7 +473,7 @@ namespace vcf2multialign {
 		
 		// Calculate the number of steps.
 		m_progress_counter.calculate_step_count(
-			m_alt_checker->records_with_valid_alts(),
+			m_preprocessing_result->alt_checker.records_with_valid_alts(),
 			m_generate_config->generated_path_count,
 			m_remaining_merge_tasks
 		);

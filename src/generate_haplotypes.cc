@@ -35,15 +35,11 @@ namespace {
 		task_set											m_tasks;
 		
 		v2m::generate_configuration							m_generate_config;
-		v2m::vector_type									m_reference;
+		v2m::preprocessing_result							m_preprocessing_result;
+		
 		v2m::vcf_mmap_input									m_vcf_input;
 		v2m::mmap_handle									m_vcf_handle;
 		v2m::logger											m_logger;
-		
-		v2m::ploidy_map										m_ploidy;
-		v2m::variant_set									m_skipped_variants;
-		v2m::subgraph_map									m_subgraph_starting_points;	// Variant line numbers by character pointers.
-		v2m::alt_checker									m_alt_checker;
 		
 	public:
 		generate_context(
@@ -157,7 +153,7 @@ namespace {
 			new v2m::preparation_task(
 				*this,
 				m_logger,
-				m_reference,
+				m_preprocessing_result.reference,
 				reference_fname,
 				std::move(reader),
 				m_generate_config.sv_handling_method,
@@ -173,10 +169,10 @@ namespace {
 	{
 		v2m::vcf_reader reader(std::move(task.vcf_reader()));
 		
-		m_ploidy = std::move(task.ploidy_map());
-		m_skipped_variants = std::move(task.skipped_variants());
-		m_alt_checker = std::move(task.alt_checker());
-		m_subgraph_starting_points = std::move(task.subgraph_starting_points());
+		m_preprocessing_result.ploidy = std::move(task.ploidy_map());
+		m_preprocessing_result.skipped_variants = std::move(task.skipped_variants());
+		m_preprocessing_result.alt_checker = std::move(task.alt_checker());
+		m_preprocessing_result.subgraph_starting_points = std::move(task.subgraph_starting_points());
 		auto const record_count(task.step_count());
 		
 		remove(task);
@@ -186,11 +182,11 @@ namespace {
 		{
 			if (0 == m_generate_config.min_path_length)
 			{
-				m_generate_config.min_path_length = std::ceil(std::sqrt(m_reference.size()));
+				m_generate_config.min_path_length = std::ceil(std::sqrt(m_preprocessing_result.reference.size()));
 				std::cerr << "Set minimum path length to " << m_generate_config.min_path_length << '.' << std::endl;
 			}
 			
-			auto const sample_ploidy_sum(boost::accumulate(m_ploidy | boost::adaptors::map_values, 0));
+			auto const sample_ploidy_sum(boost::accumulate(m_preprocessing_result.ploidy | boost::adaptors::map_values, 0));
 			auto const hw_concurrency(std::thread::hardware_concurrency());
 			
 			std::unique_ptr <v2m::task> task(
@@ -198,13 +194,10 @@ namespace {
 					*this,
 					m_generate_config,
 					m_logger,
-					hw_concurrency,
 					std::move(reader),
 					m_vcf_handle,
-					m_reference,
-					m_alt_checker,
-					m_subgraph_starting_points,
-					m_skipped_variants,
+					m_preprocessing_result,
+					hw_concurrency,
 					record_count,
 					sample_ploidy_sum
 				)
@@ -231,10 +224,7 @@ namespace {
 					worker_queue,
 					m_logger,
 					std::move(reader),
-					m_reference,
-					m_alt_checker,
-					m_ploidy,
-					m_skipped_variants,
+					m_preprocessing_result,
 					record_count
 				)
 			);

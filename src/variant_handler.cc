@@ -14,7 +14,7 @@ namespace vcf2multialign {
 	void variant_handler::handle_variant(variant &var)
 	{
 		auto const lineno(var.lineno());
-		if (0 != m_skipped_variants->count(lineno))
+		if (0 != m_preprocessing_result->skipped_variants.count(lineno))
 			return;
 		
 		// Preprocess the ALT field to check that it can be handled.
@@ -22,10 +22,10 @@ namespace vcf2multialign {
 			return;
 		
 		std::size_t const var_pos(var.zero_based_pos());
-		always_assert(var_pos < m_reference->size(), [this, lineno](){
+		always_assert(var_pos < m_preprocessing_result->reference.size(), [this, lineno](){
 			std::cerr
 			<< "Variant position on line " << lineno
-			<< " greater than reference length (" << m_reference->size() << ")."
+			<< " greater than reference length (" << m_preprocessing_result->reference.size() << ")."
 			<< std::endl;
 		});
 		
