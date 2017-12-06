@@ -4,6 +4,7 @@
  */
 
 #include <boost/format.hpp>
+#include <cstring>
 #include <vcf2multialign/gzip_sink.hh>
 #include <vcf2multialign/dispatch_fn.hh>
 
