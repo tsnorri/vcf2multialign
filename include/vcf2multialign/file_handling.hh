@@ -10,6 +10,7 @@
 #include <boost/iostreams/stream.hpp>
 #include <vcf2multialign/cxx_compat.hh>
 #include <vcf2multialign/channel_sink.hh>
+#include <vcf2multialign/gzip_sink.hh>
 #include <vcf2multialign/types.hh>
 
 
@@ -47,7 +48,7 @@ namespace vcf2multialign {
 	typedef boost::iostreams::stream <boost::iostreams::file_descriptor_source>	file_istream;
 	typedef boost::iostreams::stream <boost::iostreams::file_descriptor_sink>	file_ostream;
 	
-	typedef boost::iostreams::stream <channel_sink>								channel_ostream;
+	typedef boost::iostreams::stream <polymorphic_sink>							channel_ostream;
 	
 	void handle_file_error(char const *fname);
 	void open_file_for_reading(char const *fname, file_istream &stream);
@@ -55,8 +56,10 @@ namespace vcf2multialign {
 	void open_file_channel_for_writing(
 		char const *fname,
 		channel_ostream &stream,
-		dispatch_ptr <dispatch_semaphore_t> const &write_semaphore,
-		bool const should_overwrite
+		dispatch_ptr <dispatch_semaphore_t> const &compress_semaphore,
+		dispatch_ptr <dispatch_semaphore_t> const &writing_semaphore,
+		bool const should_overwrite,
+		bool const should_compress
 	);
 		
 	// Wait for the files to close.

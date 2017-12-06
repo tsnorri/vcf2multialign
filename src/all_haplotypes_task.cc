@@ -52,8 +52,10 @@ namespace vcf2multialign {
 		open_file_channel_for_writing(
 			m_generate_config->out_reference_fname->c_str(),
 			haplotype_vec[0].output_stream,
-			m_write_semaphore,
-			m_generate_config->should_overwrite_files
+			m_compression_semaphore,
+			m_writing_semaphore,
+			m_generate_config->should_overwrite_files,
+			m_generate_config->should_compress_output
 		);
 	}
 	
@@ -76,8 +78,10 @@ namespace vcf2multialign {
 				open_file_channel_for_writing(
 					fname.c_str(),
 					haplotype_vec[j - 1].output_stream,
-					m_write_semaphore,
-					m_generate_config->should_overwrite_files
+					m_compression_semaphore,
+					m_writing_semaphore,
+					m_generate_config->should_overwrite_files,
+					m_generate_config->should_compress_output
 				);
 			}
 	
@@ -93,61 +97,62 @@ namespace vcf2multialign {
 	}
 	
 	
-	bool all_haplotypes_task::prepare_next_round(sequence_writer_task &task, bool const output_reference)
-	{
-		// Open files for the samples. If no files were opened, exit.
-		m_haplotypes.clear();
-		update_haplotypes(output_reference);
-	
-		auto const haplotype_count(m_haplotypes.size());
-		if (0 == haplotype_count)
-			return false;
-		
-		++m_current_round;
-		m_round_start_time = std::chrono::system_clock::now();
-	
-		auto const round_start_time(m_round_start_time);
-		auto const current_round(m_current_round);
-		auto const total_rounds(m_total_rounds);
-		m_logger->status_logger.log([round_start_time, current_round, total_rounds](){
-			auto const start_time(std::chrono::system_clock::to_time_t(round_start_time));
-			std::cerr << "Round " << current_round << '/' << total_rounds << std::endl;
-			std::cerr << "Starting on " << std::ctime(&start_time) << std::flush;
-		});
-		m_logger->status_logger.log_message_progress_bar("Generating haplotypes…");
-		
-		task.prepare(m_haplotypes);
-		return true;
-	}
-	
-	
-	void all_haplotypes_task::do_finish(sequence_writer_task &task)
+	void all_haplotypes_task::start_next_round(sequence_writer_task &task, bool const output_reference)
 	{
 		auto tuple(wait_for_files(m_haplotypes));
 		auto group(std::get <0>(tuple));
 		auto queue(std::get <1>(tuple));
 		
-		dispatch_group_notify_fn(*group, queue, [this, &task](){
-			auto const start_time(m_start_time);
-			m_logger->status_logger.log([start_time](){
-				// Save the stream state.
-				boost::io::ios_flags_saver ifs(std::cerr);
+		dispatch_group_notify_fn(*group, queue, [this, &task, output_reference](){
+			// Open files for the samples. If no files were opened, exit.
+			m_haplotypes.clear();
+			update_haplotypes(output_reference);
+			
+			auto const haplotype_count(m_haplotypes.size());
+			if (0 == haplotype_count)
+			{
+				m_delegate->remove_task(task);
+				do_finish();
+				return;
+			}
+			
+			++m_current_round;
+			m_round_start_time = std::chrono::system_clock::now();
+			
+			auto const round_start_time(m_round_start_time);
+			auto const current_round(m_current_round);
+			auto const total_rounds(m_total_rounds);
+			m_logger->status_logger.log([round_start_time, current_round, total_rounds](){
+				auto const start_time(std::chrono::system_clock::to_time_t(round_start_time));
+				std::cerr << "Round " << current_round << '/' << total_rounds << std::endl;
+				std::cerr << "Starting on " << std::ctime(&start_time) << std::flush;
+			});
+			m_logger->status_logger.log_message_progress_bar("Generating haplotypes…");
+			
+			task.prepare(m_haplotypes);
+			task.execute();
+		});
+	}
 	
-				// Change FP notation.
-				std::cerr << std::fixed;
+	
+	void all_haplotypes_task::do_finish()
+	{
+		auto const start_time(m_start_time);
+		m_logger->status_logger.log([start_time](){
+			// Save the stream state.
+			boost::io::ios_flags_saver ifs(std::cerr);
+			
+			// Change FP notation.
+			std::cerr << std::fixed;
+			
+			auto const end_time(std::chrono::system_clock::now());
+			std::chrono::duration <double> elapsed_seconds(end_time - start_time);
+			std::cerr << "Sequence generation took " << (elapsed_seconds.count() / 60.0) << " minutes in total." << std::endl;
+		});
 		
-				auto const end_time(std::chrono::system_clock::now());
-				std::chrono::duration <double> elapsed_seconds(end_time - start_time);
-				std::cerr << "Sequence generation took " << (elapsed_seconds.count() / 60.0) << " minutes in total." << std::endl;
-			});
-
-			m_delegate->remove_task(task);
-			// task is now invalid.
-		
-			auto main_queue(dispatch_get_main_queue());
-			dispatch_async_fn(main_queue, [this](){
-				m_delegate->task_did_finish(*this);
-			});
+		auto main_queue(dispatch_get_main_queue());
+		dispatch_async_fn(main_queue, [this](){
+			m_delegate->task_did_finish(*this);
 		});
 	}
 	
@@ -155,10 +160,7 @@ namespace vcf2multialign {
 	void all_haplotypes_task::task_did_finish(sequence_writer_task &task)
 	{
 		m_logger->status_logger.finish_logging();
-		if (prepare_next_round(task, false))
-			task.execute();
-		else
-			do_finish(task);
+		start_next_round(task, false);
 	}
 	
 	
@@ -195,11 +197,8 @@ namespace vcf2multialign {
 			
 		std::unique_ptr <class task> task_ptr(task);
 		task->set_parsed_fields(vcf_field::ALL);
-		
-		if (prepare_next_round(*task, m_generate_config->out_reference_fname.operator bool()))
-			m_delegate->store_and_execute(std::move(task_ptr));
-		else
-			do_finish(*task);
+		m_delegate->store_task(std::move(task_ptr));
+		start_next_round(*task, m_generate_config->out_reference_fname.operator bool());
 	}
 	
 	
@@ -214,11 +213,14 @@ namespace vcf2multialign {
 		for (auto const &sample : var.samples())
 		{
 			// REF is zero, see the static assertion above.
-			++sample_no;
+			// It is also listed in var.samples() but has no genotype.
+			// FIXME: ^ is this a bug?
 			std::size_t chr_idx(0);
 			
 			for (auto const &gt : sample.get_genotype())
 				cb(sample_no, chr_idx++, gt.alt, gt.is_phased);
+
+			++sample_no;
 		}
 	}
 }

@@ -22,6 +22,7 @@ namespace vcf2multialign {
 		bool const should_overwrite_files,
 		bool const should_check_ref,
 		bool const should_reduce_samples,
-		bool const print_subgraph_handling
+		bool const print_subgraph_handling,
+		bool const should_compress_output
 	);
 }

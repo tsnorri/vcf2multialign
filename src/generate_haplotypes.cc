@@ -54,6 +54,7 @@ namespace {
 		generate_context(generate_context &&) = delete;
 		
 		void cleanup() { delete this; }
+		void cleanup_in_main();
 		
 		void load_and_generate(
 			char const *reference_fname,
@@ -71,10 +72,8 @@ namespace {
 		virtual void task_did_finish(v2m::all_haplotypes_task &task) override;
 		virtual void task_did_finish(v2m::reduce_samples_task &task) override;
 		virtual void store_and_execute(std::unique_ptr <v2m::task> &&task) override;
+		virtual v2m::task *store_task(std::unique_ptr <v2m::task> &&task) override;
 		virtual void remove_task(v2m::task &task) override;
-		
-	protected:
-		v2m::task *store_task(std::unique_ptr <v2m::task> &&task);
 	};
 	
 	
@@ -229,7 +228,7 @@ namespace {
 	}
 	
 	
-	void generate_context::task_did_finish(v2m::reduce_samples_task &task)
+	void generate_context::cleanup_in_main()
 	{
 		// status_logger's target queue is the main queue where the cancelling is done asynchronously.
 		auto queue(dispatch_get_main_queue());
@@ -241,14 +240,15 @@ namespace {
 	}
 	
 	
+	void generate_context::task_did_finish(v2m::reduce_samples_task &task)
+	{
+		cleanup_in_main();
+	}
+	
+	
 	void generate_context::task_did_finish(v2m::all_haplotypes_task &task)
 	{
-		// After calling cleanup *this is no longer valid.
-		//std::cerr << "Calling cleanup" << std::endl;
-		cleanup();
-	
-		//std::cerr << "Calling exit" << std::endl;
-		exit(EXIT_SUCCESS);
+		cleanup_in_main();
 	}
 }
 
@@ -268,7 +268,8 @@ namespace vcf2multialign {
 		bool const should_overwrite_files,
 		bool const should_check_ref,
 		bool const should_reduce_samples,
-		bool const print_subgraph_handling
+		bool const print_subgraph_handling,
+		bool const should_compress_output
 	)
 	{
 		generate_configuration config(
@@ -280,7 +281,8 @@ namespace vcf2multialign {
 			generated_path_count,
 			should_overwrite_files,
 			should_reduce_samples,
-			print_subgraph_handling
+			print_subgraph_handling,
+			should_compress_output
 		);
 		
 		// generate_context needs to be allocated on the heap because later dispatch_main is called.

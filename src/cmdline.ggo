@@ -30,6 +30,7 @@ option	"structural-variants"		-	"Structural variant handling"														types
 
 section	"Output options"
 option	"null-allele-seq"			-	"Sequence to be used for null alleles"										string	typestr = "SEQ"		default = "N"											optional
+option	"compress-output"			-	"Write gzip compressed files"												flag off
 
 #section "Sample reduction"
 #option	"reduce-samples"			-	"Reduce the number of samples to a minimum as described above"				flag	off

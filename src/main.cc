@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <vcf2multialign/dispatch_fn.hh>
 #include <vcf2multialign/generate_haplotypes.hh>
+#include <vcf2multialign/gzip_sink.hh>
 #include <vcf2multialign/util.hh>
 
 #ifdef __linux__
@@ -96,6 +97,9 @@ int main(int argc, char **argv)
 	pthread_workqueue_init_np();
 #endif
 	
+	// FIXME: better alternative?
+	v2m::gzip_sink_impl::init();
+	
 	// Window size change is going to be handled later.
 	signal(SIGWINCH, SIG_IGN);
 
@@ -112,7 +116,8 @@ int main(int argc, char **argv)
 		args_info.overwrite_flag,
 		!args_info.no_check_ref_flag,
 		args_info.reduce_samples_flag,
-		args_info.print_subgraph_handling_flag
+		args_info.print_subgraph_handling_flag,
+		args_info.compress_output_flag
 	);
 		
 	cmdline_parser_free(&args_info);

@@ -114,8 +114,10 @@ namespace vcf2multialign {
 			open_file_channel_for_writing(
 				fname.c_str(),
 				haplotype_vec[0].output_stream,
-				m_write_semaphore,
-				m_generate_config->should_overwrite_files
+				m_compression_semaphore,
+				m_writing_semaphore,
+				m_generate_config->should_overwrite_files,
+				m_generate_config->should_compress_output
 			);
 		}
 		
@@ -131,8 +133,10 @@ namespace vcf2multialign {
 			open_file_channel_for_writing(
 				m_generate_config->out_reference_fname->c_str(),
 				haplotype_vec[0].output_stream,
-				m_write_semaphore,
-				m_generate_config->should_overwrite_files
+				m_compression_semaphore,
+				m_writing_semaphore,
+				m_generate_config->should_overwrite_files,
+				m_generate_config->should_compress_output
 			);
 		}
 	}

@@ -22,6 +22,7 @@ namespace vcf2multialign {
 		virtual ~all_haplotypes_task_delegate() {}
 		virtual void task_did_finish(all_haplotypes_task &task) = 0;
 		virtual void store_and_execute(std::unique_ptr <task> &&task) = 0;
+		virtual task *store_task(std::unique_ptr <task> &&task) = 0;
 		virtual void remove_task(task &task) = 0;
 	};
 	
@@ -35,7 +36,8 @@ namespace vcf2multialign {
 		typedef haplotype_map <channel_ostream>				haplotype_map_type;
 		
 	protected:
-		dispatch_ptr <dispatch_semaphore_t>					m_write_semaphore;
+		dispatch_ptr <dispatch_semaphore_t>					m_compression_semaphore;
+		dispatch_ptr <dispatch_semaphore_t>					m_writing_semaphore;
 
 		all_haplotypes_task_delegate						*m_delegate{};
 		logger												*m_logger{};
@@ -66,7 +68,8 @@ namespace vcf2multialign {
 			std::size_t const hw_concurrency,
 			std::size_t const record_count
 		):
-			m_write_semaphore(dispatch_semaphore_create(2 * hw_concurrency)), // FIXME: some other value?
+			m_compression_semaphore(dispatch_semaphore_create(2 * hw_concurrency)), // FIXME: some other value?
+			m_writing_semaphore(dispatch_semaphore_create(2 * hw_concurrency)), // FIXME: some other value?
 			m_delegate(&delegate),
 			m_logger(&logger),
 			m_generate_config(&generate_config),
@@ -106,8 +109,8 @@ namespace vcf2multialign {
 		void update_haplotypes_with_ref();
 		void update_haplotypes(bool const output_reference);
 		
-		bool prepare_next_round(sequence_writer_task &task, bool const output_reference);
-		void do_finish(sequence_writer_task &task);
+		void start_next_round(sequence_writer_task &task, bool const output_reference);
+		void do_finish();
 	};
 }
 

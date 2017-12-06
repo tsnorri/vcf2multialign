@@ -54,8 +54,10 @@ namespace vcf2multialign {
 	void open_file_channel_for_writing(
 		char const *fname,
 		channel_ostream &stream,
-		dispatch_ptr <dispatch_semaphore_t> const &write_semaphore,
-		bool const should_overwrite
+		dispatch_ptr <dispatch_semaphore_t> const &compression_semaphore,
+		dispatch_ptr <dispatch_semaphore_t> const &writing_semaphore,
+		bool const should_overwrite,
+		bool const should_compress
 	)
 	{
 		int fd(0);
@@ -67,8 +69,20 @@ namespace vcf2multialign {
 		if (-1 == fd)
 			handle_file_error(fname);
 		
-		channel_sink sink;
-		sink.open(fd, write_semaphore);
+		polymorphic_sink sink;
+		if (should_compress)
+		{
+			auto impl(std::make_unique <gzip_sink_impl>());
+			impl->open(fd, compression_semaphore, writing_semaphore);
+			sink.open(impl.release());
+		}
+		else
+		{
+			auto impl(std::make_unique <channel_sink_impl>());
+			impl->open(fd, writing_semaphore);
+			sink.open(impl.release());
+		}
+		
 		stream.open(sink);
 	}
 	

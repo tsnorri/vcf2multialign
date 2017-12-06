@@ -13,6 +13,7 @@ OBJECTS		=	all_haplotypes_task.o \
 				find_subgraph_starting_points.o \
 				generate_haplotypes.o \
 				graph_range.o \
+				gzip_sink.o \
 				main.o \
 				merge_subgraph_paths_task.o \
 				preparation_task.o \
