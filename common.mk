@@ -16,7 +16,7 @@ SYSTEM_LDFLAGS	?=
 CFLAGS			+= -std=c99   $(OPT_FLAGS) $(WARNING_FLAGS) $(SYSTEM_CFLAGS)
 CXXFLAGS		+= -std=c++17 $(OPT_FLAGS) $(WARNING_FLAGS) $(SYSTEM_CXXFLAGS)
 CPPFLAGS		+= $(SYSTEM_CPPFLAGS) -DHAVE_CONFIG_H -I../include -I../lib/lemon -I../lib/libdispatch -I../lib/libpwq/include -I../lib/sdsl-lite/include $(BOOST_INCLUDE)
-LDFLAGS			+= $(SYSTEM_LDFLAGS) $(LIBDISPATCH_LIBS) $(BOOST_LIBS) ../lib/lemon/build/lemon/libemon.a
+LDFLAGS			+= $(SYSTEM_LDFLAGS) $(LIBDISPATCH_LIBS) $(BOOST_LIBS) ../lib/lemon/build/lemon/libemon.a -lz
 
 %.o: %.cc
 	$(CXX) -c $(CXXFLAGS) $(CPPFLAGS) -o $@ $<
