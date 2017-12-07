@@ -127,7 +127,7 @@ namespace vcf2multialign {
 				&m_compression_stream,
 				Z_DEFAULT_COMPRESSION,
 				Z_DEFLATED,
-				16 + 4,
+				16 + 14,
 				7,
 				/*
 				16 + 15,
