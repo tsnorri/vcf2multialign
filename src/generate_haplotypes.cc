@@ -34,6 +34,8 @@ namespace {
 		std::mutex											m_tasks_mutex{};
 		task_set											m_tasks;
 		
+		v2m::dispatch_ptr <dispatch_source_t>				m_hup_signal_source{};
+		
 		v2m::generate_configuration							m_generate_config;
 		v2m::preprocessing_result							m_preprocessing_result;
 		
@@ -45,6 +47,7 @@ namespace {
 		generate_context(
 			v2m::generate_configuration &&config
 		):
+			m_hup_signal_source(dispatch_source_create(DISPATCH_SOURCE_TYPE_SIGNAL, SIGHUP, 0, dispatch_get_main_queue())),
 			m_generate_config(std::move(config))
 		{
 		}
@@ -73,7 +76,17 @@ namespace {
 		virtual void store_and_execute(std::unique_ptr <v2m::task> &&task) override;
 		virtual v2m::task *store_task(std::unique_ptr <v2m::task> &&task) override;
 		virtual void remove_task(v2m::task &task) override;
+		
+	protected:
+		void handle_hup_mt();
 	};
+	
+	
+	void generate_context::handle_hup_mt()
+	{
+		// Only this for now.
+		v2m::gzip_sink_impl::buffer_memory_resource().log_status(m_logger.status_logger);
+	}
 	
 	
 	v2m::task *generate_context::store_task(std::unique_ptr <v2m::task> &&task)
@@ -124,6 +137,10 @@ namespace {
 	)
 	{
 		m_logger.status_logger.install();
+		
+		// Handle SIGHUP.
+		v2m::dispatch(this).source_set_event_handler <&generate_context::handle_hup_mt>(*m_hup_signal_source);
+		dispatch_resume(*m_hup_signal_source);
 
 		// Use a stream handle when possible.
 		if (m_generate_config.should_reduce_samples)
@@ -245,6 +262,7 @@ namespace {
 		auto queue(dispatch_get_main_queue());
 		v2m::dispatch_async_fn(queue, [this, queue](){
 			m_logger.status_logger.uninstall();
+			dispatch_source_cancel(*m_hup_signal_source);
 			cleanup();
 			exit(EXIT_SUCCESS);
 		});

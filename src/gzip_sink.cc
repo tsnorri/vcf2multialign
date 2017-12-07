@@ -12,30 +12,35 @@
 // FIXME: at the moment, this file needs to be compiled with Clang.
 namespace vcf2multialign {
 	
-	gzip_sink_impl::pool_resource_type *gzip_sink_impl::s_pool_resource = nullptr;
+	gzip_sink_impl::pool_resource_type *gzip_sink_impl::s_buffer_memory_resource = nullptr;
 	
+
+	void gzip_sink_impl::init()
+	{
+		s_buffer_memory_resource = new pool_resource_type("gzip buffer memory resource");
+	}
 	
 	unsigned char *gzip_sink_impl::allocate_input_buffer(std::size_t const n)
 	{
-		return reinterpret_cast <unsigned char *>(s_pool_resource->allocate(n, alignof(unsigned char)));
+		return reinterpret_cast <unsigned char *>(s_buffer_memory_resource->allocate(n, alignof(unsigned char)));
 	}
 	
 	
 	void gzip_sink_impl::deallocate_input_buffer(unsigned char *buffer, std::size_t const n)
 	{
-		s_pool_resource->deallocate(buffer, n, alignof(unsigned char));
+		s_buffer_memory_resource->deallocate(buffer, n, alignof(unsigned char));
 	}
 	
 	
 	unsigned char *gzip_sink_impl::allocate_compression_buffer()
 	{
-		return reinterpret_cast <unsigned char *>(s_pool_resource->allocate(m_write_size, alignof(unsigned char)));
+		return reinterpret_cast <unsigned char *>(s_buffer_memory_resource->allocate(m_write_size, alignof(unsigned char)));
 	}
 	
 	
 	void gzip_sink_impl::deallocate_compression_buffer(unsigned char *buffer)
 	{
-		s_pool_resource->deallocate(buffer, m_write_size, alignof(unsigned char));
+		s_buffer_memory_resource->deallocate(buffer, m_write_size, alignof(unsigned char));
 	}
 	
 	
@@ -108,8 +113,8 @@ namespace vcf2multialign {
 			}
 		}));
 		
-		//m_write_size = 65536; // FIXME: come up with a better guess.
-		m_write_size = 32768;
+		m_write_size = 65536; // FIXME: come up with a better guess.
+		//m_write_size = 8192;
 		
 		// Initialize variables.
 		m_compression_queue = std::move(compression_queue);
@@ -127,12 +132,12 @@ namespace vcf2multialign {
 				&m_compression_stream,
 				Z_DEFAULT_COMPRESSION,
 				Z_DEFLATED,
+				/*
 				16 + 14,
 				7,
-				/*
+				*/
 				16 + 15,
 				8,
-				*/
 				Z_DEFAULT_STRATEGY
 			));
 			always_assert(Z_OK == st);
@@ -179,6 +184,8 @@ namespace vcf2multialign {
 				dispatch_group_leave(*m_writing_group);
 			}
 		});
+		
+		dispatch_release(dispatch_buffer);
 	}
 	
 	

@@ -14,6 +14,7 @@ OBJECTS		=	all_haplotypes_task.o \
 				generate_haplotypes.o \
 				graph_range.o \
 				gzip_sink.o \
+				logging_memory_resource.o \
 				main.o \
 				merge_subgraph_paths_task.o \
 				preparation_task.o \

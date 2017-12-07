@@ -11,6 +11,7 @@
 #include <iosfwd>
 #include <vcf2multialign/cxx_compat.hh>
 #include <vcf2multialign/dispatch_fn.hh>
+#include <vcf2multialign/logging_memory_resource.hh>
 #include <vcf2multialign/polymorphic_sink.hh>
 #include <vcf2multialign/util.hh>
 #include <zlib.h>
@@ -21,12 +22,12 @@ namespace vcf2multialign {
 	class gzip_sink_impl final : public polymorphic_sink_impl
 	{
 	protected:
-		typedef boost::container::pmr::synchronized_pool_resource	pool_resource_type;
-		typedef std::shared_ptr <pool_resource_type>				pool_resource_ptr;
-		
+		typedef logging_memory_resource <boost::container::pmr::synchronized_pool_resource>	pool_resource_type;
+		//typedef logging_memory_resource <boost::container::pmr::new_delete_resource>		nd_resource_type;
+
 	protected:
-		static pool_resource_type			*s_pool_resource;
-		
+		static pool_resource_type			*s_buffer_memory_resource;
+
 	protected:
 		z_stream							m_compression_stream{};
 		dispatch_ptr <dispatch_queue_t>		m_compression_queue{};
@@ -40,9 +41,10 @@ namespace vcf2multialign {
 		std::atomic_bool					m_close_flag{false};
 		
 	public:
-		static void init() { s_pool_resource = new pool_resource_type; }
+		static void init();
+		static pool_resource_type &buffer_memory_resource() { return *s_buffer_memory_resource; }
+		
 		void close() override;
-		//void set_pool_resource(pool_resource_ptr const &resource) { m_d.pool_resource = resource; }
 		void set_closing_group(dispatch_ptr <dispatch_group_t> const &group) override { m_closing_group = group; }
 		void open(
 			int fd,

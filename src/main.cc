@@ -102,6 +102,9 @@ int main(int argc, char **argv)
 	
 	// Window size change is going to be handled later.
 	signal(SIGWINCH, SIG_IGN);
+	
+	// Use HUP for status information.
+	signal(SIGHUP, SIG_IGN);
 
 	v2m::generate_haplotypes(
 		args_info.reference_arg,
