@@ -108,7 +108,8 @@ namespace vcf2multialign {
 			}
 		}));
 		
-		m_write_size = 65536; // FIXME: come up with a better guess.
+		//m_write_size = 65536; // FIXME: come up with a better guess.
+		m_write_size = 32768;
 		
 		// Initialize variables.
 		m_compression_queue = std::move(compression_queue);
@@ -126,8 +127,12 @@ namespace vcf2multialign {
 				&m_compression_stream,
 				Z_DEFAULT_COMPRESSION,
 				Z_DEFLATED,
+				16 + 4,
+				7,
+				/*
 				16 + 15,
 				8,
+				*/
 				Z_DEFAULT_STRATEGY
 			));
 			always_assert(Z_OK == st);

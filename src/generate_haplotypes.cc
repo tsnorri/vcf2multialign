@@ -37,16 +37,15 @@ namespace {
 		v2m::generate_configuration							m_generate_config;
 		v2m::preprocessing_result							m_preprocessing_result;
 		
-		v2m::vcf_mmap_input									m_vcf_input;
-		v2m::mmap_handle									m_vcf_handle;
+		std::unique_ptr <v2m::vcf_input>					m_vcf_input;
+		v2m::mmap_handle									m_vcf_handle; // Used only with reduce_samples_task.
 		v2m::logger											m_logger;
 		
 	public:
 		generate_context(
 			v2m::generate_configuration &&config
 		):
-			m_generate_config(std::move(config)),
-			m_vcf_input(m_vcf_handle)
+			m_generate_config(std::move(config))
 		{
 		}
 	
@@ -125,14 +124,26 @@ namespace {
 	)
 	{
 		m_logger.status_logger.install();
+
+		// Use a stream handle when possible.
+		if (m_generate_config.should_reduce_samples)
+		{
+			auto *input(new v2m::vcf_mmap_input(m_vcf_handle));
+			m_vcf_input.reset(input);
+			m_vcf_handle.open(variants_fname);
+			input->reset_range();
+		}
+		else
+		{
+			auto *input(new v2m::vcf_stream_input <v2m::file_istream>());
+			m_vcf_input.reset(input);
+			v2m::open_file_for_reading(variants_fname, input->input_stream());
+		}
 		
 		// It is easier to open the files here rather than in the preparation task.
-		v2m::vcf_reader reader(m_vcf_input);
+		v2m::vcf_reader reader(*m_vcf_input);
 		
 		{
-			m_vcf_handle.open(variants_fname);
-			m_vcf_input.reset_range();
-			
 			if (report_fname)
 			{
 				m_logger.error_logger.prepare();

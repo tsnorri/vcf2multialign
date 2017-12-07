@@ -53,7 +53,7 @@ namespace vcf2multialign {
 		{
 		}
 		
-		virtual ~vcf_stream_input_base() = 0;
+		virtual ~vcf_stream_input_base() {}
 	
 		virtual bool getline(std::string_view &dst) override;
 		virtual void store_first_variant_offset(std::size_t const lineno) override;
@@ -63,7 +63,7 @@ namespace vcf2multialign {
 	protected:
 		virtual void stream_reset() = 0;
 		virtual bool stream_getline() = 0;
-		virtual std::size_t stream_tellg() const = 0;
+		virtual std::size_t stream_tellg() = 0;
 		virtual void stream_read(char *data, std::size_t len) = 0;
 		virtual std::size_t stream_gcount() const = 0;
 		virtual bool stream_eof() const = 0;
@@ -84,15 +84,15 @@ namespace vcf2multialign {
 	protected:
 		virtual void stream_reset() override
 		{
-			m_stream->clear();
-			m_stream->seekg(m_first_variant_offset);
+			m_stream.clear();
+			m_stream.seekg(m_first_variant_offset);
 		}
 		
-		virtual bool stream_getline() override							{ return std::getline(*m_stream, m_buffer); }
-		virtual std::size_t stream_tellg() const override				{ return m_stream->tellg(); }
-		virtual void stream_read(char *data, std::size_t len) override	{ m_stream->read(data, len); }
-		virtual std::size_t stream_gcount() const override				{ return m_stream->gcount(); }
-		virtual bool stream_eof() const override						{ return m_stream->eof(); }
+		virtual bool stream_getline() override							{ return std::getline(m_stream, m_buffer).operator bool(); }
+		virtual std::size_t stream_tellg() override						{ return m_stream.tellg(); }
+		virtual void stream_read(char *data, std::size_t len) override	{ m_stream.read(data, len); }
+		virtual std::size_t stream_gcount() const override				{ return m_stream.gcount(); }
+		virtual bool stream_eof() const override						{ return m_stream.eof(); }
 	};
 
 
