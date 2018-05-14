@@ -32,6 +32,18 @@ lib/libdispatch/libdispatch-build/src/libdispatch.a:
 	../configure --cc="$(CC)" --c++="$(CXX)" --release
 	$(MAKE) -C lib/libdispatch/libdispatch-build VERBOSE=1
 
+
+lib/libdispatch/libdispatch-build/src/libdispatch.a: lib/libpwq/libpwq-build/libpthread_workqueue.a
+	rm -rf lib/libdispatch/libdispatch-build && \
+	cd lib/libdispatch && \
+	mkdir libdispatch-build && \
+	cd libdispatch-build && \
+	../configure --cc="$(CC)" --c++="$(CXX)" --release -- \
+		-DPTHREAD_WORKQUEUE_INCLUDE_DIRS=../../libpwq/include \
+		-DPTHREAD_WORKQUEUE_LIBRARIES=../../libpwq/libpwq-build/libpthread_workqueue.a \
+		-DBLOCKS_RUNTIME_LIBRARIES=""
+
+
 lib/libpwq/libpwq-build/libpthread_workqueue.a:
 	rm -rf lib/libpwq/libpwq-build && \
 	cd lib/libpwq && \
