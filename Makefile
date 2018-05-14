@@ -4,6 +4,7 @@ include common.mk
 DEPENDENCIES =
 ifeq ($(shell uname -s),Linux)
 	DEPENDENCIES    +=  lib/libdispatch/libdispatch-build/src/libdispatch.a
+	DEPENDENCIES    +=  lib/libpwq/libpwq-build/libpthread_workqueue.a
 endif
 
 
@@ -23,15 +24,12 @@ clean-dependencies:
 
 dependencies: $(DEPENDENCIES)
 
-lib/libdispatch/libdispatch-build/src/libdispatch.a: lib/libpwq/libpwq-build/libpthread_workqueue.a
+lib/libdispatch/libdispatch-build/src/libdispatch.a:
 	rm -rf lib/libdispatch/libdispatch-build && \
 	cd lib/libdispatch && \
 	mkdir libdispatch-build && \
 	cd libdispatch-build && \
-	../configure --cc="$(CC)" --c++="$(CXX)" --release -- \
-		-DPTHREAD_WORKQUEUE_INCLUDE_DIRS=../../libpwq/include \
-		-DPTHREAD_WORKQUEUE_LIBRARIES=../../libpwq/libpwq-build/libpthread_workqueue.a \
-		-DBLOCKS_RUNTIME_LIBRARIES=""
+	../configure --cc="$(CC)" --c++="$(CXX)" --release
 	$(MAKE) -C lib/libdispatch/libdispatch-build VERBOSE=1
 
 lib/libpwq/libpwq-build/libpthread_workqueue.a:
