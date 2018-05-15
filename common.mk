@@ -9,6 +9,14 @@ CXXFLAGS		= -std=c++1z $(OPT_FLAGS) $(WARNING_FLAGS)
 CPPFLAGS		= -DHAVE_CONFIG_H -I../include -I../lib/libdispatch -I../lib/libpwq/include $(BOOST_INCLUDE)
 LDFLAGS			= $(LIBDISPATCH_LIBS) $(BOOST_LIBS)
 
+CMAKE			?= cmake
+CP				?= cp
+DOT				?= dot
+GENGETOPT		?= gengetopt
+MKDIR			?= mkdir
+RAGEL			?= ragel
+RM				?= rm
+
 
 %.o: %.cc
 	$(CXX) -c $(CXXFLAGS) $(CPPFLAGS) -o $@ $<
