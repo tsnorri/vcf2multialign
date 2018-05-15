@@ -43,6 +43,10 @@ namespace {
 
 int main(int argc, char **argv)
 {
+#ifndef NDEBUG
+	std::cerr << "Assertions have been enabled." << std::endl;
+#endif
+
 	gengetopt_args_info args_info;
 	if (0 != cmdline_parser(argc, argv, &args_info))
 		exit(EXIT_FAILURE);
@@ -55,10 +59,6 @@ int main(int argc, char **argv)
 
 	std::ios_base::sync_with_stdio(false);	// Don't use C style IO after calling cmdline_parser.
 	std::cin.tie(nullptr);					// We don't require any input from the user.
-
-#ifndef NDEBUG
-	std::cerr << "Assertions have been enabled." << std::endl;
-#endif
 
 	// libdispatch on macOS does not need pthread_workqueue.
 #ifdef __linux__
