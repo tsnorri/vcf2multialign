@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2017 Tuukka Norri
+ Copyright (c) 2017-2018 Tuukka Norri
  This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -18,7 +18,8 @@ namespace std {
 #endif
 
 
-namespace v2m = vcf2multialign;
+namespace lb	= libbio;
+namespace v2m	= vcf2multialign;
 
 
 namespace {
@@ -29,7 +30,7 @@ namespace {
 		std::optional <std::size_t> line_2					= std::nullopt,
 		std::optional <std::size_t> ref_pos					= std::nullopt,
 		std::optional <std::size_t> alt_idx					= std::nullopt,
-		std::optional <v2m::sv_type> svt					= std::nullopt,
+		std::optional <lb::sv_type> svt						= std::nullopt,
 		std::optional <std::size_t> sample_no				= std::nullopt,
 		std::optional <std::size_t> chr_idx					= std::nullopt,
 		std::optional <std::size_t> handled_with_alt		= std::nullopt,
@@ -110,7 +111,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void error_logger::log_skipped_structural_variant(std::size_t const line, std::size_t const alt_idx, sv_type const svt)
+	void error_logger::log_skipped_structural_variant(std::size_t const line, std::size_t const alt_idx, lb::sv_type const svt)
 	{
 		if (is_logging_errors())
 		{

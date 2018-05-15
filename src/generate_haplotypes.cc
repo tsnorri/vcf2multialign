@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2017 Tuukka Norri
+ Copyright (c) 2017-2018 Tuukka Norri
  This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -11,56 +11,23 @@
 #include <cstring>
 #include <fcntl.h>
 #include <iostream>
+#include <libbio/dispatch_fn.hh>
+#include <libbio/file_handling.hh>
+#include <libbio/vcf_reader.hh>
 #include <map>
 #include <vcf2multialign/check_overlapping_non_nested_variants.hh>
-#include <vcf2multialign/dispatch_fn.hh>
 #include <vcf2multialign/generate_haplotypes.hh>
 #include <vcf2multialign/read_single_fasta_seq.hh>
 #include <vcf2multialign/types.hh>
 #include <vcf2multialign/variant_handler.hh>
 
-namespace ios	= boost::iostreams;
+
+namespace lb	= libbio;
 namespace v2m	= vcf2multialign;
 
 
 namespace {
 
-	void handle_file_error(char const *fname)
-	{
-		char const *errmsg(strerror(errno));
-		std::cerr << "Got an error while trying to open '" << fname << "': " << errmsg << std::endl;
-		exit(EXIT_FAILURE);
-	}
-
-
-	void open_file_for_reading(char const *fname, v2m::file_istream &stream)
-	{
-		int fd(open(fname, O_RDONLY));
-		if (-1 == fd)
-			handle_file_error(fname);
-
-		ios::file_descriptor_source source(fd, ios::close_handle);
-		stream.open(source);
-		stream.exceptions(std::istream::badbit);
-	}
-	
-	
-	void open_file_for_writing(char const *fname, v2m::file_ostream &stream, bool const should_overwrite)
-	{
-		int fd(0);
-		if (should_overwrite)
-			fd = open(fname, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
-		else
-			fd = open(fname, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
-		
-		if (-1 == fd)
-			handle_file_error(fname);
-		
-		ios::file_descriptor_sink sink(fd, ios::close_handle);
-		stream.open(sink);
-	}
-	
-	
 	bool compare_references(v2m::vector_type const &ref, std::string_view const &var_ref, std::size_t const var_pos, std::size_t /* out */ &idx)
 	{
 		char const *var_ref_data(var_ref.data());
@@ -94,11 +61,11 @@ namespace {
 
 	protected:
 		v2m::variant_handler								m_variant_handler;
-		v2m::dispatch_ptr <dispatch_queue_t>				m_main_queue{};
-		v2m::dispatch_ptr <dispatch_queue_t>				m_parsing_queue{};
+		lb::dispatch_ptr <dispatch_queue_t>					m_main_queue{};
+		lb::dispatch_ptr <dispatch_queue_t>					m_parsing_queue{};
 		v2m::vector_type									m_reference;
-		v2m::file_istream									m_vcf_stream;
-		v2m::vcf_reader										m_vcf_reader;
+		lb::vcf_stream_input <lb::file_istream>				m_vcf_input;
+		lb::vcf_reader										m_vcf_reader;
 		
 		std::chrono::time_point <std::chrono::system_clock>	m_start_time{};
 		std::chrono::time_point <std::chrono::system_clock>	m_round_start_time{};
@@ -110,8 +77,8 @@ namespace {
 		v2m::variant_set									m_skipped_variants;
 
 		std::string											m_null_allele_seq;
-		v2m::vcf_reader::sample_name_map::const_iterator	m_sample_names_it{};
-		v2m::vcf_reader::sample_name_map::const_iterator	m_sample_names_end{};
+		lb::vcf_reader::sample_name_map::const_iterator		m_sample_names_it{};
+		lb::vcf_reader::sample_name_map::const_iterator		m_sample_names_end{};
 		std::size_t											m_chunk_size{0};
 		std::size_t											m_current_round{0};
 		std::size_t											m_total_rounds{0};
@@ -119,8 +86,8 @@ namespace {
 		
 	public:
 		generate_context(
-			v2m::dispatch_ptr <dispatch_queue_t> &&main_queue,
-			v2m::dispatch_ptr <dispatch_queue_t> &&parsing_queue,
+			lb::dispatch_ptr <dispatch_queue_t> &&main_queue,
+			lb::dispatch_ptr <dispatch_queue_t> &&parsing_queue,
 			char const *null_allele_seq,
 			std::size_t const chunk_size,
 			bool const should_overwrite_files
@@ -145,10 +112,10 @@ namespace {
 		{
 			size_t i(0);
 			m_vcf_reader.reset();
-			m_vcf_reader.set_parsed_fields(v2m::vcf_field::ALL);
+			m_vcf_reader.set_parsed_fields(lb::vcf_field::ALL);
 			
 			m_vcf_reader.fill_buffer();
-			if (!m_vcf_reader.parse([this](v2m::transient_variant const &var) -> bool {
+			if (!m_vcf_reader.parse([this](lb::transient_variant const &var) -> bool {
 				for (auto const &kv : m_vcf_reader.sample_names())
 				{
 					auto const sample_no(kv.second);
@@ -159,7 +126,7 @@ namespace {
 				return false;
 			}))
 			{
-				v2m::fail("Unable to read the first variant");
+				lb::fail("Unable to read the first variant");
 			}
 		}
 		
@@ -167,7 +134,7 @@ namespace {
 		void check_ref()
 		{
 			m_vcf_reader.reset();
-			m_vcf_reader.set_parsed_fields(v2m::vcf_field::REF);
+			m_vcf_reader.set_parsed_fields(lb::vcf_field::REF);
 			bool found_mismatch(false);
 			std::size_t i(0);
 			
@@ -176,7 +143,7 @@ namespace {
 				m_vcf_reader.fill_buffer();
 				should_continue = m_vcf_reader.parse(
 					[this, &found_mismatch, &i]
-					(v2m::transient_variant const &var)
+					(lb::transient_variant const &var)
 					-> bool
 				{
 					auto const var_ref(var.ref());
@@ -233,7 +200,7 @@ namespace {
 				for (size_t i(1); i <= current_ploidy; ++i)
 				{
 					auto const fname(boost::str(boost::format("%s-%u") % sample_name % i));
-					open_file_for_writing(fname.c_str(), haplotype_vec[i - 1].output_stream, m_should_overwrite_files);
+					lb::open_file_for_writing(fname.c_str(), haplotype_vec[i - 1].output_stream, m_should_overwrite_files);
 				}
 
 				++m_sample_names_it;
@@ -246,7 +213,7 @@ namespace {
 			// Check if reference output was requested.
 			if (out_reference_fname)
 			{
-				v2m::always_assert(
+				lb::always_assert(
 					m_haplotypes.cend() == m_haplotypes.find(v2m::REF_SAMPLE_NUMBER),
 					"REF_SAMPLE_NUMBER already in use"
 				);
@@ -258,7 +225,7 @@ namespace {
 				).first);
 				
 				auto &haplotype_vec(it->second);
-				open_file_for_writing(out_reference_fname, haplotype_vec[0].output_stream, m_should_overwrite_files);
+				lb::open_file_for_writing(out_reference_fname, haplotype_vec[0].output_stream, m_should_overwrite_files);
 			}
 		}
 
@@ -325,18 +292,18 @@ namespace {
 			// Open the files.
 			std::cerr << "Opening files…" << std::endl;
 			{
-				v2m::file_istream ref_fasta_stream;
+				lb::file_istream ref_fasta_stream;
 				
-				open_file_for_reading(reference_fname, ref_fasta_stream);
-				open_file_for_reading(variants_fname, m_vcf_stream);
+				lb::open_file_for_reading(reference_fname, ref_fasta_stream);
+				lb::open_file_for_reading(variants_fname, m_vcf_input.input_stream());
 				
 				if (report_fname)
 				{
-					open_file_for_writing(report_fname, m_error_logger.output_stream(), m_should_overwrite_files);
+					lb::open_file_for_writing(report_fname, m_error_logger.output_stream(), m_should_overwrite_files);
 					m_error_logger.write_header();
 				}
 				
-				m_vcf_reader.set_stream(m_vcf_stream);
+				m_vcf_reader.set_input(m_vcf_input);
 				m_vcf_reader.read_header();
 				
 				auto const &sample_names(m_vcf_reader.sample_names());
@@ -422,8 +389,8 @@ namespace vcf2multialign {
 		bool const should_check_ref
 	)
 	{
-		dispatch_ptr <dispatch_queue_t> main_queue(dispatch_get_main_queue(), true);
-		dispatch_ptr <dispatch_queue_t> parsing_queue(
+		lb::dispatch_ptr <dispatch_queue_t> main_queue(dispatch_get_main_queue(), true);
+		lb::dispatch_ptr <dispatch_queue_t> parsing_queue(
 			dispatch_queue_create("fi.iki.tsnorri.vcf2multialign.parsing_queue", DISPATCH_QUEUE_SERIAL),
 			false
 		);
@@ -446,8 +413,5 @@ namespace vcf2multialign {
 			sv_handling_method,
 			should_check_ref
 		);
-		
-		// Calls pthread_exit.
-		dispatch_main();
 	}
 }

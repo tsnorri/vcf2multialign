@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Tuukka Norri
+ * Copyright (c) 2017-2018 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -8,11 +8,12 @@
 #include <boost/bimap/multiset_of.hpp>
 #include <boost/range/adaptor/reversed.hpp>
 #include <iostream>
+#include <libbio/assert.hh>
 #include <vcf2multialign/check_overlapping_non_nested_variants.hh>
-#include <vcf2multialign/util.hh>
 
 
-namespace v2m = vcf2multialign;
+namespace lb	= libbio;
+namespace v2m	= vcf2multialign;
 
 
 typedef boost::bimap <
@@ -64,7 +65,7 @@ namespace {
 			for (auto it(range.first); it != range.second; ++it)
 			{
 				auto c_it(conflict_counts.left.find(it->second));
-				v2m::always_assert(conflict_counts.left.end() != c_it, "Unable to find conflict count for variant");
+				lb::always_assert(conflict_counts.left.end() != c_it, "Unable to find conflict count for variant");
 				
 				auto &val(c_it->second);
 				--val;
@@ -83,7 +84,7 @@ namespace {
 	
 	
 	bool can_handle_variant_alts(
-		v2m::transient_variant const &var,
+		lb::transient_variant const &var,
 		v2m::sv_handling const sv_handling_method
 	)
 	{
@@ -91,7 +92,7 @@ namespace {
 		{
 			for (auto const svt : var.alt_sv_types())
 			{
-				if (v2m::sv_type::NONE == svt)
+				if (lb::sv_type::NONE == svt)
 					return true;
 			}
 			
@@ -104,18 +105,18 @@ namespace {
 				switch (svt)
 				{
 					// These structural variant types are currently handled.
-					case v2m::sv_type::NONE:
-					case v2m::sv_type::DEL:
-					case v2m::sv_type::DEL_ME:
+					case lb::sv_type::NONE:
+					case lb::sv_type::DEL:
+					case lb::sv_type::DEL_ME:
 						return true;
 						
-					case v2m::sv_type::INS:
-					case v2m::sv_type::DUP:
-					case v2m::sv_type::INV:
-					case v2m::sv_type::CNV:
-					case v2m::sv_type::DUP_TANDEM:
-					case v2m::sv_type::INS_ME:
-					case v2m::sv_type::UNKNOWN:
+					case lb::sv_type::INS:
+					case lb::sv_type::DUP:
+					case lb::sv_type::INV:
+					case lb::sv_type::CNV:
+					case lb::sv_type::DUP_TANDEM:
+					case lb::sv_type::INS_ME:
+					case lb::sv_type::UNKNOWN:
 						break;
 				}
 			}
@@ -129,7 +130,7 @@ namespace {
 namespace vcf2multialign {
 
 	size_t check_overlapping_non_nested_variants(
-		vcf_reader &reader,
+		lb::vcf_reader &reader,
 		sv_handling const sv_handling_method,
 		variant_set /* out */ &skipped_variants,
 		error_logger &error_logger
@@ -148,7 +149,7 @@ namespace vcf2multialign {
 		size_t conflict_count(0);
 		
 		reader.reset();
-		reader.set_parsed_fields(vcf_field::ALT);
+		reader.set_parsed_fields(lb::vcf_field::ALT);
 		bool should_continue(false);
 		do {
 			reader.fill_buffer();
@@ -164,13 +165,13 @@ namespace vcf2multialign {
 					&conflict_count,
 					sv_handling_method
 				]
-				(v2m::transient_variant const &var)
+				(lb::transient_variant const &var)
 				-> bool
 			{
 				// Verify that the positions are in increasing order.
 				auto const pos(var.zero_based_pos());
 
-				always_assert(last_position <= pos, "Positions not in increasing order");
+				lb::always_assert(last_position <= pos, "Positions not in increasing order");
 				
 				auto const end(pos + var.ref().size());
 				auto const var_lineno(var.lineno());
@@ -223,7 +224,7 @@ namespace vcf2multialign {
 				
 						{
 							auto const res(bad_overlaps.insert(overlap_map::value_type(other_lineno, var_lineno)));
-							always_assert(res.second, "Unable to insert");
+							lb::always_assert(res.second, "Unable to insert");
 						}
 
 						++conflict_counts.left[other_lineno];
@@ -268,7 +269,7 @@ namespace vcf2multialign {
 			conflict_counts.left.erase(var_lineno);
 		}
 		
-		always_assert(bad_overlaps.size() == 0, "Unable to remove all conflicting variants");
+		lb::always_assert(bad_overlaps.size() == 0, "Unable to remove all conflicting variants");
 		
 		return conflict_count;
 	}

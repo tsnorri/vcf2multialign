@@ -1,14 +1,14 @@
 /*
- Copyright (c) 2017 Tuukka Norri
+ Copyright (c) 2017-2018 Tuukka Norri
  This code is licensed under MIT license (see LICENSE for details).
  */
 
 #include <cstdlib>
 #include <iostream>
+#include <libbio/assert.hh>
+#include <libbio/dispatch_fn.hh>
 #include <unistd.h>
-#include <vcf2multialign/dispatch_fn.hh>
 #include <vcf2multialign/generate_haplotypes.hh>
-#include <vcf2multialign/util.hh>
 
 #ifdef __linux__
 #include <pthread_workqueue.h>
@@ -17,6 +17,7 @@
 #include "cmdline.h"
 
 
+namespace lb	= libbio;
 namespace v2m	= vcf2multialign;
 
 
@@ -33,7 +34,7 @@ namespace {
 				
 			case structural_variants__NULL:
 			default:
-				v2m::fail("Unexpected value for structural variant handling.");
+				lb::fail("Unexpected value for structural variant handling.");
 				return v2m::sv_handling::KEEP; // Not reached.
 		}
 	}

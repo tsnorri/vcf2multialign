@@ -1,15 +1,17 @@
 /*
- * Copyright (c) 2017 Tuukka Norri
+ * Copyright (c) 2017-2018 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
 #include <boost/format.hpp>
 #include <sys/stat.h>
-#include <vcf2multialign/fasta_reader.hh>
+#include <libbio/fasta_reader.hh>
+#include <libbio/vector_source.hh>
 #include <vcf2multialign/read_single_fasta_seq.hh>
-#include <vcf2multialign/vector_source.hh>
+#include <vcf2multialign/types.hh>
 
-namespace v2m = vcf2multialign;
+namespace lb	= libbio;
+namespace v2m	= vcf2multialign;
 
 
 namespace {
@@ -27,7 +29,7 @@ namespace {
 			std::string const &identifier,
 			std::unique_ptr <v2m::vector_type> &seq,
 			size_t const &seq_length,
-			v2m::vector_source <v2m::vector_type> &vs
+			lb::vector_source <v2m::vector_type> &vs
 		)
 		{
 			std::cerr << "Read sequence of length " << seq_length << std::endl;
@@ -39,6 +41,7 @@ namespace {
 			vs.put_vector(seq);
 		}
 		
+		void start() {}
 		void finish() {}
 	};
 }
@@ -47,10 +50,10 @@ namespace {
 namespace vcf2multialign {
 	
 	// Read the contents of a FASTA file into a single sequence.
-	void read_single_fasta_seq(file_istream &ref_fasta_stream, vector_type &reference)
+	void read_single_fasta_seq(lb::file_istream &ref_fasta_stream, vector_type &reference)
 	{
-		typedef vector_source <vector_type> vector_source;
-		typedef fasta_reader <vector_source, callback> fasta_reader;
+		typedef lb::vector_source <vector_type> vector_source;
+		typedef lb::fasta_reader <vector_source, callback> fasta_reader;
 		
 		vector_source vs(1, false);
 		
@@ -63,7 +66,7 @@ namespace vcf2multialign {
 			{
 				auto const err_str(strerror(errno));
 				auto const msg(boost::str(boost::format("Unable to stat the reference file: %s") % err_str));
-				fail(msg.c_str());
+				lb::fail(msg.c_str());
 			}
 			
 			// Preallocate space for the reference.

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Tuukka Norri
+ * Copyright (c) 2017-2018 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -7,13 +7,13 @@
 #define VCF2MULTIALIGN_VARIANT_HANDLER_HH
 
 #include <dispatch/dispatch.h>
+#include <libbio/file_handling.hh>
+#include <libbio/vcf_reader.hh>
 #include <map>
 #include <stack>
 #include <vcf2multialign/error_logger.hh>
 #include <vcf2multialign/types.hh>
 #include <vcf2multialign/variant_buffer.hh>
-#include <vcf2multialign/vcf_reader.hh>
-#include <vcf2multialign/vector_source.hh>
 
 
 namespace vcf2multialign {
@@ -23,7 +23,7 @@ namespace vcf2multialign {
 	struct haplotype
 	{
 		size_t current_pos{0};
-		file_ostream output_stream;
+		libbio::file_ostream output_stream;
 	};
 	
 	typedef std::map <
@@ -79,7 +79,7 @@ namespace vcf2multialign {
 			heaviest_path_length(heaviest_path_length_),
 			lineno(lineno_)
 		{
-			always_assert(start_pos <= end_pos, "Bad offset order");
+			libbio::always_assert(start_pos <= end_pos, "Bad offset order");
 		}
 		
 		variant_overlap(
@@ -97,7 +97,7 @@ namespace vcf2multialign {
 			lineno(lineno_),
 			alt_haplotypes(std::move(alts))
 		{
-			always_assert(start_pos <= end_pos, "Bad offset order");
+			libbio::always_assert(start_pos <= end_pos, "Bad offset order");
 		}
 	};
 
@@ -109,8 +109,8 @@ namespace vcf2multialign {
 		typedef std::vector <size_t>					sample_number_vector;
 
 	protected:
-		dispatch_ptr <dispatch_queue_t>					m_main_queue{};
-		dispatch_ptr <dispatch_queue_t>					m_parsing_queue{};
+		libbio::dispatch_ptr <dispatch_queue_t>			m_main_queue{};
+		libbio::dispatch_ptr <dispatch_queue_t>			m_parsing_queue{};
 		std::function <void(void)>						m_finish_callback;
 		
 		error_logger									*m_error_logger{};
@@ -137,9 +137,9 @@ namespace vcf2multialign {
 		
 	public:
 		variant_handler(
-			dispatch_ptr <dispatch_queue_t> const &main_queue,
-			dispatch_ptr <dispatch_queue_t> const &parsing_queue,
-			vcf_reader &vcf_reader_,
+			libbio::dispatch_ptr <dispatch_queue_t> const &main_queue,
+			libbio::dispatch_ptr <dispatch_queue_t> const &parsing_queue,
+			libbio::vcf_reader &vcf_reader_,
 			vector_type const &reference,
 			sv_handling const sv_handling_method,
 			variant_set const &skipped_variants,
@@ -166,11 +166,11 @@ namespace vcf2multialign {
 		variant_buffer &get_variant_buffer() { return m_variant_buffer; }
 
 	protected:
-		virtual void handle_variant(variant &var);
+		virtual void handle_variant(libbio::variant &var);
 		virtual void finish();
 
 		bool check_alt_seq(std::string const &alt) const;
-		void fill_valid_alts(variant const &var);
+		void fill_valid_alts(libbio::variant const &var);
 		void fill_streams(haplotype_ptr_map &haplotypes, size_t const fill_amt) const;
 		void output_reference(std::size_t const output_start_pos, std::size_t const output_end_pos);
 		std::size_t process_overlap_stack(size_t const var_pos);

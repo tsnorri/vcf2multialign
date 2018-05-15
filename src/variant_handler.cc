@@ -1,12 +1,15 @@
 /*
- Copyright (c) 2017 Tuukka Norri
+ Copyright (c) 2017-2018 Tuukka Norri
  This code is licensed under MIT license (see LICENSE for details).
  */
 
 #include <boost/range/combine.hpp>
-#include <vcf2multialign/dispatch_fn.hh>
-#include <vcf2multialign/util.hh>
+#include <libbio/assert.hh>
+#include <libbio/dispatch_fn.hh>
 #include <vcf2multialign/variant_handler.hh>
+
+
+namespace lb = libbio;
 
 
 namespace vcf2multialign {
@@ -34,7 +37,7 @@ namespace vcf2multialign {
 		if (output_start_pos == output_end_pos)
 			return;
 		
-		always_assert(output_start_pos < output_end_pos, "Bad offset order");
+		lb::always_assert(output_start_pos < output_end_pos, "Bad offset order");
 
 		char const *ref_begin(m_reference->data());
 		auto const output_start(ref_begin + output_start_pos);
@@ -45,7 +48,7 @@ namespace vcf2multialign {
 				if (h_ptr)
 				{
 					auto &h(*h_ptr);
-					always_assert(h.current_pos == output_start_pos, "Unexpected position");
+					lb::always_assert(h.current_pos == output_start_pos, "Unexpected position");
 					
 					h.output_stream.write(output_start, output_end_pos - output_start_pos);
 					h.current_pos = output_end_pos;
@@ -93,7 +96,7 @@ namespace vcf2multialign {
 						if (h_ptr)
 						{
 							auto &h(*h_ptr);
-							always_assert(h.current_pos <= output_start_pos, "Unexpected position");
+							lb::always_assert(h.current_pos <= output_start_pos, "Unexpected position");
 							
 							h.output_stream << alt;
 							h.current_pos = output_end_pos;
@@ -139,7 +142,7 @@ namespace vcf2multialign {
 					
 					for (size_t i(0), count(alt_ptrs.size()); i < count; ++i)
 					{
-						always_assert(! (alt_ptrs[i] && ref_ptrs[i]), "Inconsistent haplotype pointers");
+						lb::always_assert(! (alt_ptrs[i] && ref_ptrs[i]), "Inconsistent haplotype pointers");
 						
 						// Use ADL.
 						using std::swap;
@@ -180,7 +183,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void variant_handler::fill_valid_alts(variant const &var)
+	void variant_handler::fill_valid_alts(lb::variant const &var)
 	{
 		// Check that the alt sequence is something that can be handled.
 		m_valid_alts.clear();
@@ -194,7 +197,7 @@ namespace vcf2multialign {
 				++i;
 				
 				auto const alt_svt(ref.get <1>());
-				if (sv_type::NONE != alt_svt)
+				if (lb::sv_type::NONE != alt_svt)
 					continue;
 				
 				auto const &alt(ref.get <0>());
@@ -216,7 +219,7 @@ namespace vcf2multialign {
 				auto const alt_svt(ref.get <1>());
 				switch (alt_svt)
 				{
-					case sv_type::NONE:
+					case lb::sv_type::NONE:
 					{
 						auto const &alt(ref.get <0>());
 						if (check_alt_seq(alt))
@@ -227,23 +230,23 @@ namespace vcf2multialign {
 						break;
 					}
 					
-					case sv_type::DEL:
-					case sv_type::DEL_ME:
+					case lb::sv_type::DEL:
+					case lb::sv_type::DEL_ME:
 						m_valid_alts.emplace(i);
 						break;
 					
-					case sv_type::INS:
-					case sv_type::DUP:
-					case sv_type::INV:
-					case sv_type::CNV:
-					case sv_type::DUP_TANDEM:
-					case sv_type::INS_ME:
-					case sv_type::UNKNOWN:
+					case lb::sv_type::INS:
+					case lb::sv_type::DUP:
+					case lb::sv_type::INV:
+					case lb::sv_type::CNV:
+					case lb::sv_type::DUP_TANDEM:
+					case lb::sv_type::INS_ME:
+					case lb::sv_type::UNKNOWN:
 						m_error_logger->log_skipped_structural_variant(lineno, i, alt_svt);
 						break;
 					
 					default:
-						fail("Unexpected structural variant type.");
+						lb::fail("Unexpected structural variant type.");
 						break;
 				}
 			}
@@ -251,7 +254,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void variant_handler::handle_variant(variant &var)
+	void variant_handler::handle_variant(lb::variant &var)
 	{
 		m_skipped_samples.clear();
 		m_counts_by_alt.clear();
@@ -267,7 +270,7 @@ namespace vcf2multialign {
 			return;
 		
 		size_t const var_pos(var.zero_based_pos());
-		always_assert(var_pos < m_reference->size(), [this, lineno](){
+		lb::always_assert(var_pos < m_reference->size(), [this, lineno](){
 			std::cerr
 			<< "Variant position on line " << lineno
 			<< " greater than reference length (" << m_reference->size() << ")."
@@ -287,7 +290,7 @@ namespace vcf2multialign {
 		auto &previous_variant(m_overlap_stack.top());
 		
 		// Check that if var is before previous_variant.end_pos, it is also completely inside it.
-		always_assert(
+		lb::always_assert(
 			(previous_variant.end_pos <= var_pos) || (var_pos + var_ref_size <= previous_variant.end_pos),
 			[lineno, &previous_variant, var_pos, var_ref_size](){
 				std::cerr
@@ -319,20 +322,20 @@ namespace vcf2multialign {
 		{
 			switch (var_alt_sv_types[alt_idx - 1])
 			{
-				case sv_type::NONE:
+				case lb::sv_type::NONE:
 				{
 					auto const &alt_str(var_alts[alt_idx - 1]);
 					m_alt_haplotypes[alt_str];
 					break;
 				}
 				
-				case sv_type::DEL:
-				case sv_type::DEL_ME:
+				case lb::sv_type::DEL:
+				case lb::sv_type::DEL_ME:
 					m_alt_haplotypes[empty_alt];
 					break;
 				
 				default:
-					fail("Unexpected structural variant type.");
+					lb::fail("Unexpected structural variant type.");
 					break;
 			}
 		}
@@ -351,28 +354,28 @@ namespace vcf2multialign {
 			{
 				auto const alt_idx(gt.alt);
 				auto const is_phased(gt.is_phased);
-				always_assert(0 == chr_idx || is_phased, "Variant file not phased");
+				lb::always_assert(0 == chr_idx || is_phased, "Variant file not phased");
 				
 				if (0 != alt_idx && 0 != m_valid_alts.count(alt_idx))
 				{
 					auto &ref_ptrs(m_ref_haplotype_ptrs.find(sample_no)->second); // Has nodes for every sample_no.
 					
 					std::string const *alt_ptr{m_null_allele_seq};
-					if (NULL_ALLELE != alt_idx)
+					if (lb::NULL_ALLELE != alt_idx)
 					{
 						switch (var_alt_sv_types[alt_idx - 1])
 						{
-							case sv_type::NONE:
+							case lb::sv_type::NONE:
 								alt_ptr = &var_alts[alt_idx - 1];
 								break;
 								
-							case sv_type::DEL:
-							case sv_type::DEL_ME:
+							case lb::sv_type::DEL:
+							case lb::sv_type::DEL_ME:
 								alt_ptr = &empty_alt;
 								break;
 								
 							default:
-								fail("Unexpected structural variant type.");
+								lb::fail("Unexpected structural variant type.");
 								break;
 						}
 					}
@@ -494,9 +497,8 @@ namespace vcf2multialign {
 		
 		auto &reader(m_variant_buffer.reader());
 		reader.reset();
-		reader.set_parsed_fields(vcf_field::ALL);
+		reader.set_parsed_fields(lb::vcf_field::ALL);
 		
-		dispatch_async_f <decltype(m_variant_buffer), &variant_buffer::read_input>(*m_parsing_queue, &m_variant_buffer);
-
+		lb::dispatch_caller(&m_variant_buffer).async <&variant_buffer::read_input>(*m_parsing_queue);
 	}
 }

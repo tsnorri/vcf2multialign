@@ -1,14 +1,17 @@
 /*
- * Copyright (c) 2017 Tuukka Norri
+ * Copyright (c) 2017-2018 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#include <vcf2multialign/util.hh>
+#include <libbio/assert.hh>
 #include <vcf2multialign/variant_buffer.hh>
 
 
 namespace vcf2multialign {
-
+	
+	namespace lb = libbio;
+	
+	
 	void variant_buffer::return_node_to_buffer(variant_set::node_type &&node)
 	{
 		std::lock_guard <std::mutex> guard(m_buffer_mutex);
@@ -41,7 +44,7 @@ namespace vcf2multialign {
 			// Read from the stream.
 			m_d.m_reader->fill_buffer();
 			
-			should_continue = m_d.m_reader->parse([this](transient_variant const &transient_variant) -> bool {
+			should_continue = m_d.m_reader->parse([this](lb::transient_variant const &transient_variant) -> bool {
 				
 				using std::swap;
 				
@@ -67,13 +70,13 @@ namespace vcf2multialign {
 					auto fn = [this, pr = std::move(prepared_variants)]() mutable {
 						process_input(pr);
 					};
-					dispatch_async_fn(*m_d.m_main_queue, std::move(fn));
+					lb::dispatch_async_fn(*m_d.m_main_queue, std::move(fn));
 					
 					// Wait for our turn to continue.
 					// Do this only after the main thread has received something to process so that
 					// a long span of variants with the same POS don't cause a deadlock.
 					auto const st(dispatch_semaphore_wait(*m_d.m_process_sema, DISPATCH_TIME_FOREVER));
-					always_assert(0 == st, "dispatch_semaphore_wait returned early");
+					lb::always_assert(0 == st, "dispatch_semaphore_wait returned early");
 				}
 				
 				// Add the node to the input list.
@@ -91,10 +94,10 @@ namespace vcf2multialign {
 			auto fn = [this, pr = std::move(prepared_variants)]() mutable {
 				process_input(pr);
 			};
-			dispatch_async_fn(*m_d.m_main_queue, std::move(fn));
+			lb::dispatch_async_fn(*m_d.m_main_queue, std::move(fn));
 		}
 		
-		dispatch_async_f <variant_buffer_delegate, &variant_buffer_delegate::finish>(*m_d.m_main_queue, m_d.m_delegate);
+		lb::dispatch_caller(m_d.m_delegate).async <&variant_buffer_delegate::finish>(*m_d.m_main_queue);
 	}
 	
 	
