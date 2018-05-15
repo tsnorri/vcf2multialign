@@ -3,19 +3,17 @@
  This code is licensed under MIT license (see LICENSE for details).
  */
 
-#include <experimental/optional>
-#include <vcf2multialign/error_logger.hh>
-
-
-#ifdef __GNUC__
-#   if __GNUC__ < 7
+#if __has_include(<optional>)
+#	include <optional>
+#else
+#	include <experimental/optional>
 // XXX Hack.
 namespace std {
 	using std::experimental::optional;
 	using std::experimental::nullopt;
 }
-#	endif
 #endif
+#include <vcf2multialign/error_logger.hh>
 
 
 namespace lb	= libbio;
