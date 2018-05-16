@@ -16,6 +16,11 @@ namespace vcf2multialign {
 	typedef std::vector <char> vector_type;
 	typedef std::set <std::size_t> variant_set;
 	
+	enum class output_type : uint8_t {
+		SEQUENCE_FILES	= 0,
+		VARIANT_GRAPH
+	};
+	
 	enum class sv_handling : uint8_t {
 		DISCARD		= 0,
 		KEEP
