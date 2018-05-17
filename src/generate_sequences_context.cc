@@ -61,7 +61,7 @@ namespace vcf2multialign {
 			
 			auto it(m_haplotypes.emplace(
 				std::piecewise_construct,
-				std::forward_as_tuple(0),
+				std::forward_as_tuple(REF_SAMPLE_NUMBER),
 				std::forward_as_tuple(1)
 			).first);
 			
