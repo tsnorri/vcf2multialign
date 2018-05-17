@@ -37,13 +37,13 @@ namespace vcf2multialign {
 	class generate_sequences_context final : public generate_context_base
 	{
 	protected:
-		typedef variant_handler <haplotype_os, generate_sequences_context>	variant_handler;
-		typedef typename variant_handler::haplotype_map_type				haplotype_map;
+		typedef variant_handler <haplotype_os, generate_sequences_context>	variant_handler_type;
+		typedef typename variant_handler_type::haplotype_map_type			haplotype_map;
 		
-		friend variant_handler;
+		friend variant_handler_type;
 		
 	protected:
-		variant_handler														m_variant_handler;
+		variant_handler_type												m_variant_handler;
 		haplotype_map														m_haplotypes;
 		libbio::vcf_reader::sample_name_map::const_iterator					m_sample_names_it{};
 		libbio::vcf_reader::sample_name_map::const_iterator					m_sample_names_end{};
@@ -84,8 +84,8 @@ namespace vcf2multialign {
 		void update_haplotypes(char const *out_reference_fname);
 		void generate_sequences(char const *out_reference_fname = nullptr);
 		void finish_round();
-		void variant_handler_did_finish(variant_handler &handler);
-		void variant_handler_did_process_overlap_stack(variant_handler &) {}
+		void variant_handler_did_finish(variant_handler_type &handler);
+		void variant_handler_did_process_overlap_stack(variant_handler_type &) {}
 	};
 }
 

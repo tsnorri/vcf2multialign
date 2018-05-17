@@ -55,28 +55,28 @@ namespace vcf2multialign {
 	}
 	
 	
-	void generate_graph_context::graph_writer_did_process_segment(graph_writer &)
+	void generate_graph_context::graph_writer_did_process_segment(graph_writer_type &)
 	{
 		// Done with the previous segment, buffers are writable again.
 		dispatch_semaphore_signal(*m_output_sema);
 	}
 	
 	
-	void generate_graph_context::variant_handler_did_process_overlap_stack(variant_handler &handler)
+	void generate_graph_context::variant_handler_did_process_overlap_stack(variant_handler_type &handler)
 	{
 		if (1 == handler.m_overlap_stack.size())
 			swap_buffers_and_generate_graph();
 	}
 	
 	
-	void generate_graph_context::variant_handler_did_finish(variant_handler &handler)
+	void generate_graph_context::variant_handler_did_finish(variant_handler_type &handler)
 	{
 		// Handle the last segment.
 		swap_buffers_and_generate_graph();
 		
 		// Finalize the graph.
 		lb::dispatch_caller caller(&m_graph_writer);
-		caller.template sync <&graph_writer::finish>(*m_output_queue);
+		caller.template sync <&graph_writer_type::finish>(*m_output_queue);
 		
 		// Everything done.
 		finish();
@@ -142,7 +142,7 @@ namespace vcf2multialign {
 		
 		// Replace the placeholder variant_handler.
 		{
-			variant_handler temp(
+			variant_handler_type temp(
 				m_main_queue,
 				m_parsing_queue,
 				m_vcf_reader,
@@ -160,7 +160,7 @@ namespace vcf2multialign {
 		
 		// Replace the placeholder graph_writer.
 		{
-			graph_writer temp(*this, m_output_stream);
+			graph_writer_type temp(*this, m_output_stream);
 			m_graph_writer = std::move(temp);
 		}
 		

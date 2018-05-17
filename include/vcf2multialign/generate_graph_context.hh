@@ -42,21 +42,21 @@ namespace vcf2multialign {
 	class generate_graph_context final : public generate_context_base
 	{
 	protected:
-		typedef variant_handler <haplotype_vs, generate_graph_context>	variant_handler;
-		typedef typename variant_handler::haplotype_map_type			haplotype_map;
-		typedef graph_writer <generate_graph_context>					graph_writer;
+		typedef variant_handler <haplotype_vs, generate_graph_context>	variant_handler_type;
+		typedef typename variant_handler_type::haplotype_map_type		haplotype_map;
+		typedef graph_writer <generate_graph_context>					graph_writer_type;
 		
-		friend variant_handler;
-		friend graph_writer;
+		friend variant_handler_type;
+		friend graph_writer_type;
 		
 	protected:
 		libbio::dispatch_ptr <dispatch_queue_t>		m_output_queue{};
 		libbio::dispatch_ptr <dispatch_semaphore_t>	m_output_sema{};
 		libbio::file_ostream						m_output_stream;
-		variant_handler								m_variant_handler;
+		variant_handler_type						m_variant_handler;
 		haplotype_map 								m_haplotypes;	// FIXME: check if m_haplotypes could be a vector instead.
 		std::vector <std::vector <uint8_t>>			m_buffers;
-		graph_writer								m_graph_writer;
+		graph_writer_type							m_graph_writer;
 		
 	public:
 		generate_graph_context(
@@ -97,9 +97,9 @@ namespace vcf2multialign {
 		
 		void prepare_haplotypes();
 		void swap_buffers_and_generate_graph();
-		void graph_writer_did_process_segment(graph_writer &);
-		void variant_handler_did_process_overlap_stack(variant_handler &);
-		void variant_handler_did_finish(variant_handler &handler);
+		void graph_writer_did_process_segment(graph_writer_type &);
+		void variant_handler_did_process_overlap_stack(variant_handler_type &);
+		void variant_handler_did_finish(variant_handler_type &handler);
 	};
 }
 

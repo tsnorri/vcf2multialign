@@ -102,7 +102,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void generate_sequences_context::variant_handler_did_finish(variant_handler &handler)
+	void generate_sequences_context::variant_handler_did_finish(variant_handler_type &handler)
 	{
 		finish_round();
 		generate_sequences();
@@ -136,9 +136,9 @@ namespace vcf2multialign {
 			should_check_ref
 		);
 			
-		// Replace the placeholder variant_handler.
+		// Replace the placeholder variant_handler_type.
 		{
-			variant_handler temp(
+			variant_handler_type temp(
 				m_main_queue,
 				m_parsing_queue,
 				m_vcf_reader,
