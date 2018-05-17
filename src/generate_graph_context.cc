@@ -37,6 +37,7 @@ namespace vcf2multialign {
 			auto &haplotype_vec(kv.second);
 			for (auto &haplotype : haplotype_vec)
 			{
+				assert(i < m_buffers.size());
 				auto &buffer(m_buffers[i]);
 				
 				using std::swap;
@@ -96,6 +97,21 @@ namespace vcf2multialign {
 				std::piecewise_construct,
 				std::forward_as_tuple(sample_no),
 				std::forward_as_tuple(current_ploidy)
+			).second);
+			lb::always_assert(did_emplace);
+			count += current_ploidy;
+		}
+		
+		{
+			lb::always_assert(
+				m_haplotypes.cend() == m_haplotypes.find(REF_SAMPLE_NUMBER),
+				"REF_SAMPLE_NUMBER already in use"
+			);
+			
+			auto const did_emplace(m_haplotypes.emplace(
+				std::piecewise_construct,
+				std::forward_as_tuple(REF_SAMPLE_NUMBER),
+				std::forward_as_tuple(1)
 			).second);
 			lb::always_assert(did_emplace);
 			++count;
