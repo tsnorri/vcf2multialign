@@ -85,6 +85,7 @@ namespace vcf2multialign {
 	
 	void generate_graph_context::prepare_haplotypes()
 	{
+		// Initialize the contents of m_haplotypes.
 		std::size_t count(0);
 		auto const &sample_names(m_vcf_reader.sample_names());
 		for (auto const &kv : sample_names)
