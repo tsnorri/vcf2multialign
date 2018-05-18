@@ -108,6 +108,9 @@ namespace vcf2multialign {
 		}
 	};
 	
+	template <typename t_haplotype>
+	std::ostream &operator<<(std::ostream &os, variant_overlap <t_haplotype> const &haplotype);
+	
 	
 	class variant_handler_base
 	{
@@ -208,6 +211,31 @@ namespace vcf2multialign {
 		void output_reference(std::size_t const output_start_pos, std::size_t const output_end_pos);
 		std::size_t process_overlap_stack(size_t const var_pos);
 	};
+	
+	
+	template <typename t_haplotype>
+	std::ostream &operator<<(std::ostream &os, variant_overlap <t_haplotype> const &h)
+	{
+		os << "SP: " << h.start_pos << " CP: " << h.current_pos << " EP: " << h.end_pos << " HPL: " << h.heaviest_path_length << " L: " << h.lineno << " ALTS:\n";
+		for (auto const &kv : h.alt_haplotypes)
+		{
+			os << '\t' << kv.first << ":\n";
+			for (auto const &kv2 : kv.second)
+			{
+				os << "\t\t" << kv2.first << ":\n";
+				for (auto const ptr : kv2.second)
+				{
+					os << "\t\t\t";
+					if (ptr)
+						os << *ptr;
+					else
+						os << "(null)";
+					os << '\n';
+				}
+			}
+		}
+		return os;
+	}
 	
 	
 	// Fill the streams with '-'.
@@ -405,7 +433,6 @@ namespace vcf2multialign {
 		// If var is beyond previous_variant.end_pos, handle the variants on the stack
 		// until a containing variant is found or the bottom of the stack is reached.
 		process_overlap_stack(var_pos);
-		m_delegate->variant_handler_did_process_overlap_stack(*this);
 		
 		// Use the previous variant's range to determine the output sequence.
 		auto &previous_variant(m_overlap_stack.top());
@@ -425,6 +452,9 @@ namespace vcf2multialign {
 				<< std::endl;
 			}
 		);
+		
+		if (previous_variant.end_pos <= var_pos)
+			m_delegate->variant_handler_did_empty_overlap_stack(*this);
 		
 		// Output reference from 5' direction up to var_pos.
 		output_reference(previous_variant.current_pos, var_pos);
@@ -579,7 +609,7 @@ namespace vcf2multialign {
 		std::cerr << "Filling with the reference…" << std::endl;
 		auto const ref_size(m_reference->size());
 		auto const output_end_pos(process_overlap_stack(ref_size));
-		m_delegate->variant_handler_did_process_overlap_stack(*this);
+		m_delegate->variant_handler_did_empty_overlap_stack(*this);
 		
 		char const *ref_begin(m_reference->data());
 		for (auto &kv : *m_all_haplotypes)
