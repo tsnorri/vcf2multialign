@@ -11,13 +11,17 @@ namespace vcf2multialign
 	
 	void graph_writer_impl::init(std::size_t n_rows)
 	{
+		graph.Init(n_rows);
 	}
 	
 	void graph_writer_impl::process_segment(std::vector <std::vector <std::uint8_t>> const &segment_vec)
 	{
+		graph.AppendMatrixRange(segment_vec);
 	}
 	
 	void graph_writer_impl::finish()
 	{
+		graph.CompleteConstruction();
+		graph.PrintToDot(*m_dst_file);
 	}
 }

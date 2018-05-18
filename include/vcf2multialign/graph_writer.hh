@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <iostream>
 #include <vector>
+#include <msa2dag/graph.h>
 
 
 namespace vcf2multialign {
@@ -30,6 +31,8 @@ namespace vcf2multialign {
 	
 		// Called when process_segment will not be called again.
 		void finish();
+	private:
+		MSA2DAG::Graph graph;
 	};
 
 
