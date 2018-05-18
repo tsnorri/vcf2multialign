@@ -38,6 +38,8 @@ namespace vcf2multialign {
 		}
 	};
 	
+	std::ostream &operator<<(std::ostream &os, haplotype_vs const &haplotype);
+	
 	
 	class generate_graph_context final : public generate_context_base
 	{
@@ -98,7 +100,7 @@ namespace vcf2multialign {
 		void prepare_haplotypes();
 		void swap_buffers_and_generate_graph();
 		void graph_writer_did_process_segment(graph_writer_type &);
-		void variant_handler_did_process_overlap_stack(variant_handler_type &);
+		void variant_handler_did_empty_overlap_stack(variant_handler_type &);
 		void variant_handler_did_finish(variant_handler_type &handler);
 	};
 }

@@ -5,11 +5,20 @@
 
 #include <vcf2multialign/generate_graph_context.hh>
 
+#define PRINT_HAPLOTYPES 0
 
 namespace lb = libbio;
 
 
 namespace vcf2multialign {
+	
+	std::ostream &operator<<(std::ostream &os, haplotype_vs const &haplotype)
+	{
+		os << haplotype.current_pos << '\t';
+		std::copy(haplotype.output_sequence.cbegin(), haplotype.output_sequence.cend(), std::ostream_iterator <char>(os));
+		return os;
+	}
+
 	
 	void generate_graph_context::open_files(
 		char const *reference_fname,
@@ -26,32 +35,64 @@ namespace vcf2multialign {
 	
 	void generate_graph_context::swap_buffers_and_generate_graph()
 	{
-		// Make sure that m_graph_writer has finished with the previous set of buffers.
-		dispatch_semaphore_wait(*m_output_sema, DISPATCH_TIME_FOREVER);
-
-		// Swap buffers between haplotypes and m_buffers.
-		// Also reset the range pointers in the new haplotype buffers.
-		std::size_t i(0);
-		for (auto &kv : m_haplotypes)
+#if PRINT_HAPLOTYPES
 		{
-			auto &haplotype_vec(kv.second);
-			for (auto &haplotype : haplotype_vec)
+			std::cerr << "Haplotypes:\n";
+			for (auto const &kv : m_haplotypes)
 			{
-				assert(i < m_buffers.size());
-				auto &buffer(m_buffers[i]);
-				
-				using std::swap;
-				swap(haplotype.output_sequence, buffer);
-				
-				haplotype.output_sequence.clear();
-				++i;
+				auto &haplotype_vec(kv.second);
+				std::cerr << kv.first << ":\n";
+				for (auto const &haplotype : haplotype_vec)
+					std::cerr << '\t' << haplotype << '\n';
 			}
+			std::cerr << std::flush;
 		}
-		
-		// Process in background thread.
-		lb::dispatch_async_fn(*m_output_queue, [this](){
-			m_graph_writer.process_segment(m_buffers);
-		});
+#endif
+
+		assert(0 < m_haplotypes.cbegin()->second.size());
+		auto const haplotype_length(m_haplotypes.cbegin()->second.front().output_sequence.size());
+		if (0 == haplotype_length)
+		{
+#ifndef NDEBUG
+			for (auto const &kv : m_haplotypes)
+			{
+				auto &haplotype_vec(kv.second);
+				for (auto const &haplotype : haplotype_vec)
+					assert(haplotype.output_sequence.size() == haplotype_length);
+			}
+#endif
+		}
+		else
+		{
+			// Make sure that m_graph_writer has finished with the previous set of buffers.
+			dispatch_semaphore_wait(*m_output_sema, DISPATCH_TIME_FOREVER);
+
+			// Swap buffers between haplotypes and m_buffers.
+			// Also reset the range pointers in the new haplotype buffers.
+			std::size_t i(0);
+			for (auto &kv : m_haplotypes)
+			{
+				auto &haplotype_vec(kv.second);
+				for (auto &haplotype : haplotype_vec)
+				{
+					assert(haplotype.output_sequence.size() == haplotype_length);
+
+					assert(i < m_buffers.size());
+					auto &buffer(m_buffers[i]);
+					
+					using std::swap;
+					swap(haplotype.output_sequence, buffer);
+					
+					haplotype.output_sequence.clear();
+					++i;
+				}
+			}
+			
+			// Process in background thread.
+			lb::dispatch_async_fn(*m_output_queue, [this](){
+				m_graph_writer.process_segment(m_buffers);
+			});
+		}
 	}
 	
 	
@@ -62,10 +103,12 @@ namespace vcf2multialign {
 	}
 	
 	
-	void generate_graph_context::variant_handler_did_process_overlap_stack(variant_handler_type &handler)
+	void generate_graph_context::variant_handler_did_empty_overlap_stack(variant_handler_type &handler)
 	{
-		if (1 == handler.m_overlap_stack.size())
-			swap_buffers_and_generate_graph();
+#if PRINT_HAPLOTYPES
+		std::cerr << handler.m_overlap_stack.top() << std::endl;
+#endif
+		swap_buffers_and_generate_graph();
 	}
 	
 	

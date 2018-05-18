@@ -85,7 +85,7 @@ namespace vcf2multialign {
 		void generate_sequences(char const *out_reference_fname = nullptr);
 		void finish_round();
 		void variant_handler_did_finish(variant_handler_type &handler);
-		void variant_handler_did_process_overlap_stack(variant_handler_type &) {}
+		void variant_handler_did_empty_overlap_stack(variant_handler_type &) {}
 	};
 }
 
