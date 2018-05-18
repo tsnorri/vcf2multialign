@@ -27,7 +27,7 @@ clean-dependencies:
 dependencies: $(DEPENDENCIES)
 
 lib/msa2dag/lib/libMsa2Dag.a:
-	$(MAKE) -C lib/msa2dag
+	$(MAKE) -C lib/msa2dag CXX=$(CXX)
 
 lib/libbio/src/libbio.a:
 	$(CP) local.mk lib/libbio
