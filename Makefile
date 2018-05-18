@@ -1,7 +1,7 @@
 include local.mk
 include common.mk
 
-DEPENDENCIES = lib/libbio/src/libbio.a
+DEPENDENCIES = lib/msa2dag/lib/libMsa2Dag.a lib/libbio/src/libbio.a
 ifeq ($(shell uname -s),Linux)
 	DEPENDENCIES    +=  lib/libdispatch/libdispatch-build/src/libdispatch.a
 	DEPENDENCIES    +=  lib/libpwq/libpwq-build/libpthread_workqueue.a
@@ -20,10 +20,14 @@ clean:
 
 clean-dependencies:
 	$(MAKE) -C lib/libbio clean-all
+	$(MAKE) -C lib/msa2dag clean-all
 	$(RM) -r lib/libdispatch/libdispatch-build
 	$(RM) -r lib/libpwq/libpwq-build
 
 dependencies: $(DEPENDENCIES)
+
+lib/msa2dag/lib/libMsa2Dag.a:
+	$(MAKE) -C lib/msa2dag
 
 lib/libbio/src/libbio.a:
 	$(CP) local.mk lib/libbio

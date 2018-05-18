@@ -29,8 +29,8 @@ BOOST_INCLUDE	?= /usr/include
 
 CFLAGS			+= -std=c99   $(OPT_FLAGS) $(WARNING_FLAGS) $(SYSTEM_CFLAGS)
 CXXFLAGS		+= -std=c++17 $(OPT_FLAGS) $(WARNING_FLAGS) $(SYSTEM_CXXFLAGS)
-CPPFLAGS		+= -DHAVE_CONFIG_H -I../include -I../lib/libbio/include -I../lib/libdispatch -I../lib/libpwq/include $(BOOST_INCLUDE)
-LDFLAGS			+= ../lib/libbio/src/libbio.a $(LIBDISPATCH_LIBS) $(BOOST_LIBS)
+CPPFLAGS		+= -DHAVE_CONFIG_H -I../include -I../lib/libbio/include -I../lib/msa2dag/include -I../lib/libdispatch -I../lib/libpwq/include $(BOOST_INCLUDE)
+LDFLAGS			+= ../lib/libbio/src/libbio.a ../lib/msa2dag/lib/libMsa2Dag.a $(LIBDISPATCH_LIBS) $(BOOST_LIBS)
 
 
 %.o: %.cc
