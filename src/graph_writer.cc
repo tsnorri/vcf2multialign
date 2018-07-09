@@ -22,6 +22,6 @@ namespace vcf2multialign
 	void graph_writer_impl::finish()
 	{
 		graph.CompleteConstruction();
-		graph.PrintToDot(*m_dst_file);
+		graph.PrintToGFA(*m_dst_file);
 	}
 }
