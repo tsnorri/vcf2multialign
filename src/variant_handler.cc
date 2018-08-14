@@ -87,7 +87,7 @@ namespace vcf2multialign {
 						break;
 					
 					default:
-						lb::fail("Unexpected structural variant type.");
+						libbio_fail("Unexpected structural variant type.");
 						break;
 				}
 			}

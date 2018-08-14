@@ -92,7 +92,7 @@ namespace vcf2multialign {
 			return false;
 		}))
 		{
-			lb::fail("Unable to read the first variant");
+			libbio_fail("Unable to read the first variant");
 		}
 	}
 	

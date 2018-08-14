@@ -54,7 +54,7 @@ namespace vcf2multialign {
 		// Check if reference output was requested.
 		if (out_reference_fname)
 		{
-			lb::always_assert(
+			libbio_always_assert(
 				m_haplotypes.cend() == m_haplotypes.find(REF_SAMPLE_NUMBER),
 				"REF_SAMPLE_NUMBER already in use"
 			);

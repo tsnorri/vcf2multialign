@@ -66,7 +66,7 @@ namespace vcf2multialign {
 			{
 				auto const err_str(strerror(errno));
 				auto const msg(boost::str(boost::format("Unable to stat the reference file: %s") % err_str));
-				lb::fail(msg.c_str());
+				libbio_fail(msg.c_str());
 			}
 			
 			// Preallocate space for the reference.

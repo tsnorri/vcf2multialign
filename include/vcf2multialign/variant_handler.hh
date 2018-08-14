@@ -86,7 +86,7 @@ namespace vcf2multialign {
 			heaviest_path_length(heaviest_path_length_),
 			lineno(lineno_)
 		{
-			libbio::always_assert(start_pos <= end_pos, "Bad offset order");
+			libbio_always_assert(start_pos <= end_pos, "Bad offset order");
 		}
 		
 		variant_overlap(
@@ -104,7 +104,7 @@ namespace vcf2multialign {
 			lineno(lineno_),
 			alt_haplotypes(std::move(alts))
 		{
-			libbio::always_assert(start_pos <= end_pos, "Bad offset order");
+			libbio_always_assert(start_pos <= end_pos, "Bad offset order");
 		}
 	};
 	
@@ -262,7 +262,7 @@ namespace vcf2multialign {
 		if (output_start_pos == output_end_pos)
 			return;
 		
-		lb::always_assert(output_start_pos < output_end_pos, "Bad offset order");
+		libbio_always_assert(output_start_pos < output_end_pos, "Bad offset order");
 		
 		char const *ref_begin(m_reference->data());
 		auto const output_start(ref_begin + output_start_pos);
@@ -273,7 +273,7 @@ namespace vcf2multialign {
 				if (h_ptr)
 				{
 					auto &h(*h_ptr);
-					lb::always_assert(h.current_pos == output_start_pos, "Unexpected position");
+					libbio_always_assert(h.current_pos == output_start_pos, "Unexpected position");
 					
 					h.write(output_start, output_end_pos - output_start_pos);
 					h.current_pos = output_end_pos;
@@ -324,7 +324,7 @@ namespace vcf2multialign {
 						if (h_ptr)
 						{
 							auto &h(*h_ptr);
-							lb::always_assert(h.current_pos <= output_start_pos, "Unexpected position");
+							libbio_always_assert(h.current_pos <= output_start_pos, "Unexpected position");
 							
 							h.append(alt);
 							h.current_pos = output_end_pos;
@@ -370,7 +370,7 @@ namespace vcf2multialign {
 					
 					for (size_t i(0), count(alt_ptrs.size()); i < count; ++i)
 					{
-						lb::always_assert(! (alt_ptrs[i] && ref_ptrs[i]), "Inconsistent haplotype pointers");
+						libbio_always_assert(! (alt_ptrs[i] && ref_ptrs[i]), "Inconsistent haplotype pointers");
 						
 						// Use ADL.
 						using std::swap;
@@ -418,7 +418,7 @@ namespace vcf2multialign {
 			return;
 		
 		size_t const var_pos(var.zero_based_pos());
-		lb::always_assert(var_pos < m_reference->size(), [this, lineno](){
+		libbio_always_assert(var_pos < m_reference->size(), [this, lineno](){
 			std::cerr
 			<< "Variant position on line " << lineno
 			<< " greater than reference length (" << m_reference->size() << ")."
@@ -438,7 +438,7 @@ namespace vcf2multialign {
 		auto &previous_variant(m_overlap_stack.top());
 		
 		// Check that if var is before previous_variant.end_pos, it is also completely inside it.
-		lb::always_assert(
+		libbio_always_assert(
 			(previous_variant.end_pos <= var_pos) || (var_pos + var_ref_size <= previous_variant.end_pos),
 			[lineno, &previous_variant, var_pos, var_ref_size](){
 				std::cerr
@@ -486,7 +486,7 @@ namespace vcf2multialign {
 					break;
 				
 				default:
-					lb::fail("Unexpected structural variant type.");
+					libbio_fail("Unexpected structural variant type.");
 					break;
 			}
 		}
@@ -505,7 +505,7 @@ namespace vcf2multialign {
 			{
 				auto const alt_idx(gt.alt);
 				auto const is_phased(gt.is_phased);
-				lb::always_assert(0 == chr_idx || is_phased, "Variant file not phased");
+				libbio_always_assert(0 == chr_idx || is_phased, "Variant file not phased");
 				
 				if (0 != alt_idx && 0 != m_valid_alts.count(alt_idx))
 				{
@@ -526,7 +526,7 @@ namespace vcf2multialign {
 								break;
 								
 							default:
-								lb::fail("Unexpected structural variant type.");
+								libbio_fail("Unexpected structural variant type.");
 								break;
 						}
 					}

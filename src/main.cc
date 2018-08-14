@@ -34,7 +34,7 @@ namespace {
 				
 			case structural_variants__NULL:
 			default:
-				lb::fail("Unexpected value for structural variant handling.");
+				libbio_fail("Unexpected value for structural variant handling.");
 				return v2m::sv_handling::KEEP; // Not reached.
 		}
 	}
@@ -63,7 +63,7 @@ int main(int argc, char **argv)
 	else if (args_info.output_variant_graph_given)
 		ot = v2m::output_type::VARIANT_GRAPH;
 	else
-		lb::fail("Unexpected output type.");
+		libbio_fail("Unexpected output type.");
 
 	std::ios_base::sync_with_stdio(false);	// Don't use C style IO after calling cmdline_parser.
 	std::cin.tie(nullptr);					// We don't require any input from the user.

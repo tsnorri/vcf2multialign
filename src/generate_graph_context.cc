@@ -142,12 +142,12 @@ namespace vcf2multialign {
 				std::forward_as_tuple(sample_no),
 				std::forward_as_tuple(current_ploidy)
 			).second);
-			lb::always_assert(did_emplace);
+			libbio_always_assert(did_emplace);
 			count += current_ploidy;
 		}
 		
 		{
-			lb::always_assert(
+			libbio_always_assert(
 				m_haplotypes.cend() == m_haplotypes.find(REF_SAMPLE_NUMBER),
 				"REF_SAMPLE_NUMBER already in use"
 			);
@@ -157,7 +157,7 @@ namespace vcf2multialign {
 				std::forward_as_tuple(REF_SAMPLE_NUMBER),
 				std::forward_as_tuple(1)
 			).second);
-			lb::always_assert(did_emplace);
+			libbio_always_assert(did_emplace);
 			++count;
 		}
 		

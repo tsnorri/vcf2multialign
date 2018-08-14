@@ -87,7 +87,7 @@ namespace vcf2multialign {
 			}
 			
 			default:
-				lb::fail("Unexpected output type.");
+				libbio_fail("Unexpected output type.");
 				break;
 		}
 	}
