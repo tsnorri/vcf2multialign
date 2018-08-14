@@ -39,10 +39,11 @@ namespace {
 			seq->resize(seq_length);
 			swap(*reference, *seq);
 			vs.put_vector(seq);
+			++i;
 		}
 		
 		void start() {}
-		void finish() {}
+		void finish() { libbio_always_assert(1 == i, "Expected to have read exactly one sequence."); }
 	};
 }
 
@@ -73,7 +74,7 @@ namespace vcf2multialign {
 			std::cerr << "Preallocating a vector of size " << sb.st_size << "…";
 			std::unique_ptr <vector_type> vec_ptr;
 			vs.get_vector(vec_ptr);
-			vec_ptr->reserve(sb.st_size);
+			vec_ptr->resize(sb.st_size);
 			vs.put_vector(vec_ptr);
 			std::cerr << " done." << std::endl;
 		}
@@ -82,6 +83,6 @@ namespace vcf2multialign {
 		fasta_reader reader;
 		
 		std::cerr << "Reading reference FASTA into memory…" << std::endl;
-		reader.read_from_stream(ref_fasta_stream, vs, cb);
+		reader.read_to_vector_from_stream(ref_fasta_stream, vs, cb);
 	}
 }
