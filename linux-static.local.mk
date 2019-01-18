@@ -2,10 +2,6 @@
 
 CC					= gcc-7
 CXX					= g++-7
-MKDIR				= mkdir
-GENGETOPT			= gengetopt
-RAGEL				= ragel
-DOT					= dot
 
 BOOST_ROOT			= /home/tnorri/local/boost-1-64-0-g++-7.1
 BOOST_INCLUDE		= -I$(BOOST_ROOT)/include

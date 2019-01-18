@@ -1,13 +1,36 @@
 # Ignore Xcode's setting since the SDK may contain older versions of Clang and libc++.
 unexport SDKROOT
 
-WARNING_FLAGS	= -Wall -Werror -Wno-deprecated-declarations -Wno-unused
-OPT_FLAGS		= -O2 -g
+# Default values.
+WARNING_FLAGS	?= -Wall -Werror -Wno-deprecated-declarations -Wno-unused
+OPT_FLAGS		?= -O2 -g
 
-CFLAGS			= -std=c99   $(OPT_FLAGS) $(WARNING_FLAGS)
-CXXFLAGS		= -std=c++1z $(OPT_FLAGS) $(WARNING_FLAGS)
-CPPFLAGS		= -DHAVE_CONFIG_H -I../include -I../lib/libdispatch -I../lib/libpwq/include $(BOOST_INCLUDE)
-LDFLAGS			= $(LIBDISPATCH_LIBS) $(BOOST_LIBS)
+CFLAGS			?=
+CXXFLAGS		?=
+CPPFLAGS		?=
+LDFLAGS			?=
+SYSTEM_CFLAGS	?=
+SYSTEM_CXXFLAGS	?=
+SYSTEM_CPPFLAGS	?=
+SYSTEM_LDFLAGS	?=
+
+AR				?= ar
+CC				?= cc
+CMAKE			?= cmake
+CP				?= cp
+CXX				?= c++
+DOT				?= dot
+GENGETOPT		?= gengetopt
+MKDIR			?= mkdir
+RAGEL			?= ragel
+RM				?= rm
+
+BOOST_INCLUDE	?= /usr/include
+
+CFLAGS			+= -std=c99   $(OPT_FLAGS) $(WARNING_FLAGS) $(SYSTEM_CFLAGS)
+CXXFLAGS		+= -std=c++17 $(OPT_FLAGS) $(WARNING_FLAGS) $(SYSTEM_CXXFLAGS)
+CPPFLAGS		+= -DHAVE_CONFIG_H -I../include -I../lib/libbio/include -I../lib/msa2dag/include -I../lib/libdispatch -I../lib/libpwq/include $(BOOST_INCLUDE)
+LDFLAGS			+= ../lib/libbio/src/libbio.a ../lib/msa2dag/lib/libMsa2Dag.a $(LIBDISPATCH_LIBS) $(BOOST_LIBS)
 
 
 %.o: %.cc

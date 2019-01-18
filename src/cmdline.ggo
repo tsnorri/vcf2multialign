@@ -1,4 +1,4 @@
-# Copyright (c) 2017 Tuukka Norri
+# Copyright (c) 2017-2018 Tuukka Norri
 # This code is licensed under MIT license (see LICENSE for details).
 
 package		"vcf2multialign"
@@ -9,24 +9,19 @@ description
 
 To output more sequences in one pass, please adjust the maximum number of open files per process with “ulimit -n” and increase the chunk size.
 
-Instead of writing each complete haplotype sequence, the samples may also be reduced such that as many variants as possible are packed into a single sequence. The number of generated sequences depends on the amount of padding requested around each variant. For example, consider two variants a and b that are within padding distance of each other. If two individuals A and B both have variant b but only A has variant a, two sequenes will be generated, one with both variants and one with only variant b. If a and b are not within padding distance of each other, only one sequence with both variants will be generated.
+option		"reference"				r	"Reference FASTA file path"							string	typestr = "filename"														required
+option		"variants"				a	"Variant call file path"							string	typestr = "filename"														required
+option		"null-allele-seq"		-	"Sequence to be used for null alleles"				string	typestr = "seq"	default = "N"												optional
+option		"report-file"			-	"Write skipped variants to the given file"			string	typestr = "filename"														optional
+option		"no-check-ref"			-	"Omit comparing the reference to the REF column"	flag	off
+option		"structural-variants"	-	"Structural variant handling"								typestr = "mode"	values = "discard", "keep" default = "discard"	enum	optional
+option		"overwrite"				-	"Overwrite output files"							flag	off
 
-Since the generated sequences are not written to disk, sample reduction can require a lot of memory."
+defmode		"Output sequence files"
+modeoption	"output-sequences"		S	"Output multialigned sequences"								mode = "Output sequence files"												required
+modeoption	"output-reference"		-	"Output multiply-aligned reference"					string	mode = "Output sequence files"	typestr = "filename"						optional
+modeoption	"chunk-size"			-	"Number of samples to be processed simultaneously"	long	mode = "Output sequence files"	typestr = "size" default = "500"			optional
 
-section "Input and output options"
-option	"reference"				r	"Reference FASTA file path"													string	typestr = "filename"														required
-option	"variants"				a	"Variant call file path"													string	typestr = "filename"														required
-option	"output-reference"		-	"Output multiply-aligned reference"											string	typestr = "filename"														optional
-option	"overwrite"				-	"Overwrite output files"													flag	off
-option	"chunk-size"			-	"Number of samples to be processed in one pass"								long	typestr = "size" default = "500"											optional
-option	"report-file"			-	"Write skipped variants to the given file"									string	typestr = "filename"														optional
-
-section "Input processing"
-option	"null-allele-seq"		-	"Sequence to be used for null alleles"										string	typestr = "seq"	default = "N"												optional
-option	"no-check-ref"			-	"Omit comparing the reference to the REF column"							flag	off
-option	"structural-variants"	-	"Structural variant handling"														typestr = "mode"	values = "discard", "keep" default = "discard"	enum	optional
-
-section "Sample reduction"
-option	"reduce-samples"		-	"Reduce the number of samples to a minimum as described above"				flag	off
-option	"variant-padding"		-	"Padding radius for each variant"											int		typestr = "radius"	default = "0"	dependon = "reduce-samples"			optional
-option	"allow-switch-to-ref"	-	"Construct the sequences so that reference padding around each subsequence is removed"	flag	off	dependon = "reduce-samples"
+defmode		"Output variant graph"
+modeoption	"output-variant-graph"	G	"Output variant graph"										mode = "Output variant graph"												required
+modeoption	"output"				o	"Output file name"									string	mode = "Output variant graph"	typestr = "filename"						required

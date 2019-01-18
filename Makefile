@@ -1,7 +1,7 @@
 include local.mk
 include common.mk
 
-DEPENDENCIES =
+DEPENDENCIES = lib/msa2dag/lib/libMsa2Dag.a lib/libbio/src/libbio.a
 ifeq ($(shell uname -s),Linux)
 	DEPENDENCIES    +=  lib/libdispatch/libdispatch-build/src/libdispatch.a
 	DEPENDENCIES    +=  lib/libpwq/libpwq-build/libpthread_workqueue.a
@@ -19,15 +19,24 @@ clean:
 	$(MAKE) -C src clean
 
 clean-dependencies:
+	$(MAKE) -C lib/libbio clean-all
+	$(MAKE) -C lib/msa2dag clean-all
 	$(RM) -r lib/libdispatch/libdispatch-build
 	$(RM) -r lib/libpwq/libpwq-build
 
 dependencies: $(DEPENDENCIES)
 
+lib/msa2dag/lib/libMsa2Dag.a:
+	$(MAKE) -C lib/msa2dag CXX=$(CXX)
+
+lib/libbio/src/libbio.a:
+	$(CP) local.mk lib/libbio
+	$(MAKE) -C lib/libbio
+
 lib/libdispatch/libdispatch-build/src/libdispatch.a: lib/libpwq/libpwq-build/libpthread_workqueue.a
-	rm -rf lib/libdispatch/libdispatch-build && \
+	$(RM) -rf lib/libdispatch/libdispatch-build && \
 	cd lib/libdispatch && \
-	mkdir libdispatch-build && \
+	$(MKDIR) libdispatch-build && \
 	cd libdispatch-build && \
 	../configure --cc="$(CC)" --c++="$(CXX)" --release -- \
 		-DPTHREAD_WORKQUEUE_INCLUDE_DIRS=../../libpwq/include \
@@ -37,11 +46,11 @@ lib/libdispatch/libdispatch-build/src/libdispatch.a: lib/libpwq/libpwq-build/lib
 
 
 lib/libpwq/libpwq-build/libpthread_workqueue.a:
-	rm -rf lib/libpwq/libpwq-build && \
+	$(RM) -rf lib/libpwq/libpwq-build && \
 	cd lib/libpwq && \
-	mkdir libpwq-build && \
+	$(MKDIR) libpwq-build && \
 	cd libpwq-build && \
 	CC="$(CC)" \
 	CXX="$(CXX)" \
-	cmake -DSTATIC_WORKQUEUE=ON ..
+	$(CMAKE) -DSTATIC_WORKQUEUE=ON ..
 	$(MAKE) -C lib/libpwq/libpwq-build VERBOSE=1

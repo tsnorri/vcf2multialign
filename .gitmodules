@@ -4,3 +4,9 @@
 [submodule "lib/libpwq"]
 	path = lib/libpwq
 	url = https://github.com/mheily/libpwq.git
+[submodule "lib/libbio"]
+	path = lib/libbio
+	url = https://github.com/tsnorri/libbio.git
+[submodule "lib/msa2dag"]
+	path = lib/msa2dag
+	url = https://gitlab.com/dvalenzu/msa2dag.git

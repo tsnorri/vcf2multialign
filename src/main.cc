@@ -1,14 +1,15 @@
 /*
- Copyright (c) 2017 Tuukka Norri
+ Copyright (c) 2017-2018 Tuukka Norri
  This code is licensed under MIT license (see LICENSE for details).
  */
 
 #include <cstdlib>
 #include <iostream>
+#include <libbio/assert.hh>
+#include <libbio/dispatch_fn.hh>
 #include <unistd.h>
 #include <vcf2multialign/dispatch_fn.hh>
 #include <vcf2multialign/generate_haplotypes.hh>
-#include <vcf2multialign/util.hh>
 
 #ifdef __linux__
 #include <pthread_workqueue.h>
@@ -17,6 +18,7 @@
 #include "cmdline.h"
 
 
+namespace lb	= libbio;
 namespace v2m	= vcf2multialign;
 
 
@@ -33,7 +35,7 @@ namespace {
 				
 			case structural_variants__NULL:
 			default:
-				v2m::fail("Unexpected value for structural variant handling.");
+				libbio_fail("Unexpected value for structural variant handling.");
 				return v2m::sv_handling::KEEP; // Not reached.
 		}
 	}
@@ -42,6 +44,10 @@ namespace {
 
 int main(int argc, char **argv)
 {
+#ifndef NDEBUG
+	std::cerr << "Assertions have been enabled." << std::endl;
+#endif
+
 	gengetopt_args_info args_info;
 	if (0 != cmdline_parser(argc, argv, &args_info))
 		exit(EXIT_FAILURE);
@@ -51,6 +57,14 @@ int main(int argc, char **argv)
 		std::cerr << "Chunk size must be positive." << std::endl;
 		exit(EXIT_FAILURE);
 	}
+	
+	v2m::output_type ot(v2m::output_type::SEQUENCE_FILES);
+	if (args_info.output_sequences_given)
+		;
+	else if (args_info.output_variant_graph_given)
+		ot = v2m::output_type::VARIANT_GRAPH;
+	else
+		libbio_fail("Unexpected output type.");
 
 	std::ios_base::sync_with_stdio(false);	// Don't use C style IO after calling cmdline_parser.
 	std::cin.tie(nullptr);					// We don't require any input from the user.
@@ -67,6 +81,8 @@ int main(int argc, char **argv)
 	v2m::generate_haplotypes(
 		args_info.reference_arg,
 		args_info.variants_arg,
+		ot,
+		args_info.output_arg,
 		args_info.output_reference_arg,
 		args_info.report_file_arg,
 		args_info.null_allele_seq_arg,
