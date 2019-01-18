@@ -7,7 +7,7 @@ usage		"vcf2multialign --reference=filename.fa --variants=filename.vcf [...]"
 description
 "The sequences will be written into text files created in the current working directory. The files will be named “sample_id-chr_idx” as listed in the variant file. Dashes “-” will be output when needed to make the sequences aligned.
 
-To output more sequences in one pass, please adjust the maximum number of open files per process with “ulimit -n” and increase the chunk size.
+To output more sequences in one pass, please adjust the maximum number of open files per process with “ulimit -n” and increase the chunk size."
 
 option		"reference"				r	"Reference FASTA file path"							string	typestr = "filename"														required
 option		"variants"				a	"Variant call file path"							string	typestr = "filename"														required
