@@ -46,13 +46,17 @@ namespace vcf2multialign {
 	>;
 	
 	
-	struct variant_handler_delegate
+	struct skipped_sample
 	{
-		virtual ~variant_handler_delegate() {}
+		std::size_t	sample_no{0};
+		uint8_t		alt_idx{0};
+		uint8_t		chr_idx{0};
 		
-		virtual void prepare(vcf_reader &reader)
+		skipped_sample(std::size_t const sample_no_, uint8_t const alt_idx_, uint8_t const chr_idx_):
+			sample_no(sample_no_),
+			alt_idx(alt_idx_),
+			chr_idx(chr_idx_)
 		{
-			reader.set_parsed_fields(vcf_field::ALL);
 		}
 	};
 	
@@ -155,6 +159,8 @@ namespace vcf2multialign {
 		vector_type	const								*m_reference{};
 		
 		variant_buffer									m_variant_buffer;
+		overlap_stack_type								m_overlap_stack;
+		
 		variant_set const								*m_skipped_variants{};
 		variant_set										m_overlapping_alts{};
 		haplotype_ptr_map_type							m_ref_haplotype_ptrs;			// Haplotypes to which the reference sequence is to be output.
@@ -167,7 +173,6 @@ namespace vcf2multialign {
 		
 		std::string const								*m_null_allele_seq{};
 		std::size_t										m_i{0};
-		bool											m_check_alts{true};
 		
 	public:
 		variant_handler(
@@ -197,17 +202,6 @@ namespace vcf2multialign {
 	public:
 		void process_variants(haplotype_map_type &haplotypes);
 		variant_buffer &get_variant_buffer() { return m_variant_buffer; }
-		void set_delegate(variant_handler_delegate &delegate) { m_delegate = &delegate; }
-		bool is_valid_alt(uint8_t const alt_idx) const { return 0 < m_valid_alts.count(alt_idx); }
-		std::set <size_t> const &valid_alts() const { return m_valid_alts; }
-		
-		void process_variants();
-		void enumerate_genotype(
-			variant &var,
-			std::size_t const sample_no,
-			std::function <void(uint8_t, std::size_t, bool)> const &cb
-		);
-		
 
 	protected:
 		virtual void handle_variant(libbio::variant &var);

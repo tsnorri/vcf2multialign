@@ -28,16 +28,6 @@ namespace vcf2multialign {
 	{
 		// Check that the alt sequence is something that can be handled.
 		m_valid_alts.clear();
-		
-		// Insert everything if checking has already been done.
-		if (!m_check_alts)
-		{
-			for (std::size_t i(0), count(var.alts().size()); i < count; ++i)
-				m_valid_alts.emplace_hint(m_valid_alts.cend(), i);
-				
-			return;
-		}
-		
 		std::size_t i(0);
 		auto const lineno(var.lineno());
 		

@@ -8,7 +8,6 @@
 #include <libbio/assert.hh>
 #include <libbio/dispatch_fn.hh>
 #include <unistd.h>
-#include <vcf2multialign/dispatch_fn.hh>
 #include <vcf2multialign/generate_haplotypes.hh>
 
 #ifdef __linux__
@@ -87,12 +86,9 @@ int main(int argc, char **argv)
 		args_info.report_file_arg,
 		args_info.null_allele_seq_arg,
 		args_info.chunk_size_arg,
-		args_info.variant_padding_arg,
 		sv_handling_method(args_info.structural_variants_arg),
 		args_info.overwrite_flag,
-		!args_info.no_check_ref_flag,
-		args_info.reduce_samples_flag,
-		args_info.allow_switch_to_ref_flag
+		!args_info.no_check_ref_flag
 	);
 		
 	cmdline_parser_free(&args_info);
