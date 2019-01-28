@@ -72,6 +72,7 @@ namespace vcf2multialign {
 		
 		void load_and_generate(
 			char const *reference_fname,
+			char const *ref_seq_name,
 			char const *variants_fname,
 			char const *out_reference_fname,
 			char const *report_fname,

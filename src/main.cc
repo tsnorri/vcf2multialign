@@ -80,6 +80,7 @@ int main(int argc, char **argv)
 	v2m::generate_haplotypes(
 		args_info.reference_arg,
 		args_info.variants_arg,
+		args_info.reference_sequence_given ? args_info.reference_sequence_arg : nullptr,
 		ot,
 		args_info.output_arg,
 		args_info.output_reference_arg,

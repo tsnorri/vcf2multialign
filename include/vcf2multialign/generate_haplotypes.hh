@@ -12,6 +12,7 @@ namespace vcf2multialign {
 	void generate_haplotypes(
 		char const *reference_fname,
 		char const *variants_fname,
+		char const *ref_seq_name,
 		output_type const ot,
 		char const *out_fname,
 		char const *out_reference_fname,

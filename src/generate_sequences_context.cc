@@ -116,6 +116,7 @@ namespace vcf2multialign {
 	
 	void generate_sequences_context::load_and_generate(
 		char const *reference_fname,
+		char const *ref_seq_name,
 		char const *variants_fname,
 		char const *out_reference_fname,
 		char const *report_fname,
@@ -125,7 +126,7 @@ namespace vcf2multialign {
 	{
 		// Open the files.
 		std::cerr << "Opening files…" << std::endl;
-		open_files(reference_fname, variants_fname, report_fname);
+		open_files(reference_fname, ref_seq_name, variants_fname, report_fname);
 		
 		{
 			auto const &sample_names(m_vcf_reader.sample_names());

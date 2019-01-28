@@ -22,12 +22,13 @@ namespace vcf2multialign {
 	
 	void generate_graph_context::open_files(
 		char const *reference_fname,
+		char const *ref_seq_name,
 		char const *variants_fname,
 		char const *report_fname,
 		char const *output_fname
 	)
 	{
-		generate_context_base::open_files(reference_fname, variants_fname, report_fname);
+		generate_context_base::open_files(reference_fname, ref_seq_name, variants_fname, report_fname);
 		
 		auto const mode(lb::make_writing_open_mode({
 			lb::writing_open_mode::CREATE,
@@ -173,6 +174,7 @@ namespace vcf2multialign {
 	
 	void generate_graph_context::load_and_generate(
 		char const *reference_fname,
+		char const *ref_seq_name,
 		char const *variants_fname,
 		char const *report_fname,
 		char const *output_fname,
@@ -182,7 +184,7 @@ namespace vcf2multialign {
 	{
 		// Open the files.
 		std::cerr << "Opening files…" << std::endl;
-		open_files(reference_fname, variants_fname, report_fname, output_fname);
+		open_files(reference_fname, ref_seq_name, variants_fname, report_fname, output_fname);
 		
 		generate_context_base::load_and_generate(
 			sv_handling_method,

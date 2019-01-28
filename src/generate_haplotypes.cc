@@ -16,6 +16,7 @@ namespace vcf2multialign {
 	void generate_haplotypes(
 		char const *reference_fname,
 		char const *variants_fname,
+		char const *ref_seq_name,
 		output_type const ot,
 		char const *out_fname,
 		char const *out_reference_fname,
@@ -50,6 +51,7 @@ namespace vcf2multialign {
 				ctx->load_and_generate(
 					reference_fname,
 					variants_fname,
+					ref_seq_name,
 					out_reference_fname,
 					report_fname,
 					sv_handling_method,
@@ -77,6 +79,7 @@ namespace vcf2multialign {
 				ctx->load_and_generate(
 					reference_fname,
 					variants_fname,
+					ref_seq_name,
 					report_fname,
 					out_fname,
 					sv_handling_method,

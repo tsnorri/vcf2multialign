@@ -51,6 +51,7 @@ namespace vcf2multialign {
 	
 	void generate_context_base::open_files(
 		char const *reference_fname,
+		char const *ref_seq_name,
 		char const *variants_fname,
 		char const *report_fname
 	)
@@ -75,7 +76,7 @@ namespace vcf2multialign {
 		m_vcf_reader.read_header();
 		
 		// Read the reference file and place its contents into reference.
-		read_single_fasta_seq(ref_handle, m_reference);
+		read_single_fasta_seq(ref_handle, m_reference, ref_seq_name);
 	}
 	
 		

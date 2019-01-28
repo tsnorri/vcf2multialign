@@ -82,6 +82,7 @@ namespace vcf2multialign {
 	public:
 		void load_and_generate(
 			char const *reference_fname,
+			char const *ref_seq_name,
 			char const *variants_fname,
 			char const *report_fname,
 			char const *output_fname,
@@ -92,6 +93,7 @@ namespace vcf2multialign {
 	protected:
 		void open_files(
 			char const *reference_fname,
+			char const *ref_seq_name,
 			char const *variants_fname,
 			char const *report_fname,
 			char const *output_fname

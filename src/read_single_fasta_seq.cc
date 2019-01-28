@@ -63,10 +63,10 @@ namespace {
 namespace vcf2multialign {
 	
 	// Read the contents of a FASTA file into a single sequence.
-	void read_single_fasta_seq(lb::mmap_handle &ref_fasta_handle, vector_type &reference)
+	void read_single_fasta_seq(lb::mmap_handle &ref_fasta_handle, vector_type &reference, char const *ref_seq_name)
 	{
 		lb::fasta_reader reader;
-		delegate cb(reference, nullptr);
+		delegate cb(reference, ref_seq_name);
 		
 		std::cerr << "Reading reference FASTA into memory…";
 		reader.parse(ref_fasta_handle, cb);

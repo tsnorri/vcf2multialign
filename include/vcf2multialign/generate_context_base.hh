@@ -64,6 +64,7 @@ namespace vcf2multialign {
 		void cleanup() { delete this; }
 		void open_files(
 			char const *reference_fname,
+			char const *ref_seq_name,
 			char const *variants_fname,
 			char const *report_fname
 		);
