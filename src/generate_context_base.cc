@@ -55,9 +55,9 @@ namespace vcf2multialign {
 		char const *report_fname
 	)
 	{
-		lb::file_istream ref_fasta_stream;
+		lb::mmap_handle ref_handle;
+		ref_handle.open(reference_fname);
 		
-		lb::open_file_for_reading(reference_fname, ref_fasta_stream);
 		lb::open_file_for_reading(variants_fname, m_vcf_input.input_stream());
 		
 		if (report_fname)
@@ -75,7 +75,7 @@ namespace vcf2multialign {
 		m_vcf_reader.read_header();
 		
 		// Read the reference file and place its contents into reference.
-		read_single_fasta_seq(ref_fasta_stream, m_reference);
+		read_single_fasta_seq(ref_handle, m_reference);
 	}
 	
 		

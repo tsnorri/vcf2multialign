@@ -7,11 +7,12 @@
 #define VCF2MULTIALIGN_READ_SINGLE_FASTA_STREAM_HH
 
 #include <libbio/file_handling.hh>
+#include <libbio/mmap_handle.hh>
 #include <vcf2multialign/types.hh>
 
 
 namespace vcf2multialign {
-	void read_single_fasta_seq(libbio::file_istream &ref_fasta_stream, vector_type &reference);
+	void read_single_fasta_seq(libbio::mmap_handle &ref_handle, vector_type &reference);
 }
 
 #endif
