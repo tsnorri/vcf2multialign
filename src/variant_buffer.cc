@@ -76,7 +76,7 @@ namespace vcf2multialign {
 					// Do this only after the main thread has received something to process so that
 					// a long span of variants with the same POS don't cause a deadlock.
 					auto const st(dispatch_semaphore_wait(*m_d.m_process_sema, DISPATCH_TIME_FOREVER));
-					libbio_always_assert(0 == st, "dispatch_semaphore_wait returned early");
+					libbio_always_assert_msg(0 == st, "dispatch_semaphore_wait returned early");
 				}
 				
 				// Add the node to the input list.

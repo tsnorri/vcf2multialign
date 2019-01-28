@@ -17,6 +17,11 @@ namespace vcf2multialign {
 	{
 		m_haplotypes.clear();
 		
+		auto const mode(lb::make_writing_open_mode({
+			lb::writing_open_mode::CREATE,
+			(m_should_overwrite_files ? lb::writing_open_mode::OVERWRITE : lb::writing_open_mode::NONE)
+		}));
+		
 		size_t i(0);
 		while (m_sample_names_it != m_sample_names_end)
 		{
@@ -41,7 +46,7 @@ namespace vcf2multialign {
 			for (size_t i(1); i <= current_ploidy; ++i)
 			{
 				auto const fname(boost::str(boost::format("%s-%u") % sample_name % i));
-				lb::open_file_for_writing(fname.c_str(), haplotype_vec[i - 1].output_stream, m_should_overwrite_files);
+				lb::open_file_for_writing(fname.c_str(), haplotype_vec[i - 1].output_stream, mode);
 			}
 	
 			++m_sample_names_it;
@@ -54,7 +59,7 @@ namespace vcf2multialign {
 		// Check if reference output was requested.
 		if (out_reference_fname)
 		{
-			libbio_always_assert(
+			libbio_always_assert_msg(
 				m_haplotypes.cend() == m_haplotypes.find(REF_SAMPLE_NUMBER),
 				"REF_SAMPLE_NUMBER already in use"
 			);
@@ -66,7 +71,7 @@ namespace vcf2multialign {
 			).first);
 			
 			auto &haplotype_vec(it->second);
-			lb::open_file_for_writing(out_reference_fname, haplotype_vec[0].output_stream, m_should_overwrite_files);
+			lb::open_file_for_writing(out_reference_fname, haplotype_vec[0].output_stream, mode);
 		}
 	}
 	

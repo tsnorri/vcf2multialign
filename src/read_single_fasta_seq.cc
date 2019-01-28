@@ -43,7 +43,7 @@ namespace {
 		}
 		
 		void start() {}
-		void finish() { libbio_always_assert(1 == i, "Expected to have read exactly one sequence."); }
+		void finish() { libbio_always_assert_msg(1 == i, "Expected to have read exactly one sequence."); }
 	};
 }
 

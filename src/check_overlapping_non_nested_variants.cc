@@ -65,7 +65,7 @@ namespace {
 			for (auto it(range.first); it != range.second; ++it)
 			{
 				auto c_it(conflict_counts.left.find(it->second));
-				libbio_always_assert(conflict_counts.left.end() != c_it, "Unable to find conflict count for variant");
+				libbio_always_assert_msg(conflict_counts.left.end() != c_it, "Unable to find conflict count for variant");
 				
 				auto &val(c_it->second);
 				--val;
@@ -171,7 +171,7 @@ namespace vcf2multialign {
 				// Verify that the positions are in increasing order.
 				auto const pos(var.zero_based_pos());
 
-				libbio_always_assert(last_position <= pos, "Positions not in increasing order");
+				libbio_always_assert_msg(last_position <= pos, "Positions not in increasing order");
 				
 				auto const var_ref(var.ref());
 				auto const var_ref_size(var_ref.size());
@@ -226,7 +226,7 @@ namespace vcf2multialign {
 				
 						{
 							auto const res(bad_overlaps.insert(overlap_map::value_type(other_lineno, var_lineno)));
-							libbio_always_assert(res.second, "Unable to insert");
+							libbio_always_assert_msg(res.second, "Unable to insert");
 						}
 
 						++conflict_counts.left[other_lineno];
@@ -271,7 +271,7 @@ namespace vcf2multialign {
 			conflict_counts.left.erase(var_lineno);
 		}
 		
-		libbio_always_assert(bad_overlaps.size() == 0, "Unable to remove all conflicting variants");
+		libbio_always_assert_msg(bad_overlaps.size() == 0, "Unable to remove all conflicting variants");
 		
 		return conflict_count;
 	}

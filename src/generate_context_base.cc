@@ -62,7 +62,12 @@ namespace vcf2multialign {
 		
 		if (report_fname)
 		{
-			lb::open_file_for_writing(report_fname, m_error_logger.output_stream(), m_should_overwrite_files);
+			auto const mode(lb::make_writing_open_mode({
+				lb::writing_open_mode::CREATE,
+				(m_should_overwrite_files ? lb::writing_open_mode::OVERWRITE : lb::writing_open_mode::NONE)
+			}));
+			
+			lb::open_file_for_writing(report_fname, m_error_logger.output_stream(), mode);
 			m_error_logger.write_header();
 		}
 		
