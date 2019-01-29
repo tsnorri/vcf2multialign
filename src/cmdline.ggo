@@ -1,9 +1,9 @@
-# Copyright (c) 2017-2018 Tuukka Norri
+# Copyright (c) 2017-2019 Tuukka Norri
 # This code is licensed under MIT license (see LICENSE for details).
 
 package		"vcf2multialign"
 purpose		"Create multiply-aligned haplotype sequences from a variant call file and a reference sequence."
-usage		"vcf2multialign --reference=filename.fa --variants=filename.vcf [...]"
+usage		"vcf2multialign --output-sequences --reference=filename.fa --variants=filename.vcf [...]"
 description
 "The sequences will be written into text files created in the current working directory. The files will be named “sample_id-chr_idx” as listed in the variant file. Dashes “-” will be output when needed to make the sequences aligned.
 
