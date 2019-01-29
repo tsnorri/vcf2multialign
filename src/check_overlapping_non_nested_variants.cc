@@ -131,6 +131,7 @@ namespace vcf2multialign {
 
 	size_t check_overlapping_non_nested_variants(
 		lb::vcf_reader &reader,
+		std::string const &chromosome_name,
 		sv_handling const sv_handling_method,
 		variant_set /* out */ &skipped_variants,
 		error_logger &error_logger
@@ -155,6 +156,7 @@ namespace vcf2multialign {
 			reader.fill_buffer();
 			should_continue = reader.parse(
 				[
+					&chromosome_name,
 					&skipped_variants,
 					&error_logger,
 					&last_position,
@@ -170,80 +172,84 @@ namespace vcf2multialign {
 			{
 				// Verify that the positions are in increasing order.
 				auto const pos(var.zero_based_pos());
-
 				libbio_always_assert_msg(last_position <= pos, "Positions not in increasing order");
 				
-				auto const var_ref(var.ref());
-				auto const var_ref_size(var_ref.size());
-				auto const end(pos + var_ref_size);
-				auto const var_lineno(var.lineno());
-				
-				// First check that there is at least one ALT that can be handled.
-				if (!can_handle_variant_alts(var, sv_handling_method))
-				{
-					skipped_variants.insert(var_lineno);
-					error_logger.log_no_supported_alts(var_lineno);
+				if (chromosome_name.size() && var.chrom_id() != chromosome_name)
 					goto loop_end_2;
-				}
-
+				
 				{
-					// Try to find an end position that is greater than var's position.
-					auto it(end_positions.upper_bound(pos));
-					auto const end_it(end_positions.cend());
-
-					// If not found, add the current end position to end_positions
-					// and skip the remaining checks.
-					if (end_it == it)
+					auto const var_ref(var.ref());
+					auto const var_ref_size(var_ref.size());
+					auto const end(pos + var_ref_size);
+					auto const var_lineno(var.lineno());
+				
+					// First check that there is at least one ALT that can be handled.
+					if (!can_handle_variant_alts(var, sv_handling_method))
 					{
-						end_positions.emplace(
-							std::piecewise_construct,
-							std::forward_as_tuple(end),
-							std::forward_as_tuple(pos, var_lineno)
-						);
-						goto loop_end;
+						skipped_variants.insert(var_lineno);
+						error_logger.log_no_supported_alts(var_lineno);
+						goto loop_end_2;
+					}
+					
+					{
+						// Try to find an end position that is greater than var's position.
+						auto it(end_positions.upper_bound(pos));
+						auto const end_it(end_positions.cend());
+						
+						// If not found, add the current end position to end_positions
+						// and skip the remaining checks.
+						if (end_it == it)
+						{
+							end_positions.emplace(
+								std::piecewise_construct,
+								std::forward_as_tuple(end),
+								std::forward_as_tuple(pos, var_lineno)
+							);
+							goto loop_end;
+						}
+						
+						do
+						{
+							// Proper nesting since the current starting position must be greater
+							// than the previous one.
+							auto const other_end(it->first);
+							if (end <= other_end)
+								break;
+							
+							// Check if the potentially conflicting variant is in fact inside this one.
+							auto const other_lineno(it->second.lineno);
+							auto const other_pos(it->second.pos);
+							if (pos == other_pos)
+								goto loop_end_3;
+							
+							++conflict_count;
+							
+							// Convert starting to 1-based to get ranges like [x, y] (instead of [x, y)).
+							std::cerr
+							<< "Variant on line " << var_lineno << " conflicts with line " << other_lineno
+							<< " ([" << 1 + pos << ", " << end << "] vs. [" << 1 + other_pos << ", " << other_end << "])." << std::endl;
+							
+							{
+								auto const res(bad_overlaps.insert(overlap_map::value_type(other_lineno, var_lineno)));
+								libbio_always_assert_msg(res.second, "Unable to insert");
+							}
+							
+							++conflict_counts.left[other_lineno];
+							++conflict_counts.left[var_lineno];
+							
+						loop_end_3:
+							++it;
+						} while (end_it != it);
 					}
 			
-					do
-					{
-						// Proper nesting since the current starting position must be greater
-						// than the previous one.
-						auto const other_end(it->first);
-						if (end <= other_end)
-							break;
-				
-						// Check if the potentially conflicting variant is in fact inside this one.
-						auto const other_lineno(it->second.lineno);
-						auto const other_pos(it->second.pos);
-						if (pos == other_pos)
-							goto loop_end_3;
-				
-						++conflict_count;
-					
-						// Convert starting to 1-based to get ranges like [x, y] (instead of [x, y)).
-						std::cerr
-						<< "Variant on line " << var_lineno << " conflicts with line " << other_lineno
-						<< " ([" << 1 + pos << ", " << end << "] vs. [" << 1 + other_pos << ", " << other_end << "])." << std::endl;
-				
-						{
-							auto const res(bad_overlaps.insert(overlap_map::value_type(other_lineno, var_lineno)));
-							libbio_always_assert_msg(res.second, "Unable to insert");
-						}
-
-						++conflict_counts.left[other_lineno];
-						++conflict_counts.left[var_lineno];
-				
-					loop_end_3:
-						++it;
-					} while (end_it != it);
+					// Add the end position.
+					end_positions.emplace(
+						std::piecewise_construct,
+						std::forward_as_tuple(end),
+						std::forward_as_tuple(pos, var_lineno)
+					);
 				}
-			
-				// Add the end position.
-				end_positions.emplace(
-					std::piecewise_construct,
-					std::forward_as_tuple(end),
-					std::forward_as_tuple(pos, var_lineno)
-				);
-
+				
 			loop_end:
 				last_position = pos;
 			

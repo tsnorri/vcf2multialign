@@ -13,6 +13,7 @@ namespace vcf2multialign {
 		char const *reference_fname,
 		char const *variants_fname,
 		char const *ref_seq_name,
+		char const *chromosome_name,
 		output_type const ot,
 		char const *out_fname,
 		char const *out_reference_fname,

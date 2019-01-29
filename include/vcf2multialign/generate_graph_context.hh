@@ -65,12 +65,14 @@ namespace vcf2multialign {
 			libbio::dispatch_ptr <dispatch_queue_t> &&main_queue,
 			libbio::dispatch_ptr <dispatch_queue_t> &&parsing_queue,
 			libbio::dispatch_ptr <dispatch_queue_t> &&output_queue,
+			char const *chromosome_name,
 			char const *null_allele_seq,
 			bool const should_overwrite_files
 		):
 			generate_context_base(
 				std::move(main_queue),
 				std::move(parsing_queue),
+				chromosome_name,
 				null_allele_seq,
 				should_overwrite_files
 			),

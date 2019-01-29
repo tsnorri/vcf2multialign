@@ -199,6 +199,7 @@ namespace vcf2multialign {
 				m_vcf_reader,
 				m_reference,
 				sv_handling_method,
+				m_chromosome_name,
 				m_skipped_variants,
 				m_null_allele_seq,
 				m_error_logger,

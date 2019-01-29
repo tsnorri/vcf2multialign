@@ -171,6 +171,7 @@ namespace vcf2multialign {
 		haplotype_map_type								*m_all_haplotypes{};
 		alt_map_type									m_alt_haplotypes;
 		
+		std::string const								*m_chromosome_name{};
 		std::string const								*m_null_allele_seq{};
 		std::size_t										m_i{0};
 		
@@ -181,6 +182,7 @@ namespace vcf2multialign {
 			libbio::vcf_reader &vcf_reader_,
 			vector_type const &reference,
 			sv_handling const sv_handling_method,
+			std::string const &chromosome_name,
 			variant_set const &skipped_variants,
 			std::string const &null_allele,
 			error_logger &error_logger,
@@ -193,6 +195,7 @@ namespace vcf2multialign {
 			m_reference(&reference),
 			m_variant_buffer(vcf_reader_, main_queue, *this),
 			m_skipped_variants(&skipped_variants),
+			m_chromosome_name(&chromosome_name),
 			m_null_allele_seq(&null_allele)
 		{
 		}
@@ -408,184 +411,192 @@ namespace vcf2multialign {
 		m_counts_by_alt.clear();
 		m_non_ref_totals.reset();
 		
-		auto const lineno(var.lineno());
-		if (0 != m_skipped_variants->count(lineno))
-			return;
+		if (m_chromosome_name->size() && var.chrom_id() != *m_chromosome_name)
+			goto end;
 		
-		// Preprocess the ALT field to check that it can be handled.
-		fill_valid_alts(var);
-		if (m_valid_alts.empty())
-			return;
-		
-		size_t const var_pos(var.zero_based_pos());
-		libbio_always_assert_msg(var_pos < m_reference->size(), "Variant position on line ", lineno, " greater than reference length (", m_reference->size(), ").");
-		
-		auto const var_ref(var.ref());
-		auto const var_ref_size(var_ref.size());
-		auto const var_alts(var.alts());
-		auto const var_alt_sv_types(var.alt_sv_types());
-		
-		// If var is beyond previous_variant.end_pos, handle the variants on the stack
-		// until a containing variant is found or the bottom of the stack is reached.
-		process_overlap_stack(var_pos);
-		
-		// Use the previous variant's range to determine the output sequence.
-		auto &previous_variant(m_overlap_stack.top());
-		
-		// Check that if var is before previous_variant.end_pos, it is also completely inside it.
-		libbio_always_assert_msg(
-			(previous_variant.end_pos <= var_pos) || (var_pos + var_ref_size <= previous_variant.end_pos),
-			"Invalid variant inclusion.",
-			"\n\tlineno:\t", lineno,
-			"\n\tprevious_variant.lineno:\t", previous_variant.lineno,
-			"\n\tvar_pos:\t", var_pos,
-			"\n\tvar_ref_size:\t", var_ref_size,
-			"\n\tprevious_variant.start_pos:\t", previous_variant.start_pos,
-			"\n\tprevious_variant.end_pos:\t", previous_variant.end_pos
-		);
-		
-		if (previous_variant.end_pos <= var_pos)
-			m_delegate->variant_handler_did_empty_overlap_stack(*this);
-		
-		// Output reference from 5' direction up to var_pos.
-		output_reference(previous_variant.current_pos, var_pos);
-		
-		// Add the amount output to the heaviest path length.
-		previous_variant.heaviest_path_length += var_pos - previous_variant.current_pos;
-		
-		// Update current_pos to match the position up to which the sequence was output.
-		// Also add the length to the heaviest path length.
-		previous_variant.current_pos = var_pos;
-		
-		// Find haplotypes that have the variant.
-		// First make sure that all valid alts are listed in m_alt_haplotypes.
-		std::string const empty_alt("");
-		for (auto const alt_idx : m_valid_alts)
 		{
-			switch (var_alt_sv_types[alt_idx - 1])
+			auto const lineno(var.lineno());
+			if (0 != m_skipped_variants->count(lineno))
+				goto end;
+		
+			// Preprocess the ALT field to check that it can be handled.
+			fill_valid_alts(var);
+			if (m_valid_alts.empty())
+				goto end;
+		
 			{
-				case lb::sv_type::NONE:
+				size_t const var_pos(var.zero_based_pos());
+				libbio_always_assert_msg(var_pos < m_reference->size(), "Variant position on line ", lineno, " greater than reference length (", m_reference->size(), ").");
+		
+				auto const var_ref(var.ref());
+				auto const var_ref_size(var_ref.size());
+				auto const var_alts(var.alts());
+				auto const var_alt_sv_types(var.alt_sv_types());
+		
+				// If var is beyond previous_variant.end_pos, handle the variants on the stack
+				// until a containing variant is found or the bottom of the stack is reached.
+				process_overlap_stack(var_pos);
+		
+				// Use the previous variant's range to determine the output sequence.
+				auto &previous_variant(m_overlap_stack.top());
+		
+				// Check that if var is before previous_variant.end_pos, it is also completely inside it.
+				libbio_always_assert_msg(
+					(previous_variant.end_pos <= var_pos) || (var_pos + var_ref_size <= previous_variant.end_pos),
+					"Invalid variant inclusion.",
+					"\n\tlineno:\t", lineno,
+					"\n\tprevious_variant.lineno:\t", previous_variant.lineno,
+					"\n\tvar_pos:\t", var_pos,
+					"\n\tvar_ref_size:\t", var_ref_size,
+					"\n\tprevious_variant.start_pos:\t", previous_variant.start_pos,
+					"\n\tprevious_variant.end_pos:\t", previous_variant.end_pos
+				);
+		
+				if (previous_variant.end_pos <= var_pos)
+					m_delegate->variant_handler_did_empty_overlap_stack(*this);
+		
+				// Output reference from 5' direction up to var_pos.
+				output_reference(previous_variant.current_pos, var_pos);
+		
+				// Add the amount output to the heaviest path length.
+				previous_variant.heaviest_path_length += var_pos - previous_variant.current_pos;
+		
+				// Update current_pos to match the position up to which the sequence was output.
+				// Also add the length to the heaviest path length.
+				previous_variant.current_pos = var_pos;
+		
+				// Find haplotypes that have the variant.
+				// First make sure that all valid alts are listed in m_alt_haplotypes.
+				std::string const empty_alt("");
+				for (auto const alt_idx : m_valid_alts)
 				{
-					auto const &alt_str(var_alts[alt_idx - 1]);
-					m_alt_haplotypes[alt_str];
-					break;
+					switch (var_alt_sv_types[alt_idx - 1])
+					{
+						case lb::sv_type::NONE:
+						{
+							auto const &alt_str(var_alts[alt_idx - 1]);
+							m_alt_haplotypes[alt_str];
+							break;
+						}
+				
+						case lb::sv_type::DEL:
+						case lb::sv_type::DEL_ME:
+							m_alt_haplotypes[empty_alt];
+							break;
+				
+						default:
+							libbio_fail("Unexpected structural variant type.");
+							break;
+					}
 				}
+				m_alt_haplotypes[*m_null_allele_seq];
 				
-				case lb::sv_type::DEL:
-				case lb::sv_type::DEL_ME:
-					m_alt_haplotypes[empty_alt];
-					break;
-				
-				default:
-					libbio_fail("Unexpected structural variant type.");
-					break;
-			}
-		}
-		m_alt_haplotypes[*m_null_allele_seq];
-				
-		for (auto const &kv : *m_all_haplotypes)
-		{
-			auto const sample_no(kv.first);
-			
-			// Get the sample.
-			auto const sample(var.sample(sample_no));
-			
-			// Handle the genotype.
-			uint8_t chr_idx(0);
-			for (auto const gt : sample.get_genotype())
-			{
-				auto const alt_idx(gt.alt);
-				auto const is_phased(gt.is_phased);
-				libbio_always_assert_msg(0 == chr_idx || is_phased, "Variant file not phased");
-				
-				if (0 != alt_idx && 0 != m_valid_alts.count(alt_idx))
+				for (auto const &kv : *m_all_haplotypes)
 				{
-					auto &ref_ptrs(m_ref_haplotype_ptrs.find(sample_no)->second); // Has nodes for every sample_no.
-					
-					std::string const *alt_ptr{m_null_allele_seq};
-					if (lb::NULL_ALLELE != alt_idx)
+					auto const sample_no(kv.first);
+			
+					// Get the sample.
+					auto const sample(var.sample(sample_no));
+			
+					// Handle the genotype.
+					uint8_t chr_idx(0);
+					for (auto const gt : sample.get_genotype())
 					{
-						switch (var_alt_sv_types[alt_idx - 1])
+						auto const alt_idx(gt.alt);
+						auto const is_phased(gt.is_phased);
+						libbio_always_assert_msg(0 == chr_idx || is_phased, "Variant file not phased");
+				
+						if (0 != alt_idx && 0 != m_valid_alts.count(alt_idx))
 						{
-							case lb::sv_type::NONE:
-								alt_ptr = &var_alts[alt_idx - 1];
-								break;
-								
-							case lb::sv_type::DEL:
-							case lb::sv_type::DEL_ME:
-								alt_ptr = &empty_alt;
-								break;
-								
-							default:
-								libbio_fail("Unexpected structural variant type.");
-								break;
-						}
-					}
+							auto &ref_ptrs(m_ref_haplotype_ptrs.find(sample_no)->second); // Has nodes for every sample_no.
 					
-					auto &alt_ptrs_by_sample(m_alt_haplotypes[*alt_ptr]);
-					auto it(alt_ptrs_by_sample.find(sample_no));
-					if (alt_ptrs_by_sample.end() == it)
-					{
-						it = alt_ptrs_by_sample.emplace(
-							std::piecewise_construct,
-							std::forward_as_tuple(sample_no),
-							std::forward_as_tuple(ref_ptrs.size(), nullptr)
-						).first;
-					}
-					auto &alt_ptrs(it->second);
+							std::string const *alt_ptr{m_null_allele_seq};
+							if (lb::NULL_ALLELE != alt_idx)
+							{
+								switch (var_alt_sv_types[alt_idx - 1])
+								{
+									case lb::sv_type::NONE:
+										alt_ptr = &var_alts[alt_idx - 1];
+										break;
+								
+									case lb::sv_type::DEL:
+									case lb::sv_type::DEL_ME:
+										alt_ptr = &empty_alt;
+										break;
+								
+									default:
+										libbio_fail("Unexpected structural variant type.");
+										break;
+								}
+							}
 					
-					if (ref_ptrs[chr_idx])
-					{
-						// Use ADL.
-						using std::swap;
-						swap(alt_ptrs[chr_idx], ref_ptrs[chr_idx]);
-						++m_non_ref_totals.handled_count;
-						++m_counts_by_alt[alt_idx].handled_count;
-					}
-					else
-					{
-						if (m_overlapping_alts.insert(lineno).second)
-						{
-							std::cerr << "Overlapping alternatives on line " << lineno
-							<< " for sample " << sample_no << ':' << (int) chr_idx
-							<< " (and possibly others); skipping when needed." << std::endl;
-						}
+							auto &alt_ptrs_by_sample(m_alt_haplotypes[*alt_ptr]);
+							auto it(alt_ptrs_by_sample.find(sample_no));
+							if (alt_ptrs_by_sample.end() == it)
+							{
+								it = alt_ptrs_by_sample.emplace(
+									std::piecewise_construct,
+									std::forward_as_tuple(sample_no),
+									std::forward_as_tuple(ref_ptrs.size(), nullptr)
+								).first;
+							}
+							auto &alt_ptrs(it->second);
+					
+							if (ref_ptrs[chr_idx])
+							{
+								// Use ADL.
+								using std::swap;
+								swap(alt_ptrs[chr_idx], ref_ptrs[chr_idx]);
+								++m_non_ref_totals.handled_count;
+								++m_counts_by_alt[alt_idx].handled_count;
+							}
+							else
+							{
+								if (m_overlapping_alts.insert(lineno).second)
+								{
+									std::cerr << "Overlapping alternatives on line " << lineno
+									<< " for sample " << sample_no << ':' << (int) chr_idx
+									<< " (and possibly others); skipping when needed." << std::endl;
+								}
 						
-						if (m_error_logger->is_logging_errors())
-							m_skipped_samples.emplace_back(sample_no, alt_idx, chr_idx);
-					}
+								if (m_error_logger->is_logging_errors())
+									m_skipped_samples.emplace_back(sample_no, alt_idx, chr_idx);
+							}
 					
-					++m_non_ref_totals.total_count;
-					++m_counts_by_alt[alt_idx].total_count;
+							++m_non_ref_totals.total_count;
+							++m_counts_by_alt[alt_idx].total_count;
+						}
+						++chr_idx;
+					}
 				}
-				++chr_idx;
+		
+				// Report errors if needed.
+				if (m_error_logger->is_logging_errors())
+				{
+					for (auto const &s : m_skipped_samples)
+						m_error_logger->log_overlapping_alternative(lineno, s.sample_no, s.chr_idx, m_counts_by_alt[s.alt_idx], m_non_ref_totals);
+				}
+		
+				// Create a new variant_overlap.
+				auto const var_end(var_pos + var_ref_size);
+				auto const previous_end_pos(previous_variant.end_pos);
+				variant_overlap_type overlap(var_pos, var_pos, var_end, 0, lineno, m_alt_haplotypes);
+				if (var_pos < previous_end_pos)
+				{
+					// Add the current variant to the stack.
+					m_overlap_stack.emplace(std::move(overlap));
+				}
+				else
+				{
+					// Replace the top of the stack with the current variant.
+					// Use ADL.
+					using std::swap;
+					swap(m_overlap_stack.top(), overlap);
+				}
 			}
 		}
 		
-		// Report errors if needed.
-		if (m_error_logger->is_logging_errors())
-		{
-			for (auto const &s : m_skipped_samples)
-				m_error_logger->log_overlapping_alternative(lineno, s.sample_no, s.chr_idx, m_counts_by_alt[s.alt_idx], m_non_ref_totals);
-		}
-		
-		// Create a new variant_overlap.
-		auto const var_end(var_pos + var_ref_size);
-		auto const previous_end_pos(previous_variant.end_pos);
-		variant_overlap_type overlap(var_pos, var_pos, var_end, 0, lineno, m_alt_haplotypes);
-		if (var_pos < previous_end_pos)
-		{
-			// Add the current variant to the stack.
-			m_overlap_stack.emplace(std::move(overlap));
-		}
-		else
-		{
-			// Replace the top of the stack with the current variant.
-			// Use ADL.
-			using std::swap;
-			swap(m_overlap_stack.top(), overlap);
-		}
-		
+	end:
 		++m_i;
 		if (0 == m_i % 50000)
 			std::cerr << "Handled " << m_i << " variants…" << std::endl;

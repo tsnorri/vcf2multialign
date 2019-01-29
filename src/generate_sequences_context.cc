@@ -125,7 +125,7 @@ namespace vcf2multialign {
 	)
 	{
 		// Open the files.
-		std::cerr << "Opening files…" << std::endl;
+		std::cerr << "Opening the files…" << std::endl;
 		open_files(reference_fname, ref_seq_name, variants_fname, report_fname);
 		
 		{
@@ -150,6 +150,7 @@ namespace vcf2multialign {
 				m_vcf_reader,
 				m_reference,
 				sv_handling_method,
+				m_chromosome_name,
 				m_skipped_variants,
 				m_null_allele_seq,
 				m_error_logger,

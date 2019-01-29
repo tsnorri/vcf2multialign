@@ -17,6 +17,7 @@ namespace vcf2multialign {
 		char const *reference_fname,
 		char const *variants_fname,
 		char const *ref_seq_name,
+		char const *chromosome_name,
 		output_type const ot,
 		char const *out_fname,
 		char const *out_reference_fname,
@@ -43,6 +44,7 @@ namespace vcf2multialign {
 				auto *ctx(new generate_sequences_context(
 					std::move(main_queue),
 					std::move(parsing_queue),
+					chromosome_name,
 					null_allele_seq,
 					chunk_size,
 					should_overwrite_files
@@ -50,8 +52,8 @@ namespace vcf2multialign {
 		
 				ctx->load_and_generate(
 					reference_fname,
-					variants_fname,
 					ref_seq_name,
+					variants_fname,
 					out_reference_fname,
 					report_fname,
 					sv_handling_method,
@@ -72,14 +74,15 @@ namespace vcf2multialign {
 					std::move(main_queue),
 					std::move(parsing_queue),
 					std::move(output_queue),
+					chromosome_name,
 					null_allele_seq,
 					should_overwrite_files
 				));
 				
 				ctx->load_and_generate(
 					reference_fname,
-					variants_fname,
 					ref_seq_name,
+					variants_fname,
 					report_fname,
 					out_fname,
 					sv_handling_method,

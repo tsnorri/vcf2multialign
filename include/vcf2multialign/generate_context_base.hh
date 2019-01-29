@@ -37,6 +37,7 @@ namespace vcf2multialign {
 		ploidy_map											m_ploidy;
 		variant_set											m_skipped_variants;
 
+		std::string											m_chromosome_name;
 		std::string											m_null_allele_seq;
 		bool												m_should_overwrite_files{false};
 		
@@ -44,11 +45,13 @@ namespace vcf2multialign {
 		generate_context_base(
 			libbio::dispatch_ptr <dispatch_queue_t> &&main_queue,
 			libbio::dispatch_ptr <dispatch_queue_t> &&parsing_queue,
+			char const *chromosome_name,
 			char const *null_allele_seq,
 			bool const should_overwrite_files
 		):
 			m_main_queue(std::move(main_queue)),
 			m_parsing_queue(std::move(parsing_queue)),
+			m_chromosome_name(chromosome_name ?: ""),
 			m_null_allele_seq(null_allele_seq),
 			m_should_overwrite_files(should_overwrite_files)
 		{

@@ -118,24 +118,27 @@ namespace vcf2multialign {
 				(lb::transient_variant const &var)
 				-> bool
 			{
-				auto const var_ref(var.ref());
-				auto const var_pos(var.zero_based_pos());
-				auto const lineno(var.lineno());
-				std::size_t diff_pos{0};
-			
-				if (!compare_references(m_reference, var_ref, var_pos, diff_pos))
+				if (0 == m_chromosome_name.size() || var.chrom_id() == m_chromosome_name)
 				{
-					if (!found_mismatch)
+					auto const var_ref(var.ref());
+					auto const var_pos(var.zero_based_pos());
+					auto const lineno(var.lineno());
+					std::size_t diff_pos{0};
+			
+					if (!compare_references(m_reference, var_ref, var_pos, diff_pos))
 					{
-						found_mismatch = true;
-						std::cerr
-							<< "Reference differs from the variant file on line "
-							<< lineno
-							<< " (and possibly others)."
-							<< std::endl;
-					}
+						if (!found_mismatch)
+						{
+							found_mismatch = true;
+							std::cerr
+								<< "Reference differs from the variant file on line "
+								<< lineno
+								<< " (and possibly others)."
+								<< std::endl;
+						}
 				
-					m_error_logger.log_ref_mismatch(lineno, diff_pos);
+						m_error_logger.log_ref_mismatch(lineno, diff_pos);
+					}
 				}
 				
 				++i;
@@ -191,6 +194,7 @@ namespace vcf2multialign {
 			std::cerr << "Checking overlapping variants…" << std::endl;
 			auto const conflict_count(check_overlapping_non_nested_variants(
 				m_vcf_reader,
+				m_chromosome_name,
 				sv_handling_method,
 				m_skipped_variants,
 				m_error_logger
