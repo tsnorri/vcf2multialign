@@ -134,7 +134,8 @@ namespace vcf2multialign {
 			m_sample_names_end = sample_names.cend();
 
 			auto const sample_count(sample_names.size());
-			m_total_rounds = std::ceil(1.0 * sample_count / m_chunk_size);
+			libbio_always_assert(sample_count);
+			m_total_rounds = std::ceil(double(sample_count) / m_chunk_size);
 		}
 		
 		generate_context_base::load_and_generate(

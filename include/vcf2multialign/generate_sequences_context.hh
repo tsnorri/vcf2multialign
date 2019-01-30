@@ -68,6 +68,7 @@ namespace vcf2multialign {
 				null_allele_seq,
 				should_overwrite_files
 			),
+			m_chunk_size(chunk_size),
 			m_should_overwrite_files(should_overwrite_files)
 		{
 		}
