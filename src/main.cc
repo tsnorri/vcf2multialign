@@ -9,11 +9,6 @@
 #include <libbio/dispatch_fn.hh>
 #include <unistd.h>
 #include <vcf2multialign/generate_haplotypes.hh>
-
-#ifdef __linux__
-#include <pthread_workqueue.h>
-#endif
-
 #include "cmdline.h"
 
 
@@ -70,11 +65,6 @@ int main(int argc, char **argv)
 
 #ifndef NDEBUG
 	std::cerr << "Assertions have been enabled." << std::endl;
-#endif
-
-	// libdispatch on macOS does not need pthread_workqueue.
-#ifdef __linux__
-	pthread_workqueue_init_np();
 #endif
 
 	v2m::generate_haplotypes(

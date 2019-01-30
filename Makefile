@@ -28,7 +28,7 @@ clean:
 clean-dependencies: lib/libbio/local.mk
 	$(MAKE) -C lib/libbio clean-all
 	$(MAKE) -C lib/msa2dag clean-all
-	$(RM) -r lib/libdispatch/libdispatch-build
+	$(RM) -r lib/swift-corelibs-libdispatch/build
 
 clean-dist:
 	$(RM) -rf $(DIST_TARGET_DIR)
