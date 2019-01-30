@@ -3,54 +3,69 @@ include common.mk
 
 DEPENDENCIES = lib/msa2dag/lib/libMsa2Dag.a lib/libbio/src/libbio.a
 ifeq ($(shell uname -s),Linux)
-	DEPENDENCIES    +=  lib/libdispatch/libdispatch-build/src/libdispatch.a
-	DEPENDENCIES    +=  lib/libpwq/libpwq-build/libpthread_workqueue.a
+	DEPENDENCIES += lib/swift-corelibs-libdispatch/build/src/libdispatch.a
 endif
+
+# “$() $()” is a literal space.
+OS_NAME = $(shell tools/os_name.sh)
+VERSION = $(subst $() $(),-,$(shell tools/git_version.sh))
+DIST_TARGET_DIR = vcf2multialign-$(VERSION)
+DIST_TAR_GZ = vcf2multialign-$(VERSION)-$(OS_NAME).tar.gz
 
 
 .PHONY: all clean-all clean clean-dependencies dependencies
 
-all: dependencies
+all: src/vcf2multialign
+
+src/vcf2multialign: $(DEPENDENCIES)
 	$(MAKE) -C src
 
-clean-all: clean clean-dependencies
+clean-all: clean clean-dependencies clean-dist
 
 clean:
 	$(MAKE) -C src clean
 
-clean-dependencies:
+clean-dependencies: lib/libbio/local.mk
 	$(MAKE) -C lib/libbio clean-all
 	$(MAKE) -C lib/msa2dag clean-all
 	$(RM) -r lib/libdispatch/libdispatch-build
-	$(RM) -r lib/libpwq/libpwq-build
+
+clean-dist:
+	$(RM) -rf $(DIST_TARGET_DIR)
+
+dist: $(DIST_TAR_GZ)
+
+$(DIST_TAR_GZ): src/vcf2multialign
+	$(MKDIR) -p $(DIST_TARGET_DIR)
+	$(CP) src/vcf2multialign $(DIST_TARGET_DIR)
+	$(CP) README.md $(DIST_TARGET_DIR)
+	$(CP) LICENSE $(DIST_TARGET_DIR)
+	$(CP) lib/swift-corelibs-libdispatch/LICENSE $(DIST_TARGET_DIR)/swift-corelibs-libdispatch-license.txt
+	$(TAR) czf $(DIST_TAR_GZ) $(DIST_TARGET_DIR)
+	$(RM) -rf $(DIST_TARGET_DIR)
 
 dependencies: $(DEPENDENCIES)
 
 lib/msa2dag/lib/libMsa2Dag.a:
 	$(MAKE) -C lib/msa2dag CXX=$(CXX)
 
-lib/libbio/src/libbio.a:
+lib/libbio/local.mk: local.mk
 	$(CP) local.mk lib/libbio
+
+lib/libbio/src/libbio.a: lib/libbio/local.mk
 	$(MAKE) -C lib/libbio
 
-lib/libdispatch/libdispatch-build/src/libdispatch.a: lib/libpwq/libpwq-build/libpthread_workqueue.a
-	$(RM) -rf lib/libdispatch/libdispatch-build && \
-	cd lib/libdispatch && \
-	$(MKDIR) libdispatch-build && \
-	cd libdispatch-build && \
-	../configure --cc="$(CC)" --c++="$(CXX)" --release -- \
-		-DPTHREAD_WORKQUEUE_INCLUDE_DIRS=../../libpwq/include \
-		-DPTHREAD_WORKQUEUE_LIBRARIES=../../libpwq/libpwq-build/libpthread_workqueue.a \
-		-DBLOCKS_RUNTIME_LIBRARIES=""
-	$(MAKE) -C lib/libdispatch/libdispatch-build VERBOSE=1
-
-
-lib/libpwq/libpwq-build/libpthread_workqueue.a:
-	$(RM) -rf lib/libpwq/libpwq-build && \
-	cd lib/libpwq && \
-	$(MKDIR) libpwq-build && \
-	cd libpwq-build && \
-	CC="$(CC)" \
-	CXX="$(CXX)" \
-	$(CMAKE) -DSTATIC_WORKQUEUE=ON ..
-	$(MAKE) -C lib/libpwq/libpwq-build VERBOSE=1
+lib/swift-corelibs-libdispatch/build/src/libdispatch.a:
+	$(RM) -rf lib/swift-corelibs-libdispatch/build && \
+	cd lib/swift-corelibs-libdispatch && \
+	$(MKDIR) build && \
+	cd build && \
+	$(CMAKE) \
+		-G Ninja \
+		-DCMAKE_C_COMPILER="$(CC)" \
+		-DCMAKE_CXX_COMPILER="$(CXX)" \
+		-DCMAKE_C_FLAGS="$(LIBDISPATCH_CFLAGS)" \
+		-DCMAKE_CXX_FLAGS="$(LIBDISPATCH_CXXFLAGS)" \
+		-DBUILD_SHARED_LIBS=OFF \
+		.. && \
+	$(NINJA) -v

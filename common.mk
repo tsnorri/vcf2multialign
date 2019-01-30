@@ -5,6 +5,20 @@ unexport SDKROOT
 WARNING_FLAGS	?= -Wall -Werror -Wno-deprecated-declarations -Wno-unused
 OPT_FLAGS		?= -O2 -g
 
+AR				?= ar
+CC				?= cc
+CMAKE			?= cmake
+CP				?= cp
+CXX				?= c++
+DOT				?= dot
+GENGETOPT		?= gengetopt
+MKDIR			?= mkdir
+NINJA			?= ninja
+RAGEL			?= ragel
+RM				?= rm
+TAR				?= tar
+WGET			?= wget
+
 CFLAGS			?=
 CXXFLAGS		?=
 CPPFLAGS		?=
@@ -14,23 +28,17 @@ SYSTEM_CXXFLAGS	?=
 SYSTEM_CPPFLAGS	?=
 SYSTEM_LDFLAGS	?=
 
-AR				?= ar
-CC				?= cc
-CMAKE			?= cmake
-CP				?= cp
-CXX				?= c++
-DOT				?= dot
-GENGETOPT		?= gengetopt
-MKDIR			?= mkdir
-RAGEL			?= ragel
-RM				?= rm
-
 BOOST_INCLUDE	?= /usr/include
 
 CFLAGS			+= -std=c99   $(OPT_FLAGS) $(WARNING_FLAGS) $(SYSTEM_CFLAGS)
 CXXFLAGS		+= -std=c++17 $(OPT_FLAGS) $(WARNING_FLAGS) $(SYSTEM_CXXFLAGS)
-CPPFLAGS		+= -DHAVE_CONFIG_H -I../include -I../lib/libbio/include -I../lib/libbio/lib/GSL/include -I../lib/libbio/lib/range-v3/include -I../lib/msa2dag/include -I../lib/libdispatch -I../lib/libpwq/include $(BOOST_INCLUDE)
-LDFLAGS			+= ../lib/libbio/src/libbio.a ../lib/msa2dag/lib/libMsa2Dag.a $(LIBDISPATCH_LIBS) $(BOOST_LIBS)
+CPPFLAGS		+= $(SYSTEM_CPPFLAGS) -DHAVE_CONFIG_H -I../include -I../lib/libbio/include -I../lib/libbio/lib/GSL/include -I../lib/libbio/lib/range-v3/include -I../lib/msa2dag/include $(BOOST_INCLUDE)
+LDFLAGS			+= $(SYSTEM_LDFLAGS) $(BOOST_LIBS) ../lib/libbio/src/libbio.a ../lib/msa2dag/lib/libMsa2Dag.a
+
+ifeq ($(shell uname -s),Linux)
+	CPPFLAGS	+= -I../lib/swift-corelibs-libdispatch
+	LDFLAGS		+= ../lib/swift-corelibs-libdispatch/build/src/libdispatch.a ../lib/swift-corelibs-libdispatch/build/libBlocksRuntime.a -lbsd -lpthread -lz
+endif
 
 
 %.o: %.cc
