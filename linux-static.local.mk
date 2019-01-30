@@ -13,3 +13,6 @@ CXXFLAGS				= -fblocks -U__STDC_HOSTED__ -isystem $(CLANG_INCLUDE_DIR)
 
 BOOST_LIBS				= -L$(BOOST_ROOT)/lib -lboost_iostreams
 LDFLAGS					= -static-libstdc++ -static-libgcc
+
+# Used in .tar.gz name.
+TARGET_TYPE				= static

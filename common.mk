@@ -28,6 +28,9 @@ SYSTEM_CXXFLAGS	?=
 SYSTEM_CPPFLAGS	?=
 SYSTEM_LDFLAGS	?=
 
+# Target type description, used currently in the .tar.gz name.
+TARGET_TYPE		?=
+
 BOOST_ROOT		?= /usr
 BOOST_INCLUDE	?= -I$(BOOST_ROOT)/include
 

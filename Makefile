@@ -10,7 +10,8 @@ endif
 OS_NAME = $(shell tools/os_name.sh)
 VERSION = $(subst $() $(),-,$(shell tools/git_version.sh))
 DIST_TARGET_DIR = vcf2multialign-$(VERSION)
-DIST_TAR_GZ = vcf2multialign-$(VERSION)-$(OS_NAME).tar.gz
+DIST_NAME_SUFFIX = $(if $(TARGET_TYPE),-$(TARGET_TYPE),)
+DIST_TAR_GZ = vcf2multialign-$(VERSION)-$(OS_NAME)$(DIST_NAME_SUFFIX).tar.gz
 
 
 .PHONY: all clean-all clean clean-dependencies dependencies
