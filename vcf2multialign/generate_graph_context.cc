@@ -3,7 +3,7 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#include <vcf2multialign/generate_graph_context.hh>
+#include <vcf2multialign/sequences/generate_graph_context.hh>
 
 #define PRINT_HAPLOTYPES 0
 

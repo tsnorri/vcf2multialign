@@ -8,14 +8,12 @@
 
 #include <dispatch/dispatch.h>
 #include <libbio/assert.hh>
-#include <libbio/dispatch_fn.hh>
+#include <libbio/dispatch.hh>
 #include <libbio/file_handling.hh>
-#include <libbio/vcf_reader.hh>
 #include <map>
 #include <stack>
-#include <vcf2multialign/error_logger.hh>
-#include <vcf2multialign/types.hh>
 #include <vcf2multialign/variant_buffer.hh>
+#include <vcf2multialign/variant_handler_base.hh>
 
 
 namespace vcf2multialign {
@@ -110,30 +108,6 @@ namespace vcf2multialign {
 	
 	template <typename t_haplotype>
 	std::ostream &operator<<(std::ostream &os, variant_overlap <t_haplotype> const &haplotype);
-	
-	
-	class variant_handler_base
-	{
-	protected:
-		std::set <size_t>								m_valid_alts;
-		error_logger									*m_error_logger{};
-		sv_handling										m_sv_handling_method{};
-		
-	protected:
-		variant_handler_base() = default;
-		
-		variant_handler_base(
-			sv_handling const sv_handling_method,
-			error_logger &error_logger
-		):
-			m_error_logger(&error_logger),
-			m_sv_handling_method(sv_handling_method)
-		{
-		}
-		
-		bool check_alt_seq(std::string const &alt) const;
-		void fill_valid_alts(libbio::variant const &var);
-	};
 	
 	
 	template <typename t_haplotype, typename t_delegate>
@@ -500,7 +474,7 @@ namespace vcf2multialign {
 			
 					// Handle the genotype.
 					uint8_t chr_idx(0);
-					for (auto const gt : sample.get_genotype())
+					for (auto const gt : sample.get_genotype_range())
 					{
 						auto const alt_idx(gt.alt);
 						auto const is_phased(gt.is_phased);

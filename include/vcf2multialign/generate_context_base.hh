@@ -8,7 +8,7 @@
 
 #include <chrono>
 #include <map>
-#include <libbio/dispatch_fn.hh>
+#include <libbio/dispatch.hh>
 #include <libbio/vcf_reader.hh>
 #include <string>
 #include <vcf2multialign/error_logger.hh>

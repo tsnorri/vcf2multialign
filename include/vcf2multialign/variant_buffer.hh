@@ -7,7 +7,7 @@
 #define VCF2MULTIALIGN_VARIANT_BUFFER_HH
 
 #include <boost/container/set.hpp> // For an extract-capable multiset.
-#include <libbio/dispatch_fn.hh>
+#include <libbio/dispatch.hh>
 #include <libbio/vcf_reader.hh>
 #include <mutex>
 #include <string>
