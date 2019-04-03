@@ -30,8 +30,8 @@
 *.out
 *.app
 
-src/cmdline.c
-src/cmdline.h
-src/vcf2multialign
-src/config.h
-src/vcf_reader.cc
+vcf2multialign/cmdline.c
+vcf2multialign/cmdline.h
+vcf2multialign/vcf2multialign
+vcf2multialign/config.h
+vcf2multialign/vcf_reader.cc

@@ -3,8 +3,8 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#ifndef VCF2MULTIALIGN_GRAPH_WRITER_HH
-#define VCF2MULTIALIGN_GRAPH_WRITER_HH
+#ifndef VCF2MULTIALIGN_SEQUENCES_GRAPH_WRITER_HH
+#define VCF2MULTIALIGN_SEQUENCES_GRAPH_WRITER_HH
 
 #include <cstdint>
 #include <iostream>

@@ -3,8 +3,8 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#ifndef VCF2MULTIALIGN_GENERATE_SEQUENCES_CONTEXT_HH
-#define VCF2MULTIALIGN_GENERATE_SEQUENCES_CONTEXT_HH
+#ifndef VCF2MULTIALIGN_SEQUENCES_GENERATE_SEQUENCES_CONTEXT_HH
+#define VCF2MULTIALIGN_SEQUENCES_GENERATE_SEQUENCES_CONTEXT_HH
 
 #include <vcf2multialign/generate_context_base.hh>
 #include <vcf2multialign/variant_handler.hh>

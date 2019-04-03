@@ -5,7 +5,7 @@
 
 #include <boost/format.hpp>
 #include <boost/io/ios_state.hpp>
-#include <vcf2multialign/generate_sequences_context.hh>
+#include <vcf2multialign/sequences/generate_sequences_context.hh>
 
 
 namespace lb = libbio;

@@ -4,7 +4,7 @@
  */
 
 #include <boost/range/combine.hpp>
-#include <vcf2multialign/variant_handler.hh>
+#include <vcf2multialign/variant_handler_base.hh>
 
 
 namespace lb = libbio;
@@ -24,6 +24,7 @@ namespace vcf2multialign {
 	}
 	
 	
+	// FIXME: check from the VCF spec if INS could be handled.
 	void variant_handler_base::fill_valid_alts(lb::variant const &var)
 	{
 		// Check that the alt sequence is something that can be handled.
