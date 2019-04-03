@@ -6,7 +6,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <libbio/assert.hh>
-#include <libbio/dispatch_fn.hh>
+#include <libbio/dispatch.hh>
 #include <unistd.h>
 #include <vcf2multialign/generate_haplotypes.hh>
 #include "cmdline.h"

@@ -56,7 +56,7 @@ namespace vcf2multialign {
 		char const *report_fname
 	)
 	{
-		lb::mmap_handle ref_handle;
+		lb::mmap_handle <char> ref_handle;
 		ref_handle.open(reference_fname);
 		
 		lb::open_file_for_reading(variants_fname, m_vcf_input.input_stream());

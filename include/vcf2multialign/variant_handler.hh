@@ -8,7 +8,7 @@
 
 #include <dispatch/dispatch.h>
 #include <libbio/assert.hh>
-#include <libbio/dispatch_fn.hh>
+#include <libbio/dispatch.hh>
 #include <libbio/file_handling.hh>
 #include <libbio/vcf_reader.hh>
 #include <map>
@@ -500,7 +500,7 @@ namespace vcf2multialign {
 			
 					// Handle the genotype.
 					uint8_t chr_idx(0);
-					for (auto const gt : sample.get_genotype())
+					for (auto const gt : sample.get_genotype_range())
 					{
 						auto const alt_idx(gt.alt);
 						auto const is_phased(gt.is_phased);
