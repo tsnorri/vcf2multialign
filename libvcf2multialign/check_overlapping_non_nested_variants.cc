@@ -86,45 +86,31 @@ namespace {
 
 namespace vcf2multialign {
 
-	bool can_handle_variant_alts(
-		lb::transient_variant const &var,
-		sv_handling const sv_handling_method
-	)
+	bool can_handle_variant_alts(lb::transient_variant const &var)
 	{
-		if (sv_handling::DISCARD == sv_handling_method)
+		// Keep.
+		for (auto const &alt : var.alts())
 		{
-			for (auto const svt : var.alt_sv_types())
+			auto const svt(alt.alt_sv_type);
+			switch (svt)
 			{
-				if (lb::sv_type::NONE == svt)
+				// These structural variant types are currently handled.
+				case lb::sv_type::NONE:
+				case lb::sv_type::DEL:
+				case lb::sv_type::DEL_ME:
 					return true;
-			}
-			
-		}
-		else
-		{
-			// Keep.
-			for (auto const svt : var.alt_sv_types())
-			{
-				switch (svt)
-				{
-					// These structural variant types are currently handled.
-					case lb::sv_type::NONE:
-					case lb::sv_type::DEL:
-					case lb::sv_type::DEL_ME:
-						return true;
-						
-					case lb::sv_type::INS:
-					case lb::sv_type::DUP:
-					case lb::sv_type::INV:
-					case lb::sv_type::CNV:
-					case lb::sv_type::DUP_TANDEM:
-					case lb::sv_type::INS_ME:
-					case lb::sv_type::UNKNOWN:
-						break;
-				}
+					
+				case lb::sv_type::INS:
+				case lb::sv_type::DUP:
+				case lb::sv_type::INV:
+				case lb::sv_type::CNV:
+				case lb::sv_type::DUP_TANDEM:
+				case lb::sv_type::INS_ME:
+				case lb::sv_type::UNKNOWN:
+					break;
 			}
 		}
-
+		
 		return false;
 	}
 	
@@ -154,7 +140,6 @@ namespace vcf2multialign {
 	std::size_t check_overlapping_non_nested_variants(
 		lb::vcf_reader &reader,
 		std::string const &chromosome_name,
-		sv_handling const sv_handling_method,
 		variant_set /* out */ &skipped_variants,
 		error_logger &error_logger
 	)
@@ -186,8 +171,7 @@ namespace vcf2multialign {
 					&conflict_counts,
 					&bad_overlaps,
 					&i,
-					&conflict_count,
-					sv_handling_method
+					&conflict_count
 				]
 				(lb::transient_variant const &var)
 				-> bool
@@ -206,7 +190,7 @@ namespace vcf2multialign {
 					auto const var_lineno(var.lineno());
 				
 					// First check that there is at least one ALT that can be handled.
-					if (!can_handle_variant_alts(var, sv_handling_method))
+					if (!can_handle_variant_alts(var))
 					{
 						skipped_variants.insert(var_lineno);
 						error_logger.log_no_supported_alts(var_lineno);

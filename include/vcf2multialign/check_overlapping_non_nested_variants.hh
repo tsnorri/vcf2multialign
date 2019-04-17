@@ -20,11 +20,7 @@ namespace vcf2multialign {
 		error_logger &error_logger
 	);
 		
-	bool can_handle_variant_alts(
-		libbio::transient_variant const &var,
-		sv_handling const sv_handling_method
-	);
-	
+	bool can_handle_variant_alts(libbio::transient_variant const &var);
 	bool can_handle_variant_alt(libbio::variant_alt_base const &alt);
 }
 
