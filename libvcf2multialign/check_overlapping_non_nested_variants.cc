@@ -17,14 +17,14 @@ namespace v2m	= vcf2multialign;
 
 
 typedef boost::bimap <
-	boost::bimaps::multiset_of <size_t>,
-	boost::bimaps::multiset_of <size_t>
+	boost::bimaps::multiset_of <std::size_t>,
+	boost::bimaps::multiset_of <std::size_t>
 > overlap_map;
 
 
 typedef boost::bimap <
-	boost::bimaps::set_of <size_t>,		// lineno
-	boost::bimaps::list_of <size_t>		// count
+	boost::bimaps::set_of <std::size_t>,		// lineno
+	boost::bimaps::list_of <std::size_t>		// count
 > conflict_count_map;
 
 
@@ -32,10 +32,10 @@ namespace {
 	
 	struct var_info
 	{
-		size_t pos;
-		size_t lineno;
+		std::size_t pos;
+		std::size_t lineno;
 		
-		var_info(size_t const pos_, size_t const lineno_):
+		var_info(std::size_t const pos_, std::size_t const lineno_):
 			pos(pos_),
 			lineno(lineno_)
 		{
@@ -48,7 +48,7 @@ namespace {
 		t_map &bad_overlap_side,
 		conflict_count_map &conflict_counts,
 		v2m::variant_set &skipped_variants,
-		size_t const var_lineno,
+		std::size_t const var_lineno,
 		v2m::error_logger &error_logger
 	)
 	{
@@ -151,7 +151,7 @@ namespace vcf2multialign {
 	}
 	
 
-	size_t check_overlapping_non_nested_variants(
+	std::size_t check_overlapping_non_nested_variants(
 		lb::vcf_reader &reader,
 		std::string const &chromosome_name,
 		sv_handling const sv_handling_method,
@@ -160,16 +160,16 @@ namespace vcf2multialign {
 	)
 	{
 		typedef boost::bimap <
-			boost::bimaps::multiset_of <size_t>,
-			boost::bimaps::multiset_of <size_t>
+			boost::bimaps::multiset_of <std::size_t>,
+			boost::bimaps::multiset_of <std::size_t>
 		> overlap_map;
 		
-		size_t last_position(0);
-		std::multimap <size_t, var_info> end_positions; // end -> pos & lineno
+		std::size_t last_position(0);
+		std::multimap <std::size_t, var_info> end_positions; // end -> pos & lineno
 		conflict_count_map conflict_counts;
 		overlap_map bad_overlaps;
-		size_t i(0);
-		size_t conflict_count(0);
+		std::size_t i(0);
+		std::size_t conflict_count(0);
 		
 		reader.reset();
 		reader.set_parsed_fields(lb::vcf_field::ALT);
