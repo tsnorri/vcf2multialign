@@ -20,9 +20,6 @@ namespace vcf2multialign {
 	class generate_context_base
 	{
 	protected:
-		typedef std::map <std::size_t, std::size_t> ploidy_map;
-
-	protected:
 		libbio::dispatch_ptr <dispatch_queue_t>				m_main_queue{};
 		libbio::dispatch_ptr <dispatch_queue_t>				m_parsing_queue{};
 		vector_type											m_reference;

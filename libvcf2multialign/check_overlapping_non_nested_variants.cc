@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Tuukka Norri
+ * Copyright (c) 2017-2019 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -81,14 +81,17 @@ namespace {
 			bad_overlap_side.erase(range.first, range.second);
 		}
 	}
-	
-	
+}
+
+
+namespace vcf2multialign {
+
 	bool can_handle_variant_alts(
 		lb::transient_variant const &var,
-		v2m::sv_handling const sv_handling_method
+		sv_handling const sv_handling_method
 	)
 	{
-		if (v2m::sv_handling::DISCARD == sv_handling_method)
+		if (sv_handling::DISCARD == sv_handling_method)
 		{
 			for (auto const svt : var.alt_sv_types())
 			{
@@ -124,10 +127,29 @@ namespace {
 
 		return false;
 	}
-}
-
-
-namespace vcf2multialign {
+	
+	
+	bool can_handle_variant_alt(lb::variant_alt_base const &alt)
+	{
+		auto const svt(alt.alt_sv_type);
+		switch (svt)
+		{
+			case lb::sv_type::NONE:
+			case lb::sv_type::DEL:
+			case lb::sv_type::DEL_ME:
+				return true;
+				
+			case lb::sv_type::INS:
+			case lb::sv_type::DUP:
+			case lb::sv_type::INV:
+			case lb::sv_type::CNV:
+			case lb::sv_type::DUP_TANDEM:
+			case lb::sv_type::INS_ME:
+			case lb::sv_type::UNKNOWN:
+				return false;
+		}
+	}
+	
 
 	size_t check_overlapping_non_nested_variants(
 		lb::vcf_reader &reader,

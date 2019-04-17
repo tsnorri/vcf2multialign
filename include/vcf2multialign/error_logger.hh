@@ -7,7 +7,7 @@
 #define VCF2MULTIALIGN_ERROR_LOGGER_HH
 
 #include <libbio/file_handling.hh>
-#include <libbio/variant.hh>
+#include <libbio/vcf/variant.hh>
 #include <vcf2multialign/types.hh>
 
 

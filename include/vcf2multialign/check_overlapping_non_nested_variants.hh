@@ -6,7 +6,7 @@
 #ifndef VCF2MULTIALIGN_CHECK_OVERLAPPING_NON_NESTED_VARIANTS_HH
 #define VCF2MULTIALIGN_CHECK_OVERLAPPING_NON_NESTED_VARIANTS_HH
 
-#include <libbio/vcf_reader.hh>
+#include <libbio/vcf/vcf_reader.hh>
 #include <vcf2multialign/error_logger.hh>
 #include <vcf2multialign/types.hh>
 
@@ -19,6 +19,13 @@ namespace vcf2multialign {
 		variant_set /* out */ &skipped_variants,
 		error_logger &error_logger
 	);
+		
+	bool can_handle_variant_alts(
+		libbio::transient_variant const &var,
+		sv_handling const sv_handling_method
+	);
+	
+	bool can_handle_variant_alt(libbio::variant_alt_base const &alt);
 }
 
 #endif

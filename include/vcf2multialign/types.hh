@@ -8,6 +8,7 @@
 
 #include <boost/iostreams/device/file_descriptor.hpp>
 #include <boost/iostreams/stream.hpp>
+#include <map>
 #include <set>
 #include <vector>
 
@@ -33,6 +34,8 @@ namespace vcf2multialign {
 		
 		void reset() { handled_count = 0; total_count = 0; }
 	};
+	
+	typedef std::map <std::size_t, std::size_t> ploidy_map;
 }
 
 #endif

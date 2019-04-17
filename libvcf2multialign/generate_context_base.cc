@@ -82,24 +82,7 @@ namespace vcf2multialign {
 		
 	void generate_context_base::check_ploidy()
 	{
-		size_t i(0);
-		m_vcf_reader.reset();
-		m_vcf_reader.set_parsed_fields(lb::vcf_field::ALL);
-		
-		m_vcf_reader.fill_buffer();
-		if (!m_vcf_reader.parse([this](lb::transient_variant const &var) -> bool {
-			for (auto const &kv : m_vcf_reader.sample_names())
-			{
-				auto const sample_no(kv.second);
-				auto const &sample(var.sample(sample_no));
-				m_ploidy[sample_no] = sample.ploidy();
-			}
-			
-			return false;
-		}))
-		{
-			libbio_fail("Unable to read the first variant");
-		}
+		check_ploidy(m_vcf_reader, m_ploidy);
 	}
 	
 	
