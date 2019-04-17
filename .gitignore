@@ -30,6 +30,9 @@
 *.out
 *.app
 
+preprocess-vcf/cmdline.c
+preprocess-vcf/cmdline.h
+preprocess-vcf/config.h
 vcf2multialign/cmdline.c
 vcf2multialign/cmdline.h
 vcf2multialign/vcf2multialign
