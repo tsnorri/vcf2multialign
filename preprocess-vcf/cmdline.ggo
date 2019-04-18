@@ -4,7 +4,7 @@
 package		"preprocess-vcf"
 purpose		"Combine overlapping variants for use with vcf2multialign"
 usage		"preprocess-variants --reference=filename.fa --variants=filename.vcf --output-variants=output.vcf --chromosome=chr_id [...]"
-description	"NOTE: the VCF header will not be written to the output file. It should be copied from the input manually and edited as needed."
+description	"Removes overlapping, non-nested variants by combining them."
 
 option		"reference"				r	"Reference FASTA file path"															string	typestr = "filename"	required
 option		"variants"				a	"Variant call file path"															string	typestr = "filename"	required
