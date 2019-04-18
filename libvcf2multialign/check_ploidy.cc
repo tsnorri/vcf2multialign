@@ -23,7 +23,9 @@ namespace vcf2multialign {
 			for (auto const &kv : vcf_reader.sample_names())
 			{
 				auto const sample_no(kv.second);
-				auto const &sample(var.samples()[sample_no]);
+				libbio_assert_lt(0, sample_no);
+				libbio_assert_lte(sample_no, var.samples().size());
+				auto const &sample(var.samples()[sample_no - 1]);
 				out_ploidy[sample_no] = (*gt_field)(sample).size();
 			}
 		

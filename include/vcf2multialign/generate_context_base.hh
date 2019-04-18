@@ -9,6 +9,7 @@
 #include <chrono>
 #include <map>
 #include <libbio/dispatch.hh>
+#include <libbio/mmap_handle.hh>
 #include <libbio/vcf/vcf_reader.hh>
 #include <string>
 #include <vcf2multialign/error_logger.hh>
@@ -23,7 +24,8 @@ namespace vcf2multialign {
 		libbio::dispatch_ptr <dispatch_queue_t>				m_main_queue{};
 		libbio::dispatch_ptr <dispatch_queue_t>				m_parsing_queue{};
 		vector_type											m_reference;
-		libbio::vcf_stream_input <libbio::file_istream>		m_vcf_input;
+		libbio::mmap_handle <char>							m_vcf_handle;
+		libbio::vcf_mmap_input								m_vcf_input;
 		libbio::vcf_reader									m_vcf_reader;
 		
 		std::chrono::time_point <std::chrono::system_clock>	m_start_time{};
@@ -48,6 +50,7 @@ namespace vcf2multialign {
 		):
 			m_main_queue(std::move(main_queue)),
 			m_parsing_queue(std::move(parsing_queue)),
+			m_vcf_input(m_vcf_handle),	// XXX makes copying and moving this class non-trivial.
 			m_chromosome_name(chromosome_name ?: ""),
 			m_null_allele_seq(null_allele_seq),
 			m_should_overwrite_files(should_overwrite_files)

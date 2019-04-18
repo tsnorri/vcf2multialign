@@ -8,6 +8,7 @@
 #include <vcf2multialign/check_ploidy.hh>
 #include <vcf2multialign/read_single_fasta_seq.hh>
 #include <vcf2multialign/generate_context_base.hh>
+#include <vcf2multialign/variant_format.hh>
 
 
 namespace lb	= libbio;
@@ -60,7 +61,8 @@ namespace vcf2multialign {
 		lb::mmap_handle <char> ref_handle;
 		ref_handle.open(reference_fname);
 		
-		lb::open_file_for_reading(variants_fname, m_vcf_input.input_stream());
+		m_vcf_handle.open(variants_fname);
+		m_vcf_input.reset_range();
 		
 		if (report_fname)
 		{
@@ -76,6 +78,7 @@ namespace vcf2multialign {
 		lb::add_reserved_info_keys(m_vcf_reader.info_fields());
 		lb::add_reserved_genotype_keys(m_vcf_reader.genotype_fields());
 		
+		m_vcf_reader.set_variant_format(new variant_format());
 		m_vcf_reader.set_input(m_vcf_input);
 		m_vcf_reader.fill_buffer();
 		m_vcf_reader.read_header();

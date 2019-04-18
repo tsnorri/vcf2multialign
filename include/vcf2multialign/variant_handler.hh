@@ -470,9 +470,11 @@ namespace vcf2multialign {
 				for (auto const &kv : *m_all_haplotypes)
 				{
 					auto const sample_no(kv.first);
+					if (0 == sample_no)
+						continue;
 			
 					// Get the sample.
-					auto const &sample(var.samples()[sample_no]);
+					auto const &sample(var.samples()[sample_no - 1]);
 			
 					// Handle the genotype.
 					uint8_t chr_idx(0);
