@@ -1,11 +1,10 @@
 include ../local.mk
 include ../common.mk
 
-OBJECTS = 	check_overlapping_non_nested_variants.o \
-			generate_context_base.o \
+OBJECTS =	can_handle_variant_alts.o \
+			check_ploidy.o \
 			read_single_fasta_seq.o \
-			variant_format.o \
-			variant_handler_base.o
+			variant_format.o
 
 
 all: libvcf2multialign.a
