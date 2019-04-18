@@ -14,15 +14,13 @@ namespace lb	= libbio;
 
 namespace vcf2multialign {
 	
-	void variant_preprocessor::output_sample_names()
+	void variant_preprocessor::update_sample_names()
 	{
 		// XXX I don’t remember why vcf_reader outputs the sample names as a map with names as keys and positions as indices but it should be fixed unless a good reason is found not to.
-		std::vector <std::string> sample_names;
-		for (auto const & [sample_name, idx1] : m_reader->sample_names())
-			sample_names[idx1 - 1] = sample_name; // Copy.
-	
-		for (auto const &sample_name : sample_names)
-			*m_ostream << '\t' << sample_name;
+		auto const &sample_name_map(m_reader->sample_names());
+		m_sample_names.resize(sample_name_map.size());
+		for (auto const & [sample_name, idx1] : sample_name_map)
+			m_sample_names[idx1 - 1] = sample_name; // Copy.
 	}
 	
 	
@@ -30,20 +28,25 @@ namespace vcf2multialign {
 	{
 		*m_ostream << "##fileformat=VCFv4.3\n";
 		*m_ostream << "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n";
+		*m_ostream << "##ALT=<ID=DEL,Description=\"Deletion\">\n";
+		m_output_lineno = 3;
 		for (auto const &[key, contig] : m_reader->metadata().contig())
 		{
 			contig.output_vcf(*m_ostream);
-			*m_ostream << '\n';
+			++m_output_lineno;
 		}
 		
-		*m_ostream << "##CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT";
-		output_sample_names();
+		*m_ostream << "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT";
+		for (auto const &sample_name : m_sample_names)
+			*m_ostream << '\t' << sample_name;
 		*m_ostream << '\n';
+		++m_output_lineno;
 	}
 	
 	
 	void variant_preprocessor::process_and_output(std::vector <std::string> const &field_names_for_filter_by_assigned)
 	{
+		update_sample_names();
 		output_headers();
 		
 		m_reader->reset();
@@ -74,49 +77,60 @@ namespace vcf2multialign {
 		
 		// Process the variants.
 		bool should_continue(false);
+		std::size_t processed_count(0);
 		do {
 			m_reader->fill_buffer();
 			should_continue = m_reader->parse(
 				[
 					this,
 					end_field,
-					&filter_by_assigned
+					&filter_by_assigned,
+				 	&processed_count
 				](lb::transient_variant const &var) -> bool
 				{
-					// Check the chromosome name.
-					if (var.chrom_id() != m_chromosome_name)
-						return true;
-					
 					auto const lineno(var.lineno());
 					auto const var_pos(var.zero_based_pos());
+
+					// Check the chromosome name.
+					if (var.chrom_id() != m_chromosome_name)
+						goto end;
+					
 					libbio_always_assert_msg(var_pos < m_reference->size(), "Variant position on line ", lineno, " greater than reference length (", m_reference->size(), ").");
 					
 					for (auto const &alt : var.alts())
 					{
-						// FIXME: log if skipped.
 						if (!can_handle_variant_alt(alt))
-							return true;
+						{
+							std::cerr << "Line " << lineno << ": Unable to handle ALT '" << alt.alt << ".\n";
+							goto end;
+						}
 					}
 					
 					// Filter.
 					for (auto const *field_ptr : filter_by_assigned)
 					{
-						// FIXME: log if skipped.
 						if (field_ptr->has_value(var))
-							return true;
+						{
+							std::cerr << "Line " << lineno << ": Variant has the field '" << field_ptr->get_metadata()->get_id() << "' set; skipping.\n";
+							goto end;
+						}
+					}
+					
+					// Check the reference seuqence.
+					{
+						auto const &ref_col(var.ref());
+						std::string_view const ref_sub(m_reference->data() + var_pos, ref_col.size());
+						if (ref_col != ref_sub)
+						{
+							std::cerr << "WARNING: reference column mismatch on line " << lineno << ": expected '" << ref_sub << "', got '" << ref_col << "'\n";
+							goto end;
+						}
 					}
 					
 					// Variant passes the checks, handle it.
 					{
-						auto const var_pos(var.zero_based_pos());
-						
-						// As long as there are parallel paths, add to the overlap stack.
-						if (var_pos < m_overlap_end + m_minimum_subgraph_distance)
-							m_seen_parallel_paths = true;
-						else if (m_seen_parallel_paths) // true == m_overlap_end + m_minimum_subgraph_distance <= var_pos
+						if (m_overlap_end + m_minimum_subgraph_distance <= var_pos)
 						{
-							// Reset.
-							m_seen_parallel_paths = false;
 							process_overlap_stack();
 							m_overlap_start = var_pos;
 						}
@@ -125,6 +139,11 @@ namespace vcf2multialign {
 						auto const var_end(lb::variant_end_pos(var, *end_field));
 						m_overlap_end = std::max(m_overlap_end, var_end);
 					}
+					
+				end:
+					++processed_count;
+					if (0 == processed_count % 100000)
+						std::cerr << "Handled " << processed_count << " variants…\n";
 					return true;
 				}
 			);
@@ -155,12 +174,13 @@ namespace vcf2multialign {
 		for (auto const &var : m_overlapping_variants)
 		{
 			for (std::size_t i(0), count(var.alts().size()); i < count; ++i)
-				m_sample_sorter.sort_by_variant_and_alt(var, i);
+				m_sample_sorter.sort_by_variant_and_alt(var, 1 + i);
 		}
 	
 		path_sorted_variant psv;
 	
 		auto const path_count(m_sample_sorter.path_count());
+		std::cerr << "Line " << m_overlapping_variants.front().lineno() << ": Overlapping variants: " << m_overlapping_variants.size() << " path count: " << path_count << '\n';
 		psv.set_paths_by_sample(m_sample_sorter.paths_by_sample());
 		psv.reserve_memory_for_paths(path_count);
 		psv.invert_paths_by_sample();
@@ -184,6 +204,7 @@ namespace vcf2multialign {
 					// Store the GT value.
 					auto const alt((*gt_field)(var.samples()[donor_idx])[chr_idx].alt);
 					alt_sequences_by_path(row_idx, path_idx).fetch_or(alt);
+					//std::cerr << "4 row_idx: " << row_idx << " path_idx: " << path_idx << " alt: " << alt << '\n';
 				
 					++path_idx;
 				}
@@ -202,61 +223,53 @@ namespace vcf2multialign {
 		// Generate the REF and ALT values for outputting one variant.
 		// The path numbers may be used for the GT values.
 		std::string_view reference_sv(m_reference->data(), m_reference->size());
-		std::string ref_string;
 		std::vector <std::string> alt_strings_by_path(alt_sequences_by_path.number_of_columns());
-		auto const path_count(m_sample_sorter.path_count());
-	
+		std::vector <std::size_t> alt_string_output_positions(alt_sequences_by_path.number_of_columns(), m_overlap_start);
+		
+		// Iterate over the variants and ALTs.
+		std::size_t row_idx(0);
+		for (auto const &pair : m_overlapping_variants | ranges::view::sliding(2))
 		{
-			// Iterate over the variants and ALTs.
-			std::size_t ref_start(m_overlap_start);
-			std::size_t row_idx(0);
-			for (auto const &var : m_overlapping_variants)
-			{
-				for (std::size_t path_idx(0); path_idx < path_count; ++path_idx)
-				{
-					// Output the part of the reference that is between the variants.
-					alt_strings_by_path[path_idx] += reference_sv.substr(ref_start, var.zero_based_pos() - ref_start);
-				
-					auto const alt_idx(alt_sequences_by_path(row_idx, path_idx));
-					if (0 == alt_idx)
-					{
-						// Output REF.
-						alt_strings_by_path[path_idx] += reference_sv.substr(var.zero_based_pos(), lb::variant_end_pos(var, *m_end_field));
-					}
-					else
-					{
-						// Output based on the ALT type.
-						auto const &alt(var.alts()[alt_idx]);
-						auto const svt(alt.alt_sv_type);
-						switch (svt)
-						{
-							case lb::sv_type::NONE:
-								// Output the ALT sequence.
-								alt_strings_by_path[path_idx] += alt.alt;
-								break;
-								
-							case lb::sv_type::DEL:
-							case lb::sv_type::DEL_ME:
-								// Don’t output anything.
-								break;
-								
-							case lb::sv_type::INS:
-							case lb::sv_type::DUP:
-							case lb::sv_type::INV:
-							case lb::sv_type::CNV:
-							case lb::sv_type::DUP_TANDEM:
-							case lb::sv_type::INS_ME:
-							case lb::sv_type::UNKNOWN:
-							default:
-								throw std::runtime_error("Unexpected ALT type");
-								break;
-						}
-					}
-				}
+			auto const &var(pair[0]);
+			auto const &next_var(pair[1]);
+			auto const next_var_pos(next_var.zero_based_pos());
 			
-				ref_string += var.ref();
-				ref_start += var.ref().size();
-				++row_idx;
+			output_sorted_handle_paths(
+				row_idx,
+				var,
+				next_var_pos,
+				reference_sv,
+				alt_sequences_by_path,
+				psv.samples_by_path(),
+				alt_strings_by_path,
+				alt_string_output_positions
+			);
+			
+			++row_idx;
+		}
+		
+		// Handle the last variant.
+		{
+			auto const &var(m_overlapping_variants.back());
+			auto const end_pos(lb::variant_end_pos(var, *m_end_field));
+			output_sorted_handle_paths(
+				row_idx,
+				var,
+				end_pos,
+				reference_sv,
+				alt_sequences_by_path,
+				psv.samples_by_path(),
+				alt_strings_by_path,
+				alt_string_output_positions
+			);
+			
+			// Fill up to the overlap end.
+			for (auto const pair : ranges::view::zip(alt_string_output_positions, alt_strings_by_path))
+			{
+				auto const &output_pos(std::get <0>(pair));
+				auto &alt_str(std::get <1>(pair));
+				auto const ref_part(reference_sv.substr(output_pos, end_pos - output_pos));
+				alt_str += ref_part;
 			}
 		}
 		
@@ -267,11 +280,97 @@ namespace vcf2multialign {
 				alt = "<DEL>";
 		}
 		
-		output_combined_variants(psv, ref_string, alt_strings_by_path);
+		std::cerr << "Writing to line " << m_output_lineno << '\n';
+		output_combined_variants(psv, alt_strings_by_path);
 	}
 	
 	
-	void variant_preprocessor::output_single_variant(lb::variant const &var) const
+	void variant_preprocessor::output_sorted_handle_paths(
+		std::size_t const row_idx,
+		libbio::variant const &var,
+		std::size_t const next_var_pos,
+		std::string_view const &reference_sv,
+		lb::packed_matrix <1> const &alt_sequences_by_path,
+		sample_map const &samples_by_path,
+		std::vector <std::string> &alt_strings_by_path,
+		std::vector <std::size_t> &alt_string_output_positions
+	) const
+	{
+		auto const var_pos(var.zero_based_pos());
+		auto const end_pos(lb::variant_end_pos(var, *m_end_field));
+		
+		auto const path_count(m_sample_sorter.path_count());
+		for (std::size_t path_idx(0); path_idx < path_count; ++path_idx)
+		{
+			auto const alt_end(alt_string_output_positions[path_idx]);
+			auto const alt_idx(alt_sequences_by_path(row_idx, path_idx));
+			// Skip the variants that would overlap with the previous variant on the path in question.
+			if (var_pos < alt_end)
+			{
+				if (0 != alt_idx)
+				{
+					std::cerr << "Line " << var.lineno() << ": Overlap on path " << path_idx << " in sample(s) ";
+					bool is_first(true);
+					for (auto const sample_no : samples_by_path[path_idx])
+					{
+						if (!is_first)
+							std::cerr << ", ";
+						auto const [donor_idx, chr_idx] = m_sample_indexer.donor_and_chr_idx(sample_no);
+						std::cerr << m_sample_names[donor_idx] << ':' << +chr_idx << " (" << sample_no << ')';
+						is_first = false;
+					}
+					std::cerr << "; skipping.\n";
+				}
+				continue;
+			}
+			
+			// Output the part of the reference that is between the variants.
+			// This corresponds to joining paths in the DAG.
+			alt_strings_by_path[path_idx] += reference_sv.substr(alt_end, var_pos - alt_end);
+			
+			libbio_assert(0 != path_idx || 0 == alt_idx); // path_idx 0 is supposed to have the reference sequence.
+			if (0 == alt_idx)
+			{
+				// Output REF.
+				alt_strings_by_path[path_idx] += reference_sv.substr(var_pos, next_var_pos - var_pos);
+				alt_string_output_positions[path_idx] = next_var_pos;
+			}
+			else
+			{
+				// Output based on the ALT type.
+				auto const &alt(var.alts()[alt_idx - 1]);
+				auto const svt(alt.alt_sv_type);
+				switch (svt)
+				{
+					case lb::sv_type::NONE:
+						// Output the ALT sequence.
+						alt_strings_by_path[path_idx] += alt.alt;
+						alt_string_output_positions[path_idx] = end_pos;
+						break;
+						
+					case lb::sv_type::DEL:
+					case lb::sv_type::DEL_ME:
+						// Don’t output anything.
+						alt_string_output_positions[path_idx] = end_pos;
+						break;
+						
+					case lb::sv_type::INS:
+					case lb::sv_type::DUP:
+					case lb::sv_type::INV:
+					case lb::sv_type::CNV:
+					case lb::sv_type::DUP_TANDEM:
+					case lb::sv_type::INS_ME:
+					case lb::sv_type::UNKNOWN:
+					default:
+						throw std::runtime_error("Unexpected ALT type");
+						break;
+				}
+			}
+		}
+	}
+	
+	
+	void variant_preprocessor::output_single_variant(lb::variant const &var)
 	{
 		// #CHROM, POS, ID, REF
 		*m_ostream
@@ -302,12 +401,12 @@ namespace vcf2multialign {
 			gt_field->output_vcf_value(*m_ostream, sample);
 		}
 		*m_ostream << '\n';
+		++m_output_lineno;
 	}
 	
 	
 	void variant_preprocessor::output_combined_variants(
 		path_sorted_variant const &psv,
-		std::string const &ref_string,
 		std::vector <std::string> const &alt_strings_by_path
 	)
 	{
@@ -318,19 +417,19 @@ namespace vcf2multialign {
 		std::fill(m_output_gt.begin(), m_output_gt.end(), 0);
 		for (std::size_t i(0), count(paths_by_sample.size()); i < count; ++i)
 		{
-			auto const [chr_idx, sample_idx] = m_sample_indexer.donor_and_chr_idx(i);
+			auto const [sample_idx, chr_idx] = m_sample_indexer.donor_and_chr_idx(i);
 			m_output_gt(chr_idx, sample_idx) = paths_by_sample[i];
 		}
 		
 		// #CHROM, POS, ID, REF
 		*m_ostream
 			<< m_chromosome_name << '\t'
-			<< m_overlap_start << '\t'
+			<< 1 + m_overlap_start << '\t'	// m_overlap_start is zero-based.
 			<< ".\t"
-			<< ref_string << '\t';
+			<< alt_strings_by_path.front() << '\t';
 		
 		// ALT
-		ranges::copy(alt_strings_by_path, ranges::make_ostream_joiner(*m_ostream, "\t"));
+		ranges::copy(alt_strings_by_path | ranges::view::drop(1), ranges::make_ostream_joiner(*m_ostream, ","));
 		*m_ostream << '\t';
 		
 		// QUAL, FILTER, INFO, FORMAT
@@ -346,8 +445,12 @@ namespace vcf2multialign {
 			*m_ostream << '\t';
 			
 			auto const &column(m_output_gt.const_column(i));
-			ranges::copy(column, ranges::make_ostream_joiner(*m_ostream, "|"));
+			ranges::copy(
+				column | ranges::view::transform([](auto const &gt_idx){ return +gt_idx; }),
+				ranges::make_ostream_joiner(*m_ostream, "|")
+			);
 		}
 		*m_ostream << '\n';
+		++m_output_lineno;
 	}
 }
