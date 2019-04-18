@@ -120,7 +120,6 @@ namespace vcf2multialign {
 		char const *variants_fname,
 		char const *out_reference_fname,
 		char const *report_fname,
-		sv_handling const sv_handling_method,
 		bool const should_check_ref
 	)
 	{
@@ -138,10 +137,7 @@ namespace vcf2multialign {
 			m_total_rounds = std::ceil(double(sample_count) / m_chunk_size);
 		}
 		
-		generate_context_base::load_and_generate(
-			sv_handling_method,
-			should_check_ref
-		);
+		generate_context_base::load_and_generate(should_check_ref);
 			
 		// Replace the placeholder variant_handler_type.
 		{
@@ -150,7 +146,6 @@ namespace vcf2multialign {
 				m_parsing_queue,
 				m_vcf_reader,
 				m_reference,
-				sv_handling_method,
 				m_chromosome_name,
 				m_skipped_variants,
 				m_null_allele_seq,

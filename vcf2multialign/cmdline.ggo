@@ -16,7 +16,6 @@ option		"chromosome"			-	"Chromosome identifier"								string	typestr = "identi
 option		"null-allele-seq"		-	"Sequence to be used for null alleles"				string	typestr = "seq"	default = "N"												optional
 option		"report-file"			-	"Write skipped variants to the given file"			string	typestr = "filename"														optional
 option		"no-check-ref"			-	"Omit comparing the reference to the REF column"	flag	off
-option		"structural-variants"	-	"Structural variant handling"								typestr = "mode"	values = "discard", "keep" default = "discard"	enum	optional
 option		"overwrite"				-	"Overwrite output files"							flag	off
 
 defmode		"Output sequence files"

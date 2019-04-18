@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2017-2018 Tuukka Norri
+ Copyright (c) 2017-2019 Tuukka Norri
  This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -24,7 +24,6 @@ namespace vcf2multialign {
 		char const *report_fname,
 		char const *null_allele_seq,
 		std::size_t const chunk_size,
-		sv_handling const sv_handling_method,
 		bool const should_overwrite_files,
 		bool const should_check_ref
 	)
@@ -56,7 +55,6 @@ namespace vcf2multialign {
 					variants_fname,
 					out_reference_fname,
 					report_fname,
-					sv_handling_method,
 					should_check_ref
 				);
 				
@@ -85,7 +83,6 @@ namespace vcf2multialign {
 					variants_fname,
 					report_fname,
 					out_fname,
-					sv_handling_method,
 					should_check_ref
 				);
 				

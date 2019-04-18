@@ -12,16 +12,13 @@
 
 
 namespace vcf2multialign {
+	
 	size_t check_overlapping_non_nested_variants(
 		libbio::vcf_reader &reader,
 		std::string const &chromosome_name,
-		sv_handling const sv_handling_method,
 		variant_set /* out */ &skipped_variants,
 		error_logger &error_logger
 	);
-		
-	bool can_handle_variant_alts(libbio::transient_variant const &var);
-	bool can_handle_variant_alt(libbio::variant_alt_base const &alt);
 }
 
 #endif

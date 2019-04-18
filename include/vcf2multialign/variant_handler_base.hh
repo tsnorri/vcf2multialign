@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2017-2018 Tuukka Norri
+ * Copyright (c) 2017-2019 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
 #ifndef VCF2MULTIALIGN_VARIANT_HANDLER_BASE_HH
 #define VCF2MULTIALIGN_VARIANT_HANDLER_BASE_HH
 
-#include <libbio/vcf_reader.hh>
+#include <libbio/vcf/vcf_reader.hh>
 #include <set>
 #include <vcf2multialign/error_logger.hh>
 #include <vcf2multialign/types.hh>
@@ -19,17 +19,12 @@ namespace vcf2multialign {
 	protected:
 		std::set <std::uint8_t>							m_valid_alts;
 		error_logger									*m_error_logger{};
-		sv_handling										m_sv_handling_method{};
 		
 	protected:
 		variant_handler_base() = default;
 		
-		variant_handler_base(
-			sv_handling const sv_handling_method,
-			error_logger &error_logger
-		):
-			m_error_logger(&error_logger),
-			m_sv_handling_method(sv_handling_method)
+		variant_handler_base(error_logger &error_logger):
+			m_error_logger(&error_logger)
 		{
 		}
 		

@@ -1,6 +1,6 @@
 /*
- Copyright (c) 2017-2018 Tuukka Norri
- This code is licensed under MIT license (see LICENSE for details).
+ * Copyright (c) 2017-2019 Tuukka Norri
+ * This code is licensed under MIT license (see LICENSE for details).
  */
 
 #include <cstdlib>
@@ -14,26 +14,6 @@
 
 namespace lb	= libbio;
 namespace v2m	= vcf2multialign;
-
-
-namespace {
-	v2m::sv_handling sv_handling_method(enum_structural_variants const sva)
-	{
-		switch (sva)
-		{
-			case structural_variants_arg_discard:
-				return v2m::sv_handling::DISCARD;
-				
-			case structural_variants_arg_keep:
-				return v2m::sv_handling::KEEP;
-				
-			case structural_variants__NULL:
-			default:
-				libbio_fail("Unexpected value for structural variant handling.");
-				return v2m::sv_handling::KEEP; // Not reached.
-		}
-	}
-}
 
 
 int main(int argc, char **argv)
@@ -78,7 +58,6 @@ int main(int argc, char **argv)
 		args_info.report_file_arg,
 		args_info.null_allele_seq_arg,
 		args_info.chunk_size_arg,
-		sv_handling_method(args_info.structural_variants_arg),
 		args_info.overwrite_flag,
 		!args_info.no_check_ref_flag
 	);

@@ -32,65 +32,42 @@ namespace vcf2multialign {
 		std::size_t i(0);
 		auto const lineno(var.lineno());
 		
-		if (sv_handling::DISCARD == m_sv_handling_method)
+		for (auto const &alt : var.alts())
 		{
-			for (auto const &ref : boost::combine(var.alts(), var.alt_sv_types()))
+			++i;
+			
+			auto const alt_svt(alt.alt_sv_type);
+			switch (alt_svt)
 			{
-				++i;
-				
-				auto const alt_svt(ref.get <1>());
-				if (lb::sv_type::NONE != alt_svt)
-					continue;
-				
-				auto const &alt(ref.get <0>());
-				if (!check_alt_seq(alt))
+				case lb::sv_type::NONE:
 				{
-					m_error_logger->log_invalid_alt_seq(lineno, i, alt);
-					continue;
-				}
-				
-				m_valid_alts.emplace(i);
-			}
-		}
-		else
-		{
-			for (auto const &ref : boost::combine(var.alts(), var.alt_sv_types()))
-			{
-				++i;
-				
-				auto const alt_svt(ref.get <1>());
-				switch (alt_svt)
-				{
-					case lb::sv_type::NONE:
-					{
-						auto const &alt(ref.get <0>());
-						if (check_alt_seq(alt))
-							m_valid_alts.emplace(i);
-						else
-							m_error_logger->log_invalid_alt_seq(lineno, i, alt);
-						
-						break;
-					}
-					
-					case lb::sv_type::DEL:
-					case lb::sv_type::DEL_ME:
+					auto const &alt_str(alt.alt);
+					if (check_alt_seq(alt_str))
 						m_valid_alts.emplace(i);
-						break;
+					else
+						m_error_logger->log_invalid_alt_seq(lineno, i, alt_str);
 					
-					case lb::sv_type::INS:
-					case lb::sv_type::DUP:
-					case lb::sv_type::INV:
-					case lb::sv_type::CNV:
-					case lb::sv_type::DUP_TANDEM:
-					case lb::sv_type::INS_ME:
-					case lb::sv_type::UNKNOWN:
-						m_error_logger->log_skipped_structural_variant(lineno, i, alt_svt);
-						break;
-					
-					default:
-						libbio_fail("Unexpected structural variant type.");
-						break;
+					break;
 				}
+				
+				case lb::sv_type::DEL:
+				case lb::sv_type::DEL_ME:
+					m_valid_alts.emplace(i);
+					break;
+				
+				case lb::sv_type::INS:
+				case lb::sv_type::DUP:
+				case lb::sv_type::INV:
+				case lb::sv_type::CNV:
+				case lb::sv_type::DUP_TANDEM:
+				case lb::sv_type::INS_ME:
+				case lb::sv_type::UNKNOWN:
+					m_error_logger->log_skipped_structural_variant(lineno, i, alt_svt);
+					break;
+				
+				default:
+					libbio_fail("Unexpected structural variant type.");
+					break;
 			}
 		}
 	}

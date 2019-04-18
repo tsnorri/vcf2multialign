@@ -13,6 +13,7 @@
 #include <map>
 #include <stack>
 #include <vcf2multialign/variant_buffer.hh>
+#include <vcf2multialign/variant_format.hh>
 #include <vcf2multialign/variant_handler_base.hh>
 
 
@@ -155,14 +156,13 @@ namespace vcf2multialign {
 			libbio::dispatch_ptr <dispatch_queue_t> const &parsing_queue,
 			libbio::vcf_reader &vcf_reader_,
 			vector_type const &reference,
-			sv_handling const sv_handling_method,
 			std::string const &chromosome_name,
 			variant_set const &skipped_variants,
 			std::string const &null_allele,
 			error_logger &error_logger,
 			t_delegate &delegate
 		):
-			variant_handler_base(sv_handling_method, error_logger),
+			variant_handler_base(error_logger),
 			m_main_queue(main_queue),
 			m_parsing_queue(parsing_queue),
 			m_delegate(&delegate),
@@ -381,6 +381,8 @@ namespace vcf2multialign {
 	{
 		namespace lb = libbio;
 		
+		auto const *gt_field(get_variant_format(var).gt);
+		
 		m_skipped_samples.clear();
 		m_counts_by_alt.clear();
 		m_non_ref_totals.reset();
@@ -405,7 +407,6 @@ namespace vcf2multialign {
 				auto const var_ref(var.ref());
 				auto const var_ref_size(var_ref.size());
 				auto const var_alts(var.alts());
-				auto const var_alt_sv_types(var.alt_sv_types());
 		
 				// If var is beyond previous_variant.end_pos, handle the variants on the stack
 				// until a containing variant is found or the bottom of the stack is reached.
@@ -444,11 +445,12 @@ namespace vcf2multialign {
 				std::string const empty_alt("");
 				for (auto const alt_idx : m_valid_alts)
 				{
-					switch (var_alt_sv_types[alt_idx - 1])
+					auto const &alt(var_alts[alt_idx - 1]);
+					switch (alt.alt_sv_type)
 					{
 						case lb::sv_type::NONE:
 						{
-							auto const &alt_str(var_alts[alt_idx - 1]);
+							auto const &alt_str(alt.alt);
 							m_alt_haplotypes[alt_str];
 							break;
 						}
@@ -470,11 +472,11 @@ namespace vcf2multialign {
 					auto const sample_no(kv.first);
 			
 					// Get the sample.
-					auto const sample(var.sample(sample_no));
+					auto const &sample(var.samples()[sample_no]);
 			
 					// Handle the genotype.
 					uint8_t chr_idx(0);
-					for (auto const gt : sample.get_genotype_range())
+					for (auto const gt : (*gt_field)(sample))
 					{
 						auto const alt_idx(gt.alt);
 						auto const is_phased(gt.is_phased);
@@ -487,10 +489,11 @@ namespace vcf2multialign {
 							std::string const *alt_ptr{m_null_allele_seq};
 							if (lb::NULL_ALLELE != alt_idx)
 							{
-								switch (var_alt_sv_types[alt_idx - 1])
+								auto const &alt(var_alts[alt_idx - 1]);
+								switch (alt.alt_sv_type)
 								{
 									case lb::sv_type::NONE:
-										alt_ptr = &var_alts[alt_idx - 1];
+										alt_ptr = &alt.alt;
 										break;
 								
 									case lb::sv_type::DEL:

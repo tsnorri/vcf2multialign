@@ -22,11 +22,6 @@ namespace vcf2multialign {
 		VARIANT_GRAPH
 	};
 	
-	enum class sv_handling : uint8_t {
-		DISCARD		= 0,
-		KEEP
-	};
-	
 	struct sample_count
 	{
 		std::size_t handled_count{0};

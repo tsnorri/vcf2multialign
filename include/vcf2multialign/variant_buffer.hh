@@ -8,7 +8,7 @@
 
 #include <boost/container/set.hpp> // For an extract-capable multiset.
 #include <libbio/dispatch.hh>
-#include <libbio/vcf_reader.hh>
+#include <libbio/vcf/vcf_reader.hh>
 #include <mutex>
 #include <string>
 #include <vcf2multialign/types.hh>

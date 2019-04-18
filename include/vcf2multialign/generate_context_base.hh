@@ -9,7 +9,7 @@
 #include <chrono>
 #include <map>
 #include <libbio/dispatch.hh>
-#include <libbio/vcf_reader.hh>
+#include <libbio/vcf/vcf_reader.hh>
 #include <string>
 #include <vcf2multialign/error_logger.hh>
 #include <vcf2multialign/types.hh>
@@ -70,10 +70,7 @@ namespace vcf2multialign {
 		);
 		void check_ploidy();
 		void check_ref();
-		void load_and_generate(
-			sv_handling const sv_handling_method,
-			bool const should_check_ref
-		);
+		void load_and_generate(bool const should_check_ref);
 	};
 }
 

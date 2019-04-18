@@ -5,6 +5,7 @@
 
 #include <boost/io/ios_state.hpp>
 #include <vcf2multialign/check_overlapping_non_nested_variants.hh>
+#include <vcf2multialign/check_ploidy.hh>
 #include <vcf2multialign/read_single_fasta_seq.hh>
 #include <vcf2multialign/generate_context_base.hh>
 
@@ -72,7 +73,11 @@ namespace vcf2multialign {
 			m_error_logger.write_header();
 		}
 		
+		lb::add_reserved_info_keys(m_vcf_reader.info_fields());
+		lb::add_reserved_genotype_keys(m_vcf_reader.genotype_fields());
+		
 		m_vcf_reader.set_input(m_vcf_input);
+		m_vcf_reader.fill_buffer();
 		m_vcf_reader.read_header();
 		
 		// Read the reference file and place its contents into reference.
@@ -82,7 +87,7 @@ namespace vcf2multialign {
 		
 	void generate_context_base::check_ploidy()
 	{
-		check_ploidy(m_vcf_reader, m_ploidy);
+		::vcf2multialign::check_ploidy(m_vcf_reader, m_ploidy);
 	}
 	
 	
@@ -155,10 +160,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void generate_context_base::load_and_generate(
-		sv_handling const sv_handling_method,
-		bool const should_check_ref
-	)
+	void generate_context_base::load_and_generate(bool const should_check_ref)
 	{
 		// Check ploidy from the first record.
 		std::cerr << "Checking ploidy…" << std::endl;
@@ -178,7 +180,6 @@ namespace vcf2multialign {
 			auto const conflict_count(check_overlapping_non_nested_variants(
 				m_vcf_reader,
 				m_chromosome_name,
-				sv_handling_method,
 				m_skipped_variants,
 				m_error_logger
 			));

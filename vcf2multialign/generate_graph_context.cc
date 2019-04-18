@@ -178,7 +178,6 @@ namespace vcf2multialign {
 		char const *variants_fname,
 		char const *report_fname,
 		char const *output_fname,
-		sv_handling const sv_handling_method,
 		bool const should_check_ref
 	)
 	{
@@ -186,10 +185,7 @@ namespace vcf2multialign {
 		std::cerr << "Opening files…" << std::endl;
 		open_files(reference_fname, ref_seq_name, variants_fname, report_fname, output_fname);
 		
-		generate_context_base::load_and_generate(
-			sv_handling_method,
-			should_check_ref
-		);
+		generate_context_base::load_and_generate(should_check_ref);
 		
 		// Replace the placeholder variant_handler.
 		{
@@ -198,7 +194,6 @@ namespace vcf2multialign {
 				m_parsing_queue,
 				m_vcf_reader,
 				m_reference,
-				sv_handling_method,
 				m_chromosome_name,
 				m_skipped_variants,
 				m_null_allele_seq,
