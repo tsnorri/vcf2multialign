@@ -29,8 +29,18 @@ namespace vcf2multialign {
 	};
 	
 	
-	inline variant_format const &get_variant_format(libbio::variant const &var)				{ return static_cast <variant_format const &>(var.get_format()); }
-	inline variant_format const &get_variant_format(libbio::transient_variant const &var)	{ return static_cast <variant_format const &>(var.get_format()); }
+	inline variant_format const &get_variant_format(libbio::variant const &var)
+	{
+		libbio_assert(var.reader()->has_assigned_variant_format());
+		return static_cast <variant_format const &>(var.get_format());
+	}
+	
+	
+	inline variant_format const &get_variant_format(libbio::transient_variant const &var)
+	{
+		libbio_assert(var.reader()->has_assigned_variant_format());
+		return static_cast <variant_format const &>(var.get_format());
+	}
 }
 
 #endif
