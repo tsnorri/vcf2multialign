@@ -103,6 +103,8 @@ namespace vcf2multialign {
 			add_to_map(info_fields, "SVTYPE",	new vcf_info_field_svtype());
 		}
 		
+		reader.set_variant_format(new variant_format());
+		
 		// Parse.
 		reader.set_parsed_fields(lb::vcf_field::ALL);
 		reader.set_input(vcf_input);
