@@ -9,6 +9,7 @@
 #include <boost/range/adaptor/reversed.hpp>
 #include <iostream>
 #include <libbio/assert.hh>
+#include <vcf2multialign/can_handle_variant_alts.hh>
 #include <vcf2multialign/check_overlapping_non_nested_variants.hh>
 
 
@@ -16,19 +17,19 @@ namespace lb	= libbio;
 namespace v2m	= vcf2multialign;
 
 
-typedef boost::bimap <
-	boost::bimaps::multiset_of <std::size_t>,
-	boost::bimaps::multiset_of <std::size_t>
-> overlap_map;
-
-
-typedef boost::bimap <
-	boost::bimaps::set_of <std::size_t>,		// lineno
-	boost::bimaps::list_of <std::size_t>		// count
-> conflict_count_map;
-
-
 namespace {
+	
+	typedef boost::bimap <
+		boost::bimaps::multiset_of <std::size_t>,
+		boost::bimaps::multiset_of <std::size_t>
+	> overlap_map;
+
+
+	typedef boost::bimap <
+		boost::bimaps::set_of <std::size_t>,		// lineno
+		boost::bimaps::list_of <std::size_t>		// count
+	> conflict_count_map;
+	
 	
 	struct var_info
 	{
@@ -85,58 +86,7 @@ namespace {
 
 
 namespace vcf2multialign {
-
-	bool can_handle_variant_alts(lb::transient_variant const &var)
-	{
-		// Keep.
-		for (auto const &alt : var.alts())
-		{
-			auto const svt(alt.alt_sv_type);
-			switch (svt)
-			{
-				// These structural variant types are currently handled.
-				case lb::sv_type::NONE:
-				case lb::sv_type::DEL:
-				case lb::sv_type::DEL_ME:
-					return true;
-					
-				case lb::sv_type::INS:
-				case lb::sv_type::DUP:
-				case lb::sv_type::INV:
-				case lb::sv_type::CNV:
-				case lb::sv_type::DUP_TANDEM:
-				case lb::sv_type::INS_ME:
-				case lb::sv_type::UNKNOWN:
-					break;
-			}
-		}
-		
-		return false;
-	}
 	
-	
-	bool can_handle_variant_alt(lb::variant_alt_base const &alt)
-	{
-		auto const svt(alt.alt_sv_type);
-		switch (svt)
-		{
-			case lb::sv_type::NONE:
-			case lb::sv_type::DEL:
-			case lb::sv_type::DEL_ME:
-				return true;
-				
-			case lb::sv_type::INS:
-			case lb::sv_type::DUP:
-			case lb::sv_type::INV:
-			case lb::sv_type::CNV:
-			case lb::sv_type::DUP_TANDEM:
-			case lb::sv_type::INS_ME:
-			case lb::sv_type::UNKNOWN:
-				return false;
-		}
-	}
-	
-
 	std::size_t check_overlapping_non_nested_variants(
 		lb::vcf_reader &reader,
 		std::string const &chromosome_name,
