@@ -5,7 +5,7 @@
 
 #include <range/v3/algorithm/copy.hpp>
 #include <range/v3/view/transform.hpp>
-#include <vcf2multialign/check_overlapping_non_nested_variants.hh>
+#include <vcf2multialign/can_handle_variant_alts.hh>
 #include <vcf2multialign/preprocess/variant_preprocessor.hh>
 #include <vcf2multialign/variant_format.hh>
 
