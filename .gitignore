@@ -33,8 +33,8 @@
 preprocess-vcf/cmdline.c
 preprocess-vcf/cmdline.h
 preprocess-vcf/config.h
+preprocess-vcf/preprocess_vcf
 vcf2multialign/cmdline.c
 vcf2multialign/cmdline.h
-vcf2multialign/vcf2multialign
 vcf2multialign/config.h
-vcf2multialign/vcf_reader.cc
+vcf2multialign/vcf2multialign
