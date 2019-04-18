@@ -21,7 +21,7 @@ clean:
 vcf2multialign: $(OBJECTS)
 	$(CXX) -o $@ $(OBJECTS) $(LDFLAGS) ../libvcf2multialign/libvcf2multialign.a
 
-main.c : cmdline.c
+main.cc : cmdline.c
 cmdline.c : config.h
 
 include ../config.mk
