@@ -8,12 +8,12 @@ OBJECTS		=	cmdline.o \
 				sample_sorter.o \
 				variant_preprocessor.o
 
-all: vcf2multialign
+all: preprocess_vcf
 
 clean:
-	$(RM) $(OBJECTS) vcf2multialign cmdline.c cmdline.h version.h vcf_reader.pdf
+	$(RM) $(OBJECTS) preprocess_vcf cmdline.c cmdline.h version.h vcf_reader.pdf
 
-vcf2multialign: $(OBJECTS)
+preprocess_vcf: $(OBJECTS)
 	$(CXX) -o $@ $(OBJECTS) $(LDFLAGS) ../libvcf2multialign/libvcf2multialign.a
 
 main.c : cmdline.c
