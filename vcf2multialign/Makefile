@@ -19,7 +19,7 @@ clean:
 	$(RM) $(OBJECTS) vcf2multialign cmdline.c cmdline.h version.h vcf_reader.pdf
 
 vcf2multialign: $(OBJECTS)
-	$(CXX) -o $@ $(OBJECTS) $(LDFLAGS) ../libvcf2multialign/libvcf2multialign.a
+	$(CXX) -o $@ $(OBJECTS) ../libvcf2multialign/libvcf2multialign.a $(LDFLAGS)
 
 main.cc : cmdline.c
 cmdline.c : config.h
