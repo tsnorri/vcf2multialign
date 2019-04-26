@@ -33,6 +33,7 @@ namespace vcf2multialign {
 				case lb::sv_type::DUP_TANDEM:
 				case lb::sv_type::INS_ME:
 				case lb::sv_type::UNKNOWN:
+				default:
 					break;
 			}
 		}
@@ -58,7 +59,10 @@ namespace vcf2multialign {
 			case lb::sv_type::DUP_TANDEM:
 			case lb::sv_type::INS_ME:
 			case lb::sv_type::UNKNOWN:
-				return false;
+			default:
+				break;
 		}
+
+		return false;
 	}
 }
