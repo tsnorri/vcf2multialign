@@ -61,6 +61,10 @@ namespace vcf2multialign {
 		lb::mmap_handle <char> ref_handle;
 		ref_handle.open(reference_fname);
 		
+		// Read the reference file and place its contents into reference.
+		read_single_fasta_seq(ref_handle, m_reference, ref_seq_name);
+		
+		// Open the variant file.
 		m_vcf_handle.open(variants_fname);
 		m_vcf_input.reset_range();
 		
@@ -82,9 +86,6 @@ namespace vcf2multialign {
 		m_vcf_reader.set_input(m_vcf_input);
 		m_vcf_reader.fill_buffer();
 		m_vcf_reader.read_header();
-		
-		// Read the reference file and place its contents into reference.
-		read_single_fasta_seq(ref_handle, m_reference, ref_seq_name);
 	}
 	
 		
