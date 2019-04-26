@@ -69,7 +69,7 @@ namespace vcf2multialign {
 		void output_headers();
 		
 		void process_overlap_stack();
-		void output_sorted(path_sorted_variant const &psv, libbio::packed_matrix <1> const &alt_sequences_by_path);
+		void output_sorted(path_sorted_variant const &psv, libbio::packed_matrix <8> const &alt_sequences_by_path);
 		
 		void output_single_variant(libbio::variant const &var);
 		void output_combined_variants(
@@ -81,7 +81,7 @@ namespace vcf2multialign {
 			libbio::variant const &var,
 			std::size_t const next_var_pos,
 			std::string_view const &reference_sv,
-			libbio::packed_matrix <1> const &alt_sequences_by_path,
+			libbio::packed_matrix <8> const &alt_sequences_by_path,
 			sample_map const &samples_by_path,
 			std::vector <std::string> &alt_strings_by_path,
 			std::vector <std::size_t> &alt_string_output_positions

@@ -96,14 +96,11 @@ namespace vcf2multialign {
 						goto end;
 					
 					libbio_always_assert_msg(var_pos < m_reference->size(), "Variant position on line ", lineno, " greater than reference length (", m_reference->size(), ").");
-					
-					for (auto const &alt : var.alts())
+
+					if (!can_handle_variant_alts(var))
 					{
-						if (!can_handle_variant_alt(alt))
-						{
-							std::cerr << "Line " << lineno << ": Unable to handle ALT '" << alt.alt << ".\n";
-							goto end;
-						}
+						std::cerr << "Line " << lineno << ": Variant has no ALTs that could be handled.\n";
+						goto end;
 					}
 					
 					// Filter.
@@ -186,30 +183,47 @@ namespace vcf2multialign {
 		psv.invert_paths_by_sample();
 	
 		// Determine the ALT sequence for each path by taking a representative for each path.
-		lb::packed_matrix <1> alt_sequences_by_path(m_overlapping_variants.size(), path_count);
+		// FIXME: add a check (other than the assertion in the matrix) for the ALT value’s limit.
+		lb::packed_matrix <8> alt_sequences_by_path(m_overlapping_variants.size(), path_count);
 		{
 			// Iterate over the variants and ALTs.
 			std::size_t row_idx(0);
 			for (auto const &var : m_overlapping_variants)
 			{
-				// Iterate over the sample representatives.
-				auto const *gt_field(get_variant_format(var).gt);
-				std::size_t path_idx(0);
-				for (auto const &sample_numbers : psv.samples_by_path())
+				try
 				{
-					libbio_always_assert(!sample_numbers.empty());
-					auto const sample_idx(sample_numbers.front());
-					auto const [donor_idx, chr_idx] = m_sample_indexer.donor_and_chr_idx(sample_idx);
+					// Iterate over the sample representatives.
+					auto const *gt_field(get_variant_format(var).gt);
+					std::size_t path_idx(0);
+					for (auto const &sample_numbers : psv.samples_by_path())
+					{
+						libbio_always_assert(!sample_numbers.empty());
+						auto const sample_idx(sample_numbers.front());
+						auto const [donor_idx, chr_idx] = m_sample_indexer.donor_and_chr_idx(sample_idx);
+					
+						// Store the GT value.
+						auto const &sample(var.samples()[donor_idx]);
+						auto const &genotypes((*gt_field)(sample));
+						auto const &genotype(genotypes[chr_idx]);
+						auto const alt(genotype.alt);
+						if (lb::sample_genotype::NULL_ALLELE == alt)
+							std::cerr << "Line " << var.lineno() << ": Ignoring null allele in sample " << donor_idx << ':' << chr_idx << '\n';
+						else
+							alt_sequences_by_path(row_idx, path_idx).fetch_or(alt);
+						//std::cerr << "4 row_idx: " << row_idx << " path_idx: " << path_idx << " alt: " << alt << '\n';
+					
+						++path_idx;
+					}
 				
-					// Store the GT value.
-					auto const alt((*gt_field)(var.samples()[donor_idx])[chr_idx].alt);
-					alt_sequences_by_path(row_idx, path_idx).fetch_or(alt);
-					//std::cerr << "4 row_idx: " << row_idx << " path_idx: " << path_idx << " alt: " << alt << '\n';
-				
-					++path_idx;
+					++row_idx;
 				}
-			
-				++row_idx;
+				catch (std::exception const &exc)
+				{
+					std::cerr << "FATAL: Caught an exception while handling the following variant:" << std::endl;
+					lb::output_vcf(std::cerr, var);
+					std::cerr << std::endl;
+					throw exc;
+				}
 			}
 		}
 	
@@ -218,7 +232,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void variant_preprocessor::output_sorted(path_sorted_variant const &psv, lb::packed_matrix <1> const &alt_sequences_by_path)
+	void variant_preprocessor::output_sorted(path_sorted_variant const &psv, lb::packed_matrix <8> const &alt_sequences_by_path)
 	{
 		// Generate the REF and ALT values for outputting one variant.
 		// The path numbers may be used for the GT values.
@@ -290,7 +304,7 @@ namespace vcf2multialign {
 		libbio::variant const &var,
 		std::size_t const next_var_pos,
 		std::string_view const &reference_sv,
-		lb::packed_matrix <1> const &alt_sequences_by_path,
+		lb::packed_matrix <8> const &alt_sequences_by_path,
 		sample_map const &samples_by_path,
 		std::vector <std::string> &alt_strings_by_path,
 		std::vector <std::size_t> &alt_string_output_positions
