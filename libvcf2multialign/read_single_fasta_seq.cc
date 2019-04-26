@@ -70,6 +70,6 @@ namespace vcf2multialign {
 		
 		std::cerr << "Reading reference FASTA into memory…";
 		reader.parse(ref_fasta_handle, cb);
-		std::cerr << " Done." << std::endl;
+		std::cerr << " Done. Reference length was " << reference.size() << '.' << std::endl;
 	}
 }
