@@ -4,18 +4,16 @@ Create multiply-aligned haplotype sequences from a variant call file and a refer
 
 ## Build/Runtime Requirements
 
-On Linux the following libraries are required:
-
-- [libdispatch](http://nickhutchinson.me/libdispatch/) (provided as a Git submodule)
-- [libpthread_workqueue](https://github.com/mheily/libpwq) (provided as a Git submodule)
-- [libkqueue](https://github.com/mheily/libkqueue)
+On Linux, [libbsd](https://libbsd.freedesktop.org/) is required.
 
 ## Build Requirements
 
-- Reasonably new compilers for C and C++, e.g. GCC 6 or Clang 3.9. C++17 support is required.
+- Reasonably new compilers for C and C++. We use LLVM 8 for our builds. C++17 support is required.
 - [GNU gengetopt](https://www.gnu.org/software/gengetopt/gengetopt.html) (tested with version 2.22.6)
 - [Ragel State Machine Compiler](http://www.colm.net/open-source/ragel/) (tested with version 6.7)
-- [CMake](http://cmake.org)
+- [libdispatch](https://github.com/apple/swift-corelibs-libdispatch) for building on Linux (provided as a Git submodule)
+- [CMake](http://cmake.org) for building libdispatch on Linux
+- [Ninja](https://ninja-build.org) for building libdispatch on Linux
 - [Boost](http://www.boost.org)
 
 ## Building
@@ -31,11 +29,13 @@ On Linux the following libraries are required:
 
 ### Long version
 
+Currently some configuration may need to be done manually by editing `local.mk` as described below.
+
 1. Clone the repository with `git clone https://github.com/tsnorri/vcf2multialign.git`.
 2. Change the working directory with `cd vcf2multialign`.
 3. Run `git submodule update --init --recursive`. This clones the missing submodules and updates their working tree.
 4. Create the file `local.mk`. `linux-static.local.mk` is provided as an example and may be copied with `cp linux-static.local.mk local.mk`
-5. Edit `local.mk` in the repository root to override build variables. Useful variables include `CC`, `CXX`, `RAGEL` and `GENGETOPT` for C and C++ compilers, Ragel and gengetopt respectively. `BOOST_INCLUDE` is used as preprocessor flags when Boost is required. `BOOST_LIBS` and `LIBDISPATCH_LIBS` are passed to the linker. See `common.mk` for additional variables.
+5. Edit `local.mk` in the repository root to override build variables. In addition to GNU Make’s built-in variables, some other ones listed in `common.mk` are used. Useful variables include `CC`, `CXX`, `RAGEL` and `GENGETOPT` for C and C++ compilers, Ragel and gengetopt respectively. `BOOST_INCLUDE` is used as preprocessor flags when Boost is required. `BOOST_LIBS` is passed to the linker.
 6. Run make with a suitable numer of parallel jobs, e.g. `make -j4`
 
 Useful make targets include:
