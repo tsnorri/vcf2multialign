@@ -18,12 +18,11 @@ namespace vcf2multialign {
 	bool sample_sorter::check_variant_for_sample_and_update_state(std::size_t const sample_idx, lb::variant const &var, std::uint8_t const alt_idx)
 	{
 		// Check the output position of the given sample. REF can always be handled.
-		// FIXME: log if skipped.
 		// If the current sample has zero, do not change its end position.
-		if (0 == alt_idx)
-			return true;
+		libbio_assert_neq(0, alt_idx);
 		
-		if (can_handle_variant_alt(var.alts()[alt_idx - 1]))
+		auto const &alt(var.alts()[alt_idx - 1]);
+		if (can_handle_variant_alt(alt))
 		{
 			auto const pos(var.zero_based_pos());
 			if (m_end_positions_by_sample[sample_idx] <= pos)
@@ -33,6 +32,18 @@ namespace vcf2multialign {
 				m_end_positions_by_sample[sample_idx] = end_pos;
 				return true;
 			}
+			else
+			{
+				// FIXME: logging should be elsewhere.
+				std::cerr << "Line " << var.lineno() << ": Sample " << sample_idx << "’s end position was ";
+				std::cerr << m_end_positions_by_sample[sample_idx];
+				std::cerr << " but the variant’s position was " << pos << ".\n";
+			}
+		}
+		else
+		{
+			// FIXME: logging should be elsewhere.
+			std::cerr << "Line " << var.lineno() << ": Unable to handle ALT " << alt_idx << " (type " << lb::to_string(alt.alt_sv_type) << ").\n";
 		}
 	
 		return false;
@@ -50,6 +61,8 @@ namespace vcf2multialign {
 	
 	void sample_sorter::sort_by_variant_and_alt(lb::variant const &var, std::uint8_t const expected_alt_idx)
 	{
+		libbio_assert_neq(0, expected_alt_idx);
+
 		// FIXME: currently the variable naming is slightly confusing as alt_idx and expected_alt_idx are 1-based but var.alts() expects a zero-based index.
 		auto const *gt_field(get_variant_format(var).gt);
 		
@@ -69,11 +82,18 @@ namespace vcf2multialign {
 				auto const &sample(var.samples()[donor_idx]);
 				auto const &gt((*gt_field)(sample));
 				auto const alt_idx(gt[chr_idx].alt);
-				auto const alt_idx_(check_variant_for_sample_and_update_state(sample_idx, var, alt_idx) ? alt_idx : 0);
-			
-				auto const val((expected_alt_idx == alt_idx_) ? 0x2 : 0x1);
-				//std::cerr << "1 donor_idx: " << donor_idx << " chr_idx: " << +chr_idx << " expected_alt_idx: " << +expected_alt_idx << " alt_idx: " << alt_idx << " alt_idx_: " << alt_idx_ << " path_idx: " << path_idx << " val: " << val << std::endl;
-				m_branches_by_path_index.fetch_or(path_idx, val, std::memory_order_release);
+				if (expected_alt_idx == alt_idx)
+				{
+					auto const alt_idx_(check_variant_for_sample_and_update_state(sample_idx, var, alt_idx) ? alt_idx : 0);
+					auto const val((expected_alt_idx == alt_idx_) ? 0x2 : 0x1);
+					//std::cerr << "1 donor_idx: " << donor_idx << " chr_idx: " << +chr_idx << " expected_alt_idx: " << +expected_alt_idx << " alt_idx: " << alt_idx << " alt_idx_: " << alt_idx_ << " path_idx: " << path_idx << " val: " << val << std::endl;
+					m_branches_by_path_index.fetch_or(path_idx, val, std::memory_order_release);
+				}
+				else
+				{
+					m_branches_by_path_index.fetch_or(path_idx, 0x1, std::memory_order_release);
+				}
+
 				++sample_idx;
 			}
 		}
@@ -108,7 +128,7 @@ namespace vcf2multialign {
 					: src_path_idx
 				);
 				libbio_assert_lt(sample_idx, m_dst_paths.size());
-				//std::cerr << "3 sample_idx: " << sample_idx << " dst_path_idx: " << dst_path_idx << std::endl;
+				//std::cerr << "3 lineno: " << var.lineno() <<  " sample_idx: " << sample_idx << " dst_path_idx: " << dst_path_idx << std::endl;
 				m_dst_paths[sample_idx] = dst_path_idx;
 				++sample_idx;
 			}
