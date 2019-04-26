@@ -5,17 +5,13 @@ unexport SDKROOT
 WARNING_FLAGS	?= -Wall -Werror -Wno-deprecated-declarations -Wno-unused
 OPT_FLAGS		?= -O2 -g
 
-AR				?= ar
-CC				?= cc
 CMAKE			?= cmake
 CP				?= cp
-CXX				?= c++
 DOT				?= dot
 GENGETOPT		?= gengetopt
 MKDIR			?= mkdir
 NINJA			?= ninja
 RAGEL			?= ragel
-RM				?= rm
 TAR				?= tar
 WGET			?= wget
 
