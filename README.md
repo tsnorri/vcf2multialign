@@ -1,6 +1,6 @@
 # vcf2multialign
 
-Create multiply-aligned haplotype sequences from a variant call file and a reference sequence. Please see [releases](https://github.com/tsnorri/vcf2multialign/releases) for pre-built binaries.
+Create a set of reference-guided multiple-aligned haplotype sequences from a variant call file and a reference sequence. Please see [releases](https://github.com/tsnorri/vcf2multialign/releases) for pre-built binaries.
 
 ## Build/Runtime Requirements
 
