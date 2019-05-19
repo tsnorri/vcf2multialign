@@ -58,6 +58,6 @@ The tool takes a Variant Call Format file and a FASTA reference file as its inpu
 
 The FASTA file should contain one sequence only. Currently the VCF parser accepts only a subset of all possible VCF files.
 
-### Each sample and chromosome copy require a file descriptor per one pass of the variant file
+### Each output sample and chromosome copy require a file descriptor per one pass of the variant file
 
 Since one sequence is generated per each sample and chromosome copy, the tool attempts to open as many files before parsing the variant file. If the number of samples is high, the number of files may exceed shell or operating system limits. In order to process the variant file as few times as possible, the maximum number of file descriptors available to processes started by the shell may be changed with `ulimit -n`. For example, `ulimit -n 8192` sets the maximum number to 8192. Another option is to reduce the number of samples to be handled in one pass with vcf2multialign’s `--chunk-size` command line option.
