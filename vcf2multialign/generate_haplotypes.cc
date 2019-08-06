@@ -3,9 +3,9 @@
  This code is licensed under MIT license (see LICENSE for details).
  */
 
-#include <vcf2multialign/generate_haplotypes.hh>
-#include <vcf2multialign/sequences/generate_graph_context.hh>
-#include <vcf2multialign/sequences/generate_sequences_context.hh>
+#include <vcf2multialign/haplotypes/generate_haplotypes.hh>
+#include <vcf2multialign/haplotypes/generate_graph_context.hh>
+#include <vcf2multialign/haplotypes/generate_sequences_context.hh>
 
 
 namespace lb = libbio;

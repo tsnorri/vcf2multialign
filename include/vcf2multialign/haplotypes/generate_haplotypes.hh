@@ -3,6 +3,9 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
+#ifndef VCF2MULTIALIGN_HAPLOTYPES_GENERATE_HAPLOTYPES_HH
+#define VCF2MULTIALIGN_HAPLOTYPES_GENERATE_HAPLOTYPES_HH
+
 #include <cstddef>
 #include <vcf2multialign/types.hh>
 
@@ -24,3 +27,5 @@ namespace vcf2multialign {
 		bool const should_check_ref
 	 );
 }
+
+#endif

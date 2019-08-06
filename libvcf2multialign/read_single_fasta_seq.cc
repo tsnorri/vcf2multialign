@@ -6,7 +6,7 @@
 #include <boost/format.hpp>
 #include <sys/stat.h>
 #include <libbio/fasta_reader.hh>
-#include <vcf2multialign/read_single_fasta_seq.hh>
+#include <vcf2multialign/utility/read_single_fasta_seq.hh>
 #include <vcf2multialign/types.hh>
 
 namespace lb	= libbio;

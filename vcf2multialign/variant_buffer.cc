@@ -4,7 +4,7 @@
  */
 
 #include <libbio/assert.hh>
-#include <vcf2multialign/variant_buffer.hh>
+#include <vcf2multialign/haplotypes/variant_buffer.hh>
 
 
 namespace vcf2multialign {

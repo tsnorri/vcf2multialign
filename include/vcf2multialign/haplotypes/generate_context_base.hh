@@ -3,8 +3,8 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#ifndef VCF2MULTIALIGN_GENERATE_CONTEXT_BASE_HH
-#define VCF2MULTIALIGN_GENERATE_CONTEXT_BASE_HH
+#ifndef VCF2MULTIALIGN_HAPLOTYPES_GENERATE_CONTEXT_BASE_HH
+#define VCF2MULTIALIGN_HAPLOTYPES_GENERATE_CONTEXT_BASE_HH
 
 #include <chrono>
 #include <map>
@@ -12,7 +12,7 @@
 #include <libbio/mmap_handle.hh>
 #include <libbio/vcf/vcf_reader.hh>
 #include <string>
-#include <vcf2multialign/error_logger.hh>
+#include <vcf2multialign/haplotypes/error_logger.hh>
 #include <vcf2multialign/types.hh>
 
 

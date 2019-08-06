@@ -3,11 +3,11 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#ifndef VCF2MULTIALIGN_SEQUENCES_GENERATE_SEQUENCES_CONTEXT_HH
-#define VCF2MULTIALIGN_SEQUENCES_GENERATE_SEQUENCES_CONTEXT_HH
+#ifndef VCF2MULTIALIGN_HAPLOTYPES_GENERATE_SEQUENCES_CONTEXT_HH
+#define VCF2MULTIALIGN_HAPLOTYPES_GENERATE_SEQUENCES_CONTEXT_HH
 
-#include <vcf2multialign/generate_context_base.hh>
-#include <vcf2multialign/variant_handler.hh>
+#include <vcf2multialign/haplotypes/generate_context_base.hh>
+#include <vcf2multialign/haplotypes/variant_handler.hh>
 
 
 namespace vcf2multialign {

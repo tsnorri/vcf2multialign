@@ -3,8 +3,8 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#ifndef VCF2MULTIALIGN_READ_SINGLE_FASTA_STREAM_HH
-#define VCF2MULTIALIGN_READ_SINGLE_FASTA_STREAM_HH
+#ifndef VCF2MULTIALIGN_UTILITY_READ_SINGLE_FASTA_STREAM_HH
+#define VCF2MULTIALIGN_UTILITY_READ_SINGLE_FASTA_STREAM_HH
 
 #include <libbio/file_handling.hh>
 #include <libbio/mmap_handle.hh>

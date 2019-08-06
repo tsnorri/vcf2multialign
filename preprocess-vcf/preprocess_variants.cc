@@ -5,10 +5,10 @@
 
 #include <range/v3/all.hpp>
 #include <tuple>
-#include <vcf2multialign/check_ploidy.hh>
 #include <vcf2multialign/preprocess/preprocess_variants.hh>
 #include <vcf2multialign/preprocess/variant_preprocessor.hh>
-#include <vcf2multialign/read_single_fasta_seq.hh>
+#include <vcf2multialign/utility/check_ploidy.hh>
+#include <vcf2multialign/utility/read_single_fasta_seq.hh>
 #include <vcf2multialign/variant_format.hh>
 
 

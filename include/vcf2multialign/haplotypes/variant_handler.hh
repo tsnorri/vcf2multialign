@@ -3,8 +3,8 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#ifndef VCF2MULTIALIGN_VARIANT_HANDLER_HH
-#define VCF2MULTIALIGN_VARIANT_HANDLER_HH
+#ifndef VCF2MULTIALIGN_HAPLOTYPES_VARIANT_HANDLER_HH
+#define VCF2MULTIALIGN_HAPLOTYPES_VARIANT_HANDLER_HH
 
 #include <dispatch/dispatch.h>
 #include <libbio/assert.hh>
@@ -12,9 +12,9 @@
 #include <libbio/file_handling.hh>
 #include <map>
 #include <stack>
-#include <vcf2multialign/variant_buffer.hh>
+#include <vcf2multialign/haplotypes/variant_buffer.hh>
+#include <vcf2multialign/haplotypes/variant_handler_base.hh>
 #include <vcf2multialign/variant_format.hh>
-#include <vcf2multialign/variant_handler_base.hh>
 
 
 namespace vcf2multialign {

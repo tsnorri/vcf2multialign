@@ -3,8 +3,8 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#ifndef VCF2MULTIALIGN_ERROR_LOGGER_HH
-#define VCF2MULTIALIGN_ERROR_LOGGER_HH
+#ifndef VCF2MULTIALIGN_HAPLOTYPES_ERROR_LOGGER_HH
+#define VCF2MULTIALIGN_HAPLOTYPES_ERROR_LOGGER_HH
 
 #include <libbio/file_handling.hh>
 #include <libbio/vcf/variant.hh>

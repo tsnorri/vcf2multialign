@@ -3,8 +3,8 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#ifndef VCF2MULTIALIGN_VARIANT_BUFFER_HH
-#define VCF2MULTIALIGN_VARIANT_BUFFER_HH
+#ifndef VCF2MULTIALIGN_HAPLOTYPES_VARIANT_BUFFER_HH
+#define VCF2MULTIALIGN_HAPLOTYPES_VARIANT_BUFFER_HH
 
 #include <boost/container/set.hpp> // For an extract-capable multiset.
 #include <libbio/dispatch.hh>

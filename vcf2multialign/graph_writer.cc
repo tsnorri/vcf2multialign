@@ -3,7 +3,7 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#include <vcf2multialign/sequences/graph_writer.hh>
+#include <vcf2multialign/haplotypes/graph_writer.hh>
 
 namespace vcf2multialign
 {

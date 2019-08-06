@@ -13,7 +13,7 @@ namespace std {
 	using std::experimental::nullopt;
 }
 #endif
-#include <vcf2multialign/error_logger.hh>
+#include <vcf2multialign/haplotypes/error_logger.hh>
 
 
 namespace lb	= libbio;

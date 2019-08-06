@@ -3,7 +3,7 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#include <vcf2multialign/can_handle_variant_alts.hh>
+#include <vcf2multialign/utility/can_handle_variant_alts.hh>
 
 
 namespace lb	= libbio;

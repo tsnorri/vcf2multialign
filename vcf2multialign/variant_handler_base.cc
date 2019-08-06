@@ -4,7 +4,7 @@
  */
 
 #include <boost/range/combine.hpp>
-#include <vcf2multialign/variant_handler_base.hh>
+#include <vcf2multialign/haplotypes/variant_handler_base.hh>
 
 
 namespace lb = libbio;

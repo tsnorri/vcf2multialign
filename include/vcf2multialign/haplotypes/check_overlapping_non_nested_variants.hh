@@ -3,11 +3,11 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#ifndef VCF2MULTIALIGN_CHECK_OVERLAPPING_NON_NESTED_VARIANTS_HH
-#define VCF2MULTIALIGN_CHECK_OVERLAPPING_NON_NESTED_VARIANTS_HH
+#ifndef VCF2MULTIALIGN_HAPLOTYPES_CHECK_OVERLAPPING_NON_NESTED_VARIANTS_HH
+#define VCF2MULTIALIGN_HAPLOTYPES_CHECK_OVERLAPPING_NON_NESTED_VARIANTS_HH
 
 #include <libbio/vcf/vcf_reader.hh>
-#include <vcf2multialign/error_logger.hh>
+#include <vcf2multialign/haplotypes/error_logger.hh>
 #include <vcf2multialign/types.hh>
 
 

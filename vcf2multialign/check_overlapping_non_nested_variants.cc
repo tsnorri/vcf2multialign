@@ -9,8 +9,8 @@
 #include <boost/range/adaptor/reversed.hpp>
 #include <iostream>
 #include <libbio/assert.hh>
-#include <vcf2multialign/can_handle_variant_alts.hh>
-#include <vcf2multialign/check_overlapping_non_nested_variants.hh>
+#include <vcf2multialign/haplotypes/check_overlapping_non_nested_variants.hh>
+#include <vcf2multialign/utility/can_handle_variant_alts.hh>
 
 
 namespace lb	= libbio;

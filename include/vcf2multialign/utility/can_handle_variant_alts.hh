@@ -3,8 +3,8 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#ifndef VCF2MULTIALIGN_CAN_HANDLE_VARIANT_ALTS_HH
-#define VCF2MULTIALIGN_CAN_HANDLE_VARIANT_ALTS_HH
+#ifndef VCF2MULTIALIGN_UTILITY_CAN_HANDLE_VARIANT_ALTS_HH
+#define VCF2MULTIALIGN_UTILITY_CAN_HANDLE_VARIANT_ALTS_HH
 
 #include <libbio/vcf/variant.hh>
 

@@ -8,7 +8,7 @@
 #include <libbio/assert.hh>
 #include <libbio/dispatch.hh>
 #include <unistd.h>
-#include <vcf2multialign/generate_haplotypes.hh>
+#include <vcf2multialign/haplotypes/generate_haplotypes.hh>
 #include "cmdline.h"
 
 
