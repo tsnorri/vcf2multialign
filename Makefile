@@ -16,13 +16,14 @@ DIST_TAR_GZ = vcf2multialign-$(VERSION)-$(OS_NAME)$(DIST_NAME_SUFFIX).tar.gz
 
 .PHONY: all clean-all clean clean-dependencies dependencies
 
-all: libvcf2multialign/libvcf2multialign.a preprocess-vcf/preprocess_vcf vcf2multialign/vcf2multialign
+all: libvcf2multialign/libvcf2multialign.a preprocess-vcf/preprocess_vcf variant-graph-to-gv/variant_graph_to_gv vcf2multialign/vcf2multialign
 
 clean-all: clean clean-dependencies clean-dist
 
 clean:
 	$(MAKE) -C libvcf2multialign clean
 	$(MAKE) -C preprocess-vcf clean
+	$(MAKE) -C variant-graph-to-gv clean
 	$(MAKE) -C vcf2multialign clean
 
 clean-dependencies: lib/libbio/local.mk
@@ -40,15 +41,19 @@ dist: $(DIST_TAR_GZ)
 preprocess-vcf/preprocess_vcf: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
 	$(MAKE) -C preprocess-vcf
 
+variant-graph-to-gv/variant_graph_to_gv: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
+	$(MAKE) -C variant-graph-to-gv
+
 vcf2multialign/vcf2multialign: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
 	$(MAKE) -C vcf2multialign
 
 libvcf2multialign/libvcf2multialign.a: $(DEPENDENCIES)
 	$(MAKE) -C libvcf2multialign
 
-$(DIST_TAR_GZ): preprocess-vcf/preprocess_vcf vcf2multialign/vcf2multialign
+$(DIST_TAR_GZ): preprocess-vcf/preprocess_vcf variant-graph-to-gv/variant_graph_to_gv vcf2multialign/vcf2multialign
 	$(MKDIR) -p $(DIST_TARGET_DIR)
 	$(CP) preprocess-vcf/preprocess_vcf $(DIST_TARGET_DIR)
+	$(CP) variant-graph-to-gv/variant_graph_to_gv $(DIST_TARGET_DIR)
 	$(CP) vcf2multialign/vcf2multialign $(DIST_TARGET_DIR)
 	$(CP) README.md $(DIST_TARGET_DIR)
 	$(CP) LICENSE $(DIST_TARGET_DIR)
