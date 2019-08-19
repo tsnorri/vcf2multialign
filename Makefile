@@ -58,6 +58,7 @@ $(DIST_TAR_GZ): preprocess-vcf/preprocess_vcf variant-graph-to-gv/variant_graph_
 	$(CP) README.md $(DIST_TARGET_DIR)
 	$(CP) LICENSE $(DIST_TARGET_DIR)
 	$(CP) lib/swift-corelibs-libdispatch/LICENSE $(DIST_TARGET_DIR)/swift-corelibs-libdispatch-license.txt
+	$(CP) lib/cereal/LICENSE $(DIST_TARGET_DIR)/cereal-license.txt
 	$(TAR) czf $(DIST_TAR_GZ) $(DIST_TARGET_DIR)
 	$(RM) -rf $(DIST_TARGET_DIR)
 
