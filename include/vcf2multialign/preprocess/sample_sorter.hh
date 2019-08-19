@@ -6,7 +6,7 @@
 #ifndef VCF2MULTIALIGN_PREPROCESS_SAMPLE_SORTER_HH
 #define VCF2MULTIALIGN_PREPROCESS_SAMPLE_SORTER_HH
 
-#include <libbio/packed_vector.hh>
+#include <libbio/int_vector.hh>
 #include <libbio/vcf/variant.hh>
 #include <libbio/vcf/vcf_subfield.hh>
 #include <vcf2multialign/preprocess/sample_indexer.hh>
@@ -20,7 +20,7 @@ namespace vcf2multialign {
 	{
 	protected:
 		typedef std::uint16_t								path_number_type;
-		typedef libbio::packed_vector <2>					branch_vector;
+		typedef libbio::atomic_int_vector <2>				branch_vector;
 
 	protected:
 		sample_indexer const		*m_sample_indexer{};
