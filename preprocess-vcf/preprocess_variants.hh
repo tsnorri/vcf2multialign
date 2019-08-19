@@ -20,5 +20,4 @@ namespace vcf2multialign {
 	);
 }
 
-
 #endif

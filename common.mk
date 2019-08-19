@@ -32,7 +32,7 @@ BOOST_INCLUDE	?= -I$(BOOST_ROOT)/include
 
 CFLAGS			+= -std=c99   $(OPT_FLAGS) $(WARNING_FLAGS) $(SYSTEM_CFLAGS)
 CXXFLAGS		+= -std=c++17 $(OPT_FLAGS) $(WARNING_FLAGS) $(SYSTEM_CXXFLAGS)
-CPPFLAGS		+= $(SYSTEM_CPPFLAGS) -DHAVE_CONFIG_H -I../include -I../lib/libbio/include -I../lib/libbio/lib/GSL/include -I../lib/libbio/lib/range-v3/include -I../lib/msa2dag/include $(BOOST_INCLUDE)
+CPPFLAGS		+= $(SYSTEM_CPPFLAGS) -DHAVE_CONFIG_H -I../include -I../lib/cereal/include -I../lib/libbio/include -I../lib/libbio/lib/GSL/include -I../lib/libbio/lib/range-v3/include -I../lib/msa2dag/include $(BOOST_INCLUDE)
 LDFLAGS			+= $(SYSTEM_LDFLAGS) $(BOOST_LIBS) ../lib/libbio/src/libbio.a ../lib/msa2dag/lib/libMsa2Dag.a
 
 ifeq ($(shell uname -s),Linux)

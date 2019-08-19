@@ -1,0 +1,15 @@
+# Copyright (c) 2019 Tuukka Norri
+# This code is licensed under MIT license (see LICENSE for details).
+
+package		"preprocess-vcf"
+purpose		"Create an intermediate graph representation from a variant file"
+usage		"preprocess_vcf --reference=filename.fa --variants=filename.vcf --output-variants=output.graph --chromosome=chr_id [...]"
+description	"Reads the variant file and produces a graph representation that may be used to generate a reference-guided alignment or founder sequences."
+
+option		"reference"				r	"Reference FASTA file path"															string	typestr = "filename"	required
+option		"variants"				a	"Variant call file path"															string	typestr = "filename"	required
+option		"output"				o	"Output variant file path"															string	typestr = "filename"	required
+option		"chromosome"			c	"Chromosome identifier"																string	typestr = "identifier"	required
+option		"reference-sequence"	-	"Reference sequence identifier"														string	typestr = "identifier"	optional
+option		"filter-fields-set"		-	"Remove variants with any value for the given field (used with e.g. CIPOS, CIEND)"	string	typestr = "identifier"	optional	multiple
+option		"overwrite"				-	"Overwrite output files"															flag	off

@@ -3,13 +3,14 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
+#include <cereal/archives/portable_binary.hpp>
 #include <range/v3/all.hpp>
 #include <tuple>
-#include <vcf2multialign/preprocess/preprocess_variants.hh>
 #include <vcf2multialign/preprocess/variant_preprocessor.hh>
 #include <vcf2multialign/utility/check_ploidy.hh>
 #include <vcf2multialign/utility/read_single_fasta_seq.hh>
 #include <vcf2multialign/variant_format.hh>
+#include "preprocess_variants.hh"
 
 
 namespace lb	= libbio;
@@ -51,6 +52,45 @@ namespace {
 			std::forward_as_tuple(ptr_value)
 		);
 	}
+	
+	
+	struct graph_output_delegate final : public v2m::variant_preprocessor_delegate
+	{
+		virtual void variant_preprocessor_no_field_for_identifier(std::string const &identifier) override
+		{
+			std::cerr << "WARNING: Did not find a field for identifier “" << identifier << "”.\n";
+		}
+		
+		
+		virtual void variant_preprocessor_found_variant_with_position_greater_than_reference_length(libbio::transient_variant const &var) override
+		{
+			std::cerr << "ERROR: Found a variant with a position greater than the reference length on line " << var.lineno() << "\n";
+		}
+		
+		
+		virtual void variant_preprocessor_found_variant_with_no_suitable_alts(libbio::transient_variant const &var) override
+		{
+			std::cerr << "Line " << var.lineno() << ": Variant has no ALTs that could be handled.\n";
+		}
+		
+		
+		virtual void variant_preprocessor_found_filtered_variant(libbio::transient_variant const &var, libbio::vcf_info_field_base const &field) override
+		{
+			std::cerr << "Line " << var.lineno() << ": Variant has the field '" << field.get_metadata()->get_id() << "' set; skipping.\n";
+		}
+		
+		
+		virtual void variant_preprocessor_found_variant_with_ref_mismatch(libbio::transient_variant const &var, std::string_view const &ref_sub) override
+		{
+			std::cerr << "WARNING: reference column mismatch on line " << var.lineno() << ": expected '" << ref_sub << "', got '" << var.ref() << "'\n";
+		}
+		
+		
+		virtual void variant_preprocessor_will_handle_subgraph(std::size_t const variant_count, std::size_t const path_count) override
+		{
+			std::cerr << "Subgraph variants: " << variant_count << " path count: " << path_count << '\n';
+		}
+	};
 }
 
 
@@ -67,7 +107,7 @@ namespace vcf2multialign {
 	)
 	{
 		vector_type reference;
-		lb::file_ostream output_vcf_stream;
+		lb::file_ostream output_graph_stream;
 		
 		// Open the files.
 		{
@@ -75,7 +115,7 @@ namespace vcf2multialign {
 				lb::writing_open_mode::CREATE,
 				(should_overwrite_files ? lb::writing_open_mode::OVERWRITE : lb::writing_open_mode::NONE)
 			}));
-			lb::open_file_for_writing(output_variants_path, output_vcf_stream, mode);
+			lb::open_file_for_writing(output_variants_path, output_graph_stream, mode);
 		}
 		
 		lb::mmap_handle <char> vcf_handle;
@@ -122,8 +162,13 @@ namespace vcf2multialign {
 		}
 		auto const chr_count(ploidy.begin()->second);
 		
-		// Process and output the variants.
-		variant_preprocessor processor(reader, output_vcf_stream, reference, chr_name, donor_count, chr_count);
-		processor.process_and_output(field_names_for_filter_if_set);
+		// Process the variants.
+		graph_output_delegate delegate;
+		variant_preprocessor processor(delegate, reader, reference, chr_name, donor_count, chr_count);
+		processor.process(field_names_for_filter_if_set);
+		
+		// Output.
+		cereal::PortableBinaryOutputArchive archive(output_graph_stream);
+		archive(processor.variant_graph());
 	}
 }
