@@ -30,6 +30,10 @@
 *.out
 *.app
 
+combine-variants/cmdline.c
+combine-variants/cmdline.h
+combine-variants/config.h
+combine-variants/combine_variants
 preprocess-vcf/cmdline.c
 preprocess-vcf/cmdline.h
 preprocess-vcf/config.h
