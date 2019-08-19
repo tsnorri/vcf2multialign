@@ -19,7 +19,10 @@ namespace vcf2multialign {
 	typedef std::vector <sample_number_type>	sample_vector;
 	typedef std::vector <sample_vector>			sample_map;
 	
-	enum { PATH_NUMBER_MAX = std::numeric_limits <path_number_type>::max() };
+	enum {
+		PATH_NUMBER_MAX		= std::numeric_limits <path_number_type>::max(),
+		SAMPLE_NUMBER_MAX	= std::numeric_limits <sample_number_type>::max()
+	};
 }
 
 #endif
