@@ -25,7 +25,8 @@ namespace {
 		char const *input_graph_path,
 		char const *output_graph_path,
 		char const *reference_seq_name,
-		bool const should_overwrite_files
+		bool const should_overwrite_files,
+		bool const output_ref_labels
 	)
 	{
 		v2m::vector_type reference;
@@ -58,6 +59,7 @@ namespace {
 		}
 		
 		// Output.
+		auto const &ref_positions(graph.ref_positions());
 		auto const &aligned_ref_positions(graph.aligned_ref_positions());
 		auto const &subgraph_start_positions(graph.subgraph_start_positions());
 		auto const &alt_edge_count_csum(graph.alt_edge_count_csum());
@@ -67,15 +69,69 @@ namespace {
 		output_graph_stream << "\trankdir = LR;\n";
 		output_graph_stream << "\trank = same;\n";
 		
-		// REF edges.
-		for (auto const &pair : aligned_ref_positions | ranges::view::drop(1) | ranges::view::sliding(2))
+		// Labels if needed, otherwise use node ID as the label.
+		if (output_ref_labels)
 		{
-			auto const lhs(pair[0]);
-			auto const rhs(pair[1]);
-			std::string_view const ref_sub(reference.data() + lhs, rhs - lhs);
-			output_graph_stream << "\t" << lhs << " -> " << rhs << " [label = \"" << ref_sub << "\", penwidth = 2.0];\n"; // FIXME: handle special characters?
+			// Since background colours are needed at subgraph start positions, handle them, too.
+			auto sg_it(subgraph_start_positions.begin());
+			auto const sg_end(subgraph_start_positions.end());
+			std::size_t next_subgraph_start_idx(sg_it == sg_end ? SIZE_MAX : *sg_it++);
+			auto const rsv(ranges::view::zip(ranges::view::ints(0), ref_positions | ranges::view::drop(1), aligned_ref_positions | ranges::view::drop(1)));
+			for (auto const &[i, ref_pos, aligned_ref_pos] : rsv)
+			{
+				if (i == next_subgraph_start_idx)
+				{
+					next_subgraph_start_idx = (sg_it == sg_end ? SIZE_MAX : *sg_it++);
+					output_graph_stream << '\t' << aligned_ref_pos << " [label = " << ref_pos << ", style = filled, fillcolor = grey95];\n";
+				}
+				else
+				{
+					output_graph_stream << '\t' << aligned_ref_pos << " [label = " << ref_pos << "];\n";
+				}
+			}
+		}
+		else
+		{
+			// Only subgraph start positions.
+			for (auto const idx : subgraph_start_positions)
+			{
+				auto const aligned_ref_pos(aligned_ref_positions[1 + idx]);
+				output_graph_stream << '\t' << aligned_ref_pos << " [style = filled, fillcolor = grey95];\n";
+			}
 		}
 		output_graph_stream << '\n';
+
+		// REF edges.
+		{
+			auto const rsv(ranges::view::zip(
+				ref_positions | ranges::view::drop(1) | ranges::view::sliding(2),
+				aligned_ref_positions | ranges::view::drop(1) | ranges::view::sliding(2)
+			));
+			for (auto const &[ref_pair, aligned_ref_pair] : rsv)
+			{
+				auto const aligned_lhs(aligned_ref_pair[0]);
+				auto const aligned_rhs(aligned_ref_pair[1]);
+				auto const ref_lhs(ref_pair[0]);
+				auto const ref_rhs(ref_pair[1]);
+				std::string_view const ref_sub(reference.data() + ref_lhs, ref_rhs - ref_lhs);
+				
+				output_graph_stream << '\t' << aligned_lhs << " -> " << aligned_rhs << " [label = \"";
+				// If the text is longer than 20 characters, truncate and add an ellipsis.
+				// FIXME: handle special characters?
+				if (20 < ref_sub.size())
+				{
+					output_graph_stream << ref_sub.substr(0, 10);
+					output_graph_stream << "…";
+					output_graph_stream << ref_sub.substr(ref_sub.size() - 10, 10);
+				}
+				else
+				{
+					output_graph_stream << ref_sub;
+				}
+				output_graph_stream << "\", penwidth = 2.0];\n";
+			}
+			output_graph_stream << '\n';
+		}
 		
 		// ALT edges.
 		{
@@ -88,7 +144,7 @@ namespace {
 				{
 					auto const src(aligned_ref_positions[1 + i]);
 					auto const dst(aligned_ref_positions[1 + target]);
-					output_graph_stream << "\t" << src << " -> " << dst << " [label = \"" << label << "\"];\n"; // FIXME: handle special characters?
+					output_graph_stream << '\t' << src << " -> " << dst << " [label = \"" << label << "\"];\n"; // FIXME: handle special characters?
 				}
 				
 				++i;
@@ -119,7 +175,8 @@ int main(int argc, char **argv)
 			args_info.variants_arg,
 			args_info.output_arg,
 			args_info.reference_sequence_given ? args_info.reference_sequence_arg : nullptr,
-			args_info.overwrite_flag
+			args_info.overwrite_flag,
+			args_info.node_labels_arg == node_labels_arg_REF
 		);
 	}
 	catch (lb::assertion_failure_exception const &exc)
