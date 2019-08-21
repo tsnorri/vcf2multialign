@@ -99,8 +99,6 @@ namespace vcf2multialign {
 		std::vector <std::string>						m_sample_names;
 		overlap_stack									m_overlap_stack;
 		std::vector <std::size_t>						m_unhandled_alt_csum;
-		std::size_t										m_overlap_start{};
-		std::size_t										m_overlap_end{};
 		std::size_t										m_minimum_subgraph_distance{};
 		std::size_t										m_output_lineno{};
 		std::size_t										m_processed_count{};
@@ -160,7 +158,7 @@ namespace vcf2multialign {
 		
 	protected:
 		void update_sample_names();
-		void process_subgraph();
+		void process_subgraph(std::size_t const prev_overlap_end);
 		void calculate_aligned_ref_pos_for_new_node(std::size_t const node_idx);
 		void calculate_aligned_ref_pos_for_new_node(std::size_t const node_idx, std::size_t const max_in_alt_edge_aligned_pos);
 		void assign_alt_edge_labels_and_queue(libbio::variant const &var, std::size_t const node_idx, std::size_t const alt_edge_start_idx);

@@ -34,8 +34,9 @@ namespace vcf2multialign {
 		m_processed_count = 0;
 		m_reader->reset();
 		m_reader->set_parsed_fields(lb::vcf_field::ALL);
-		m_overlap_start = 0;
-		m_overlap_end = 0;
+		std::size_t overlap_start(0);
+		std::size_t overlap_end(0);
+		std::size_t prev_overlap_end(0);
 		
 		// Get the field descriptors needed for accessing the values.
 		libbio::vcf_info_field_end const *end_field{};
@@ -66,7 +67,10 @@ namespace vcf2multialign {
 				[
 					this,
 					end_field,
-					&filter_by_assigned
+					&filter_by_assigned,
+				 	&overlap_start,
+				 	&overlap_end,
+				 	&prev_overlap_end
 				](lb::transient_variant const &var) -> bool
 				{
 					auto const lineno(var.lineno());
@@ -111,16 +115,17 @@ namespace vcf2multialign {
 					
 					// Variant passes the checks, handle it.
 					{
-						// FIXME: adjust the subgraph boundary such that the new subgraph has padding before the first variant.
-						if (m_overlap_end + m_minimum_subgraph_distance <= var_pos)
+						auto const var_end(lb::variant_end_pos(var, *end_field));
+						
+						if (overlap_end + m_minimum_subgraph_distance <= var_pos)
 						{
-							process_subgraph();
-							m_overlap_start = var_pos;
+							process_subgraph(prev_overlap_end);
+							overlap_start = var_pos;
+							prev_overlap_end = overlap_end;
 						}
 						
+						overlap_end = std::max(overlap_end, var_end);
 						m_subgraph_variants.emplace_back(var);
-						auto const var_end(lb::variant_end_pos(var, *end_field));
-						m_overlap_end = std::max(m_overlap_end, var_end);
 					}
 					
 				end:
@@ -131,7 +136,7 @@ namespace vcf2multialign {
 		} while (should_continue);
 		
 		// Process the remaining variants.
-		process_subgraph();
+		process_subgraph(prev_overlap_end);
 		
 		// Copy the sample names and finalize.
 		m_graph.sample_names() = m_sample_names;
@@ -140,7 +145,7 @@ namespace vcf2multialign {
 	
 	
 	// Retrieve the accumulated group of variants and pass them to the worker thread for processing.
-	void variant_preprocessor::process_subgraph()
+	void variant_preprocessor::process_subgraph(std::size_t const prev_overlap_end)
 	{
 		// Fast path: empty stack.
 		if (m_subgraph_variants.empty())
@@ -148,6 +153,8 @@ namespace vcf2multialign {
 		
 		// Slow path: possibly overlapping variants.
 		m_sample_sorter.prepare_for_next_subgraph();
+		
+		// Sort by variant and ALT.
 		for (auto const &var : m_subgraph_variants)
 		{
 			for (std::size_t i(0), count(var.alts().size()); i < count; ++i)
@@ -158,10 +165,15 @@ namespace vcf2multialign {
 		auto const path_count(m_sample_sorter.path_count());
 		m_delegate->variant_preprocessor_will_handle_subgraph(m_subgraph_variants.size(), path_count);
 		
+		// Begin a new subgraph; place the beginning between the last variant of the previous subgraph and the first variant of the next subgraph.
+		std::size_t const subgraph_start_pos(prev_overlap_end + std::ceil((m_subgraph_variants.front().zero_based_pos() - prev_overlap_end) / 2.0));
+		auto const [subgraph_start_node_idx, subgraph_start_alt_edge_start_idx, did_create_node_for_subgraph_start] = m_graph.add_main_node(subgraph_start_pos, 0);
+		auto const subgraph_idx(m_graph.add_subgraph(subgraph_start_node_idx, sample_count, m_subgraph_variants.size(), path_count));
+		if (did_create_node_for_subgraph_start)
+			calculate_aligned_ref_pos_for_new_node(subgraph_start_node_idx);
+		
 		// Iterate over the variants, collect almost everything except for the ALT indices for the paths.
 		libbio_always_assert(m_overlap_stack.empty());
-		bool is_first(true);
-		std::size_t subgraph_idx(0);
 		for (auto const &var : m_subgraph_variants)
 		{
 			auto const ref_pos(var.zero_based_pos());
@@ -186,19 +198,13 @@ namespace vcf2multialign {
 			if (m_overlap_stack.empty())
 			{
 				auto const [node_idx, alt_edge_start_idx, did_create] = m_graph.add_main_node(ref_pos, handled_alt_count);
-				if (is_first)
-				{
-					subgraph_idx = m_graph.add_subgraph(node_idx, sample_count, m_subgraph_variants.size(), path_count);
-					is_first = false;
-				}
-				
-				calculate_aligned_ref_pos_for_new_node(node_idx);
+				if (did_create)
+					calculate_aligned_ref_pos_for_new_node(node_idx);
 				assign_alt_edge_labels_and_queue(var, node_idx, alt_edge_start_idx);
 			}
 			else
 			{
 				// Otherwise check first if the ALT edges need to be handled.
-				libbio_assert(!is_first); // This cannot be the first iteration b.c. a variant has been pushed to the overlap stack.
 				do
 				{
 					auto const &top_entry(m_overlap_stack.top());
@@ -207,14 +213,16 @@ namespace vcf2multialign {
 					if (ref_pos < prev_end_pos)
 					{
 						auto const [node_idx, alt_edge_start_idx, did_create] = m_graph.add_main_node(ref_pos, handled_alt_count);
-						calculate_aligned_ref_pos_for_new_node(node_idx);
+						if (did_create)
+							calculate_aligned_ref_pos_for_new_node(node_idx);
 						assign_alt_edge_labels_and_queue(var, node_idx, alt_edge_start_idx);
 						break;
 					}
 					else if (ref_pos == prev_end_pos)
 					{
 						auto const [node_idx, alt_edge_start_idx, did_create] = m_graph.add_main_node(prev_end_pos, handled_alt_count);
-						calculate_aligned_ref_pos_for_new_node(node_idx, top_entry.max_alt_edge_aligned_dst_pos);
+						if (did_create)
+							calculate_aligned_ref_pos_for_new_node(node_idx, top_entry.max_alt_edge_aligned_dst_pos);
 						m_graph.connect_alt_edges(top_entry.node_number, node_idx);
 						assign_alt_edge_labels_and_queue(var, node_idx, alt_edge_start_idx);
 						m_overlap_stack.pop();
@@ -223,7 +231,8 @@ namespace vcf2multialign {
 					else // ref_pos > prev_end_pos
 					{
 						auto const [prev_node_idx, prev_alt_edge_start_idx, did_create] = m_graph.add_main_node(prev_end_pos, 0);
-						calculate_aligned_ref_pos_for_new_node(prev_node_idx, top_entry.max_alt_edge_aligned_dst_pos);
+						if (did_create)
+							calculate_aligned_ref_pos_for_new_node(prev_node_idx, top_entry.max_alt_edge_aligned_dst_pos);
 						m_graph.connect_alt_edges(top_entry.node_number, prev_node_idx);
 						m_overlap_stack.pop();
 					}
@@ -238,7 +247,8 @@ namespace vcf2multialign {
 			auto const &var(*top_entry.variant);
 			auto const end_pos(lb::variant_end_pos(var, *m_end_field));
 			auto const [node_idx, alt_edge_start_idx, did_create] = m_graph.add_main_node(end_pos, 0);
-			calculate_aligned_ref_pos_for_new_node(node_idx, top_entry.max_alt_edge_aligned_dst_pos);
+			if (did_create)
+				calculate_aligned_ref_pos_for_new_node(node_idx, top_entry.max_alt_edge_aligned_dst_pos);
 			m_graph.connect_alt_edges(top_entry.node_number, node_idx);
 			m_overlap_stack.pop();
 		}
