@@ -38,6 +38,10 @@ preprocess-vcf/cmdline.c
 preprocess-vcf/cmdline.h
 preprocess-vcf/config.h
 preprocess-vcf/preprocess_vcf
+variant-graph-to-founders/cmdline.c
+variant-graph-to-founders/cmdline.h
+variant-graph-to-founders/config.h
+variant-graph-to-founders/variant_graph_to_founders
 variant-graph-to-gv/cmdline.c
 variant-graph-to-gv/cmdline.h
 variant-graph-to-gv/config.h
