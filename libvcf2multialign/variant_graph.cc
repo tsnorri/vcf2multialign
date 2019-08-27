@@ -35,6 +35,7 @@ namespace vcf2multialign {
 	
 	void variant_graph::reserve_memory_for_nodes(std::size_t const expected_count)
 	{
+		// FIXME: call me.
 		m_ref_positions.reserve(1 + expected_count);
 		m_aligned_ref_positions.reserve(1 + expected_count);
 		m_alt_edge_count_csum.reserve(1 + expected_count);
@@ -46,6 +47,7 @@ namespace vcf2multialign {
 	
 	std::size_t variant_graph::add_subgraph(std::size_t const node_idx, std::size_t const sample_count, std::size_t const variant_count, std::size_t const path_count)
 	{
+		std::cerr << "add_subgraph node_idx: " << node_idx << " variant_count: " << variant_count << '\n';
 		libbio_assert_lt(0, path_count);
 		libbio_assert(0 == m_subgraph_start_positions.size() || m_subgraph_start_positions.back() < node_idx);
 		m_subgraph_start_positions.emplace_back(node_idx);
@@ -56,12 +58,14 @@ namespace vcf2multialign {
 		libbio_assert_eq(m_path_edges.size(), subgraph_idx);
 		auto const path_bits(lb::bits::highest_bit_set(path_count - 1) ?: 1);
 		auto &sample_path_vec(m_sample_paths.emplace_back(sample_count, path_bits));
-		auto &path_edge_matrix(m_path_edges.emplace_back(path_count, variant_count, path_bits));
+		auto &path_edge_matrix(m_path_edges.emplace_back(variant_count, path_count, path_bits));
 		
 		for (auto &word : sample_path_vec.word_range())
 			word = 0;
 		for (auto &word : path_edge_matrix.word_range())
 			word = 0;
+		
+		m_max_paths_in_subgraph = std::max(m_max_paths_in_subgraph, path_count);
 		
 		return subgraph_idx;
 	}
@@ -69,6 +73,7 @@ namespace vcf2multialign {
 	
 	std::tuple <std::size_t, std::size_t, bool> variant_graph::add_main_node(std::size_t const ref_pos, std::size_t const alt_edge_count)
 	{
+		std::cerr << "add_main_node ref_pos: " << ref_pos << " alt_edge_count: " << alt_edge_count << '\n';
 		auto const prev_ref_pos(m_ref_positions.back());
 		
 		libbio_always_assert_lte(prev_ref_pos, ref_pos);

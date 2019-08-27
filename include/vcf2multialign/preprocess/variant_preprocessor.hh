@@ -72,7 +72,7 @@ namespace vcf2multialign {
 		virtual void variant_preprocessor_found_variant_with_no_suitable_alts(libbio::transient_variant const &var) = 0;
 		virtual void variant_preprocessor_found_filtered_variant(libbio::transient_variant const &var, libbio::vcf_info_field_base const &field) = 0;
 		virtual void variant_preprocessor_found_variant_with_ref_mismatch(libbio::transient_variant const &var, std::string_view const &ref_sub) = 0;
-		virtual void variant_preprocessor_will_handle_subgraph(std::size_t const variant_count, std::size_t const path_count) = 0;
+		virtual void variant_preprocessor_will_handle_subgraph(libbio::variant const &first_var, std::size_t const variant_count, std::size_t const path_count) = 0;
 	};
 	
 	
@@ -98,7 +98,6 @@ namespace vcf2multialign {
 		sample_sorter									m_sample_sorter;
 		std::vector <std::string>						m_sample_names;
 		overlap_stack									m_overlap_stack;
-		std::vector <std::size_t>						m_unhandled_alt_csum;
 		std::size_t										m_minimum_subgraph_distance{};
 		std::size_t										m_output_lineno{};
 		std::size_t										m_processed_count{};
@@ -118,7 +117,8 @@ namespace vcf2multialign {
 			vector_type const &reference,
 			std::string const chr_name,
 			std::size_t const donor_count,
-			std::uint8_t const chr_count
+			std::uint8_t const chr_count,
+			std::size_t const minimum_subgraph_distance
 		):
 			m_reader(&reader),
 			m_reference(&reference),
@@ -127,7 +127,8 @@ namespace vcf2multialign {
 			m_chromosome_name(chr_name),
 			m_sample_indexer(donor_count, chr_count),
 			m_sample_sorter(reader, m_sample_indexer),
-			m_overlap_stack(detail::overlap_stack_compare(end_field))
+			m_overlap_stack(detail::overlap_stack_compare(end_field)),
+			m_minimum_subgraph_distance(minimum_subgraph_distance)
 		{
 		}
 	
@@ -138,7 +139,8 @@ namespace vcf2multialign {
 			vector_type const &reference,
 			std::string const chr_name,
 			std::size_t const donor_count,
-			std::uint8_t const chr_count
+			std::uint8_t const chr_count,
+			std::size_t const minimum_subgraph_distance
 		):
 			variant_preprocessor(
 				delegate,
@@ -147,7 +149,8 @@ namespace vcf2multialign {
 				reference,
 				chr_name,
 				donor_count,
-				chr_count
+				chr_count,
+				minimum_subgraph_distance
 			)
 		{
 		}

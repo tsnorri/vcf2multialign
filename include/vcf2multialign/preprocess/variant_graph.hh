@@ -35,6 +35,9 @@ namespace vcf2multialign {
 		string_vector							m_sample_names;				// Sample names by sample number.
 		std::vector <libbio::int_vector <0>>	m_sample_paths;				// Sample path numbers by sample and subgraph number. (Subgraph count is not known at the start, so use a vector for them.)
 		std::vector <libbio::int_matrix <0>>	m_path_edges;				// Edge numbers (0 for REF edge, 1 for first ALT edge etc.) by path, variant and subgraph number.
+		std::size_t								m_max_paths_in_subgraph{};
+		
+		// Nodes that do not represent variant positions also have zero ALT edges.
 		
 	public:
 		position_vector &ref_positions() { return m_ref_positions; }
@@ -56,6 +59,7 @@ namespace vcf2multialign {
 		string_vector const &sample_names() const { return m_sample_names; }
 		std::vector <libbio::int_vector <0>> const &sample_paths() const { return m_sample_paths; }
 		std::vector <libbio::int_matrix <0>> const &path_edges() const { return m_path_edges; }
+		std::size_t max_paths_in_subgraph() const { return m_max_paths_in_subgraph; }
 		
 		void clear();
 		void reserve_memory_for_nodes(std::size_t const expected_count);
@@ -82,7 +86,8 @@ namespace vcf2multialign {
 			m_alt_edge_labels,
 			m_sample_names,
 			m_sample_paths,
-			m_path_edges
+			m_path_edges,
+			m_max_paths_in_subgraph
 		);
 	}
 }

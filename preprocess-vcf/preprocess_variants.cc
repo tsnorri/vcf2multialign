@@ -56,39 +56,41 @@ namespace {
 	
 	struct graph_output_delegate final : public v2m::variant_preprocessor_delegate
 	{
+		std::size_t subgraph_number{};
+		
 		virtual void variant_preprocessor_no_field_for_identifier(std::string const &identifier) override
 		{
 			std::cerr << "WARNING: Did not find a field for identifier “" << identifier << "”.\n";
 		}
 		
 		
-		virtual void variant_preprocessor_found_variant_with_position_greater_than_reference_length(libbio::transient_variant const &var) override
+		virtual void variant_preprocessor_found_variant_with_position_greater_than_reference_length(lb::transient_variant const &var) override
 		{
 			std::cerr << "ERROR: Found a variant with a position greater than the reference length on line " << var.lineno() << "\n";
 		}
 		
 		
-		virtual void variant_preprocessor_found_variant_with_no_suitable_alts(libbio::transient_variant const &var) override
+		virtual void variant_preprocessor_found_variant_with_no_suitable_alts(lb::transient_variant const &var) override
 		{
 			std::cerr << "Line " << var.lineno() << ": Variant has no ALTs that could be handled.\n";
 		}
 		
 		
-		virtual void variant_preprocessor_found_filtered_variant(libbio::transient_variant const &var, libbio::vcf_info_field_base const &field) override
+		virtual void variant_preprocessor_found_filtered_variant(lb::transient_variant const &var, lb::vcf_info_field_base const &field) override
 		{
 			std::cerr << "Line " << var.lineno() << ": Variant has the field '" << field.get_metadata()->get_id() << "' set; skipping.\n";
 		}
 		
 		
-		virtual void variant_preprocessor_found_variant_with_ref_mismatch(libbio::transient_variant const &var, std::string_view const &ref_sub) override
+		virtual void variant_preprocessor_found_variant_with_ref_mismatch(lb::transient_variant const &var, std::string_view const &ref_sub) override
 		{
 			std::cerr << "WARNING: reference column mismatch on line " << var.lineno() << ": expected '" << ref_sub << "', got '" << var.ref() << "'\n";
 		}
 		
 		
-		virtual void variant_preprocessor_will_handle_subgraph(std::size_t const variant_count, std::size_t const path_count) override
+		virtual void variant_preprocessor_will_handle_subgraph(lb::variant const &first_var, std::size_t const variant_count, std::size_t const path_count) override
 		{
-			std::cerr << "Subgraph variants: " << variant_count << " path count: " << path_count << '\n';
+			std::cout << subgraph_number++ << '\t' << first_var.lineno() << '\t' << variant_count << '\t' << path_count << '\n';
 		}
 	};
 }
@@ -103,6 +105,7 @@ namespace vcf2multialign {
 		char const *reference_seq_name,
 		char const *chr_name,
 		std::vector <std::string> const &field_names_for_filter_if_set,
+		std::size_t const minimum_subgraph_distance,
 		bool const should_overwrite_files
 	)
 	{
@@ -164,7 +167,8 @@ namespace vcf2multialign {
 		
 		// Process the variants.
 		graph_output_delegate delegate;
-		variant_preprocessor processor(delegate, reader, reference, chr_name, donor_count, chr_count);
+		std::cout << "SUBGRAPH_NUMBER" << '\t' << "LINE_NUMBER" << '\t' << "VARIANT_COUNT" << '\t' << "PATH_COUNT" << '\n';
+		variant_preprocessor processor(delegate, reader, reference, chr_name, donor_count, chr_count, minimum_subgraph_distance);
 		processor.process(field_names_for_filter_if_set);
 		
 		// Output.
