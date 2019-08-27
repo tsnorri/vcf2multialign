@@ -82,7 +82,8 @@ namespace {
 		
 		// Output.
 		{
-			typedef lb::int_matrix <0> path_edges_type;
+			typedef v2m::variant_graph::sample_path_vector	sample_paths_type;
+			typedef v2m::variant_graph::path_edge_matrix	path_edges_type;
 			
 			auto const &ref_positions(graph.ref_positions());
 			auto const &aln_positions(graph.aligned_ref_positions());
@@ -90,6 +91,7 @@ namespace {
 			auto const &alt_edge_count_csum(graph.alt_edge_count_csum());
 			auto const &alt_edge_targets(graph.alt_edge_targets());
 			auto const &alt_edge_labels(graph.alt_edge_labels());
+			auto const &sample_paths(graph.sample_paths());
 			auto const &path_edges(graph.path_edges());
 			
 			// Use a simple queue for keeping track of the aligned positions of the founders.
@@ -105,6 +107,11 @@ namespace {
 			auto const rsv(
 				ranges::view::enumerate(
 					ranges::view::zip(
+						ranges::view::concat(
+							ranges::view::repeat_n(sample_paths_type(), (first_subgraph_starts_from_zero ? 0 : 1)),
+							sample_paths,
+							ranges::view::repeat(sample_paths_type())
+						),
 						ranges::view::concat(
 							ranges::view::repeat_n(path_edges_type(), (first_subgraph_starts_from_zero ? 0 : 1)),
 							path_edges,
@@ -122,7 +129,7 @@ namespace {
 			{
 				std::cerr << "Subgraph " << (1 + subgraph_idx) << '/' << (subgraph_start_positions.size() + (first_subgraph_starts_from_zero ? 0 : 1)) << "…\n";
 				
-				auto const &[edges_by_path_and_variant, ssp_pair] = tup;
+				auto const &[sample_paths, edges_by_path_and_variant, ssp_pair] = tup;
 				auto const subgraph_lhs(ssp_pair[0]);
 				auto const subgraph_rhs(ssp_pair[1]);
 				auto const subgraph_variants(edges_by_path_and_variant.number_of_rows());
