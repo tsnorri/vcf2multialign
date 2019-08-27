@@ -182,7 +182,6 @@ namespace vcf2multialign {
 			// Calculate new indices for the handled ALTs.
 			auto const total_alt_count(var.alts().size());
 			auto const handled_alt_count(std::count_if(var.alts().begin(), var.alts().end(), [](auto const &alt){ return can_handle_variant_alt(alt); }));
-			std::cerr << "var_idx: " << var_idx << " handled_alt_count: " << handled_alt_count << '\n';
 			
 			// First check if there are ALT edges that need to be handled.
 			while (!m_overlap_stack.empty())

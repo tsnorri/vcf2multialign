@@ -47,7 +47,6 @@ namespace vcf2multialign {
 	
 	std::size_t variant_graph::add_subgraph(std::size_t const node_idx, std::size_t const sample_count, std::size_t const variant_count, std::size_t const path_count)
 	{
-		std::cerr << "add_subgraph node_idx: " << node_idx << " variant_count: " << variant_count << '\n';
 		libbio_assert_lt(0, path_count);
 		libbio_assert(0 == m_subgraph_start_positions.size() || m_subgraph_start_positions.back() < node_idx);
 		m_subgraph_start_positions.emplace_back(node_idx);
@@ -73,7 +72,6 @@ namespace vcf2multialign {
 	
 	std::tuple <std::size_t, std::size_t, bool> variant_graph::add_main_node(std::size_t const ref_pos, std::size_t const alt_edge_count)
 	{
-		std::cerr << "add_main_node ref_pos: " << ref_pos << " alt_edge_count: " << alt_edge_count << '\n';
 		auto const prev_ref_pos(m_ref_positions.back());
 		
 		libbio_always_assert_lte(prev_ref_pos, ref_pos);
