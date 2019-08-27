@@ -113,7 +113,7 @@ namespace {
 						ranges::view::concat(
 							ranges::view::repeat_n(0, (first_subgraph_starts_from_zero ? 0 : 1)),	// Handle the possible padding. (The initial zero could be included when creating the graph.)
 							subgraph_start_positions,
-							ranges::view::repeat_n(ref_positions.size() - 2, 1)
+							ranges::view::single(ref_positions.size() - 2)
 						) | ranges::view::sliding(2)
 					)
 				)
@@ -128,7 +128,7 @@ namespace {
 				auto const subgraph_variants(edges_by_path_and_variant.number_of_rows());
 				auto const subgraph_paths(edges_by_path_and_variant.number_of_columns());
 				std::size_t subgraph_variant_idx(0); // within the subgraph.
-				for (auto const &[node_idx, idx_pair] : ranges::view::enumerate(ranges::view::closed_ints(subgraph_lhs, subgraph_rhs) | ranges::view::sliding(2)))
+				for (auto const &[node_idx, idx_pair] : ranges::view::enumerate(ranges::view::closed_iota(subgraph_lhs, subgraph_rhs) | ranges::view::sliding(2)))
 				{
 					std::cerr << "Node " << (1 + node_idx) << '/' << (subgraph_rhs - subgraph_lhs) << "…\n";
 					
