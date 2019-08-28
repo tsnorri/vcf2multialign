@@ -22,6 +22,9 @@ namespace v2m	= vcf2multialign;
 
 namespace {
 	
+	typedef std::vector <lb::file_ostream> output_stream_vector;
+	
+	
 	struct stream_position
 	{
 		std::size_t node{};
@@ -31,17 +34,19 @@ namespace {
 	};
 	
 	
+	void output_chunk(std::string_view const &reference_sv, v2m::variant_graph const &graph, output_stream_vector &output_files);
+	
+	
 	void output_founders(
 		char const *reference_path,
 		char const *input_graph_path,
-		char const *reference_seq_name
+		char const *reference_seq_name,
+		std::size_t const chunk_size,
+		bool const may_overwrite
 	)
 	{
-		typedef std::vector <lb::file_ostream> output_stream_vector;
-		
 		v2m::vector_type reference;
 		v2m::variant_graph graph;
-		output_stream_vector output_files;
 		
 		// Open the input files.
 		{
@@ -62,24 +67,46 @@ namespace {
 		// Create a string view from the reference.
 		std::string_view const reference_sv(reference.data(), reference.size());
 		
-		// Open the output files.
+		// Output in chunks.
 		{
 			auto const mode(lb::make_writing_open_mode({
 				lb::writing_open_mode::CREATE,
-				(false ? lb::writing_open_mode::OVERWRITE : lb::writing_open_mode::NONE)
+				(may_overwrite ? lb::writing_open_mode::OVERWRITE : lb::writing_open_mode::NONE)
 			}));
 			
 			auto const max_paths(graph.max_paths_in_subgraph());
-			std::cerr << "Opening " << (1 + max_paths) << " files for writing…\n";
-			output_stream_vector temp_files(1 + max_paths);
-			lb::open_file_for_writing("REF", temp_files.front(), mode);
-			for (auto &&[i, file] : ranges::view::enumerate(temp_files | ranges::view::drop(1)))
-				lb::open_file_for_writing(std::to_string(i), file, mode);
-			
-			using std::swap;
-			swap(temp_files, output_files);
+			auto const stream_count(1 + max_paths);
+			std::size_t const chunk_count(std::ceil(1.0 * stream_count / chunk_size));
+			for (auto const &pair : ranges::view::closed_iota(std::size_t(0), chunk_count) | ranges::view::sliding(2))
+			{
+				auto const lhs(pair[0]);
+				auto const rhs(pair[1]);
+				auto const rhs_(std::min(rhs, stream_count));
+				std::cerr << "Processing chunk " << rhs << '/' << chunk_count << "…\n";
+				output_stream_vector output_files(chunk_size * (rhs_ - lhs)); // Cannot reuse b.c. lb::file_ostream has a deleted copy constructor.
+				
+				// Open the output files.
+				// Handle REF.
+				if (0 == lhs)
+				{
+					lb::open_file_for_writing("REF", output_files.front(), mode);
+					for (auto &&[i, of] : ranges::view::zip(ranges::view::iota(chunk_size * lhs, chunk_size * rhs_), output_files) | ranges::view::tail)
+						lb::open_file_for_writing(std::to_string(i), of, mode);
+				}
+				else
+				{
+					for (auto &&[i, of] : ranges::view::zip(ranges::view::iota(chunk_size * lhs, chunk_size * rhs_), output_files))
+						lb::open_file_for_writing(std::to_string(i), of, mode);
+				}
+				
+				output_chunk(reference_sv, graph, output_files);
+			}
 		}
-		
+	}
+	
+	
+	void output_chunk(std::string_view const &reference_sv, v2m::variant_graph const &graph, output_stream_vector &output_files)
+	{
 		// Output.
 		{
 			typedef v2m::variant_graph::sample_path_vector	sample_paths_type;
@@ -231,6 +258,8 @@ namespace {
 					stream << ref_sub << std::flush;
 				}
 			}
+			
+			std::cerr << "Finishing…\n";
 		}
 	}
 }
@@ -244,17 +273,25 @@ int main(int argc, char **argv)
 
 	gengetopt_args_info args_info;
 	if (0 != cmdline_parser(argc, argv, &args_info))
-		exit(EXIT_FAILURE);
+		std::exit(EXIT_FAILURE);
 	
 	std::ios_base::sync_with_stdio(false);	// Don't use C style IO after calling cmdline_parser.
 	std::cin.tie(nullptr);					// We don't require any input from the user.
 	
+	if (args_info.chunk_size_arg <= 0)
+	{
+		std::cerr << "Chunk size must be positive." << std::endl;
+		std::exit(EXIT_FAILURE);
+	}
+
 	try
 	{
 		output_founders(
 			args_info.reference_arg,
 			args_info.variants_arg,
-			args_info.reference_sequence_given ? args_info.reference_sequence_arg : nullptr
+			args_info.reference_sequence_given ? args_info.reference_sequence_arg : nullptr,
+			args_info.chunk_size_arg,
+			args_info.overwrite_flag
 		);
 	}
 	catch (lb::assertion_failure_exception const &exc)
