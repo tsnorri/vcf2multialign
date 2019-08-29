@@ -11,6 +11,7 @@ option		"variants"				a	"Variant graph file path"																	string	typestr
 option		"reference-sequence"	-	"Reference sequence identifier"																string	typestr = "identifier"					optional
 option		"chunk-size"			-	"Number of output files to be opened simultaneously"										long	typestr = "size"		default = "500"	optional
 option		"overwrite"				-	"Allow overwriting existing files"															flag	off
+option		"omit-reference-output"	-	"Do not output the aligned reference sequence"												flag	off
 
 defmode	"Output haplotypes"	modedesc = "Output a reference-guided multiple alignment of the samples."
 modeoption	"output-haplotypes"		H	"Output haplotypes"																					mode = "Output haplotypes"				required

@@ -75,10 +75,10 @@ namespace {
 			return std::unique_ptr <v2m::alt_edge_handler_base>(new founder_alt_edge_handler(reference_sv, graph, output_files));
 		}
 		
-		std::size_t const get_stream_count(v2m::variant_graph const &graph) const override
+		std::size_t const get_stream_count(v2m::variant_graph const &graph, bool const output_reference) const override
 		{
 			auto const max_paths(graph.max_paths_in_subgraph());
-			return 1 + max_paths;
+			return (output_reference ? 1 : 0) + max_paths;
 		}
 		
 	protected:
@@ -103,9 +103,9 @@ namespace {
 			return std::unique_ptr <v2m::alt_edge_handler_base>(new haplotype_alt_edge_handler(reference_sv, graph, output_files));
 		}
 		
-		std::size_t const get_stream_count(v2m::variant_graph const &graph) const override
+		std::size_t const get_stream_count(v2m::variant_graph const &graph, bool const output_reference) const override
 		{
-			return 1 + graph.sample_names().size();
+			return (output_reference ? 1 : 0) + graph.sample_names().size();
 		}
 		
 	protected:
@@ -124,6 +124,7 @@ namespace {
 			args_info.variants_arg,
 			args_info.reference_sequence_given ? args_info.reference_sequence_arg : nullptr,
 			args_info.chunk_size_arg,
+			(args_info.omit_reference_output_flag ? false : true),
 			args_info.overwrite_flag
 		);
 	}

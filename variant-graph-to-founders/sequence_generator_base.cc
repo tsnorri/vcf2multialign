@@ -25,6 +25,7 @@ namespace vcf2multialign {
 		char const *input_graph_path,
 		char const *reference_seq_name,
 		std::size_t const chunk_size,
+		bool const output_ref,
 		bool const may_overwrite
 	)
 	{
@@ -57,7 +58,7 @@ namespace vcf2multialign {
 				(may_overwrite ? lb::writing_open_mode::OVERWRITE : lb::writing_open_mode::NONE)
 			}));
 			
-			auto const stream_count(this->get_stream_count(graph));
+			auto const stream_count(this->get_stream_count(graph, output_ref));
 			std::cerr << stream_count << " sequences will be written.\n";
 			std::size_t const chunk_count(std::ceil(1.0 * stream_count / chunk_size));
 			for (auto const &pair : ranges::view::closed_iota(std::size_t(0), chunk_count) | ranges::view::sliding(2))
@@ -70,7 +71,7 @@ namespace vcf2multialign {
 				
 				// Open the output files.
 				// The last stream will be REF.
-				if (rhs_ == stream_count)
+				if (output_ref && rhs_ == stream_count)
 				{
 					lb::open_file_for_writing("REF", output_files.back(), mode);
 					for (auto &&[i, of] : ranges::view::zip(ranges::view::iota(chunk_size * lhs, chunk_size * rhs_), output_files) | ranges::view::drop_last(1))

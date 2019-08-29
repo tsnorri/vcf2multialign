@@ -39,11 +39,12 @@ namespace vcf2multialign {
 			char const *input_graph_path,
 			char const *reference_seq_name,
 			std::size_t const chunk_size,
+			bool const output_reference,
 			bool const may_overwrite
 		);
 		
 	protected:
-		virtual std::size_t const get_stream_count(variant_graph const &graph) const = 0;
+		virtual std::size_t const get_stream_count(variant_graph const &graph, bool const get_stream_count) const = 0;
 		
 		virtual std::unique_ptr <alt_edge_handler_base> make_alt_edge_handler(
 			std::string_view const &reference_sv,
