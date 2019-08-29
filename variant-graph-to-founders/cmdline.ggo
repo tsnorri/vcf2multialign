@@ -2,12 +2,18 @@
 # This code is licensed under MIT license (see LICENSE for details).
 
 package		"variant-graph-to-founders"
-purpose		"Convert the intermediate graph format to founder sequences."
-usage		"variant_graph_to_founders --reference=filename.fa --variants=variants.graph [...]"
-description	"Reads the variant graph file and produces founder sequences. The sequences will be written one sequence per file to the current working directory."
+purpose		"Converts the intermediate graph format to haplotype or founder sequences."
+usage		"variant_graph_to_founders -H|-F --reference=filename.fa --variants=variants.graph [<options>]"
+description	"Reads the variant graph file and produces a reference-guided alignment of haplotype or founder sequences. The sequences will be written one sequence per file to the current working directory."
 
 option		"reference"				r	"Reference FASTA file path"																	string	typestr = "filename"					required
 option		"variants"				a	"Variant graph file path"																	string	typestr = "filename"					required
 option		"reference-sequence"	-	"Reference sequence identifier"																string	typestr = "identifier"					optional
 option		"chunk-size"			-	"Number of output files to be opened simultaneously"										long	typestr = "size"		default = "500"	optional
 option		"overwrite"				-	"Allow overwriting existing files"															flag	off
+
+defmode	"Output haplotypes"	modedesc = "Output a reference-guided multiple alignment of the samples."
+modeoption	"output-haplotypes"		H	"Output haplotypes"																					mode = "Output haplotypes"				required
+
+defmode	"Output founders"	modedesc = "Output a reference-guided multiple alignment of the founder sequences generated from the samples."
+modeoption	"output-founders"		F	"Output founders"																					mode = "Output founders"				required

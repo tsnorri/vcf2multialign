@@ -2,7 +2,8 @@ include ../local.mk
 include ../common.mk
 
 OBJECTS		=	cmdline.o \
-				main.o
+				main.o \
+				sequence_generator_base.o
 
 all: variant_graph_to_founders
 
