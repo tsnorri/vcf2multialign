@@ -8,6 +8,7 @@ OBJECTS =	can_handle_variant_alts.o \
 			sample_sorter.o \
 			variant_format.o \
 			variant_graph.o \
+			variant_graph_partitioner.o \
 			variant_preprocessor.o
 
 
