@@ -41,6 +41,9 @@ int main(int argc, char **argv)
 	
 	try
 	{
+		lb::log_time(std::cerr);
+		std::cerr << "Starting\n";
+		
 		v2m::find_optimal_cut_positions(
 			args_info.reference_arg,
 			args_info.variants_arg,
@@ -50,6 +53,8 @@ int main(int argc, char **argv)
 			args_info.minimum_subgraph_distance_arg,
 			args_info.overwrite_flag
 		);
+		lb::log_time(std::cerr);
+		std::cerr << "Stopping\n";
 	}
 	catch (lb::assertion_failure_exception const &exc)
 	{
