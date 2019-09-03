@@ -76,7 +76,7 @@ namespace {
 			auto sg_it(subgraph_start_positions.begin());
 			auto const sg_end(subgraph_start_positions.end());
 			std::size_t next_subgraph_start_idx(sg_it == sg_end ? SIZE_MAX : *sg_it++);
-			auto const rsv(ranges::view::zip(ranges::view::ints(0), ref_positions | ranges::view::drop(1), aligned_ref_positions | ranges::view::drop(1)));
+			auto const rsv(ranges::view::zip(ranges::view::ints(0), ref_positions | ranges::view::tail, aligned_ref_positions | ranges::view::tail));
 			for (auto const &[i, ref_pos, aligned_ref_pos] : rsv)
 			{
 				if (i == next_subgraph_start_idx)
@@ -104,8 +104,8 @@ namespace {
 		// REF edges.
 		{
 			auto const rsv(ranges::view::zip(
-				ref_positions | ranges::view::drop(1) | ranges::view::sliding(2),
-				aligned_ref_positions | ranges::view::drop(1) | ranges::view::sliding(2)
+				ref_positions | ranges::view::tail | ranges::view::sliding(2),
+				aligned_ref_positions | ranges::view::tail | ranges::view::sliding(2)
 			));
 			for (auto const &[ref_pair, aligned_ref_pair] : rsv)
 			{
