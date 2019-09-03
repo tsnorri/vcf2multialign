@@ -169,9 +169,12 @@ namespace vcf2multialign {
 		// Process the variants.
 		variant_graph_partitioner partitioner(reader, reference, chr_name, donor_count, chr_count, minimum_subgraph_distance);
 		
-		variant_graph_partitioner::position_vector cut_positions;
-		path_number_type max_segment_size{};
-		partitioner.partition(field_names_for_filter_if_set, cut_positions, max_segment_size);
+		variant_graph_partitioner::cut_position_list cut_positions;
+		partitioner.partition(field_names_for_filter_if_set, cut_positions);
+		
+		std::cerr << "Max segment size: " << cut_positions.max_segment_size << '\n' << "Cut positions: ";
+		ranges::copy(cut_positions.positions, ranges::make_ostream_joiner(std::cerr, ", "));
+		std::cerr << std::endl;
 		
 		// Output.
 		//cereal::PortableBinaryOutputArchive archive(output_graph_stream);

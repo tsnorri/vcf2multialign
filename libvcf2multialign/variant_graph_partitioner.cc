@@ -4,6 +4,7 @@
  */
 
 #include <libbio/dispatch.hh>
+#include <libbio/utility.hh>
 #include <vcf2multialign/preprocess/variant_graph_partitioner.hh>
 #include <vcf2multialign/utility/can_handle_variant_alts.hh>
 
@@ -15,8 +16,7 @@ namespace vcf2multialign {
 	
 	bool variant_graph_partitioner::partition(
 		std::vector <std::string> const &field_names_for_filter_by_assigned,
-		position_vector &out_cut_positions,
-		path_number_type &out_max_size
+		cut_position_list &out_cut_positions
 	)
 	{
 		m_reader->reset();
@@ -125,18 +125,17 @@ namespace vcf2multialign {
 					// Update the scores.
 					{
 						auto const alt_count(var.alts().size());
-						//lb::parallel_for_each_range_view(
-						lb::for_each_range_view(
-							ranges::view::concat(closable_partitions, unclosable_partitions),
-							//8,
-							[&var, alt_count](auto &ctx, std::size_t const j
-						){
-							for (std::size_t i(0); i < alt_count; ++i)
+						for (auto &ctx : closable_partitions)
+							ctx.count_paths(var, alt_count);
+						
+						lb::parallel_for_each_range_view(
+							unclosable_partitions,
+							8,
+							[&var, alt_count](auto &ctx, std::size_t const j)
 							{
-								ctx.sorter.sort_by_variant_and_alt(var, 1 + i);
-								ctx.max_size = std::max(ctx.max_size, ctx.sorter.path_count());
+								ctx.count_paths(var, alt_count);
 							}
-						});
+						);
 					}
 					
 					{
@@ -146,30 +145,9 @@ namespace vcf2multialign {
 					}
 					
 				end:
-					std::cerr << "var_pos: " << var_pos << '\n';
-					std::cerr << "unclosable:\n";
-					for (auto const &ctx : unclosable_partitions)
-					{
-						std::cerr << '\t' << ctx << '\n';
-#if 0
-						std::cerr << '\t';
-						ctx.output_reversed_path(std::cerr, cut_position_tree);
-						std::cerr << '\n';
-#endif
-					}
-					std::cerr << "closable:\n";
-					for (auto const &ctx : closable_partitions)
-					{
-						std::cerr << '\t' << ctx << '\n';
-#if 0
-						std::cerr << '\t';
-						ctx.output_reversed_path(std::cerr, cut_position_tree);
-						std::cerr << '\n';
-#endif
-					}
-					std::cerr << "=====\n";
-					
 					++m_processed_count;
+					if (0 == m_processed_count % 100)
+						std::cerr << m_processed_count << '\n';
 					return true;
 				}
 			);
@@ -183,17 +161,18 @@ namespace vcf2multialign {
 			return false;
 		
 		{
-			out_cut_positions.clear();
+			auto &positions(out_cut_positions.positions);
+			positions.clear();
 			auto &ctx(closable_partitions.front());
 			auto idx(ctx.start_position_idx);
 			while (SIZE_MAX != idx)
 			{
 				auto const &cut_pos(cut_position_tree[idx]);
-				out_cut_positions.emplace_back(cut_pos.value);
+				positions.emplace_back(cut_pos.value);
 				idx = cut_pos.previous_idx;
 			}
-			std::reverse(out_cut_positions.begin(), out_cut_positions.end());
-			out_max_size = ctx.max_size;
+			std::reverse(positions.begin(), positions.end());
+			out_cut_positions.max_segment_size = ctx.max_size;
 			return true;
 		}
 	}

@@ -38,6 +38,7 @@ namespace vcf2multialign {
 		struct dp_ctx; // Fwd
 		
 	public:
+		struct cut_position_list; // Fwd
 		typedef std::size_t								position_type;
 		typedef std::vector <position_type>				position_vector;
 		
@@ -99,13 +100,22 @@ namespace vcf2multialign {
 		
 		bool partition(
 			std::vector <std::string> const &field_names_for_filter_by_assigned,
-			position_vector &out_cut_positions,
-			path_number_type &out_max_size
+			cut_position_list &out_cut_positions
 		);
+		
+	public:
+		struct cut_position_list
+		{
+			position_vector		positions;
+			path_number_type	max_segment_size{};
+			
+			// Ignore the version for now.
+			template <typename t_archive>
+			void serialize(t_archive &archive, std::uint32_t const version) { archive(positions, max_segment_size); }
+		};
 		
 	protected:
 		struct cut_position; // Fwd
-		
 		
 		void check_closable(
 			std::size_t const var_pos,
@@ -113,7 +123,6 @@ namespace vcf2multialign {
 			std::list <dp_ctx> &unclosable_partitions,
 			std::list <dp_ctx> &closable_partitions
 		);
-		
 		
 		struct cut_position
 		{
@@ -129,7 +138,6 @@ namespace vcf2multialign {
 			}
 		};
 		
-		
 		struct dp_ctx
 		{
 			sample_sorter		sorter;
@@ -144,22 +152,28 @@ namespace vcf2multialign {
 				sorter.prepare_for_next_subgraph();
 			}
 		
-			// Called once per varint only.
+			// Called once per variant only.
 			void chain_previous(dp_ctx const &other, position_type const pos, std::vector <cut_position> &cut_position_tree)
 			{
 				cut_position_tree.emplace_back(pos, other.start_position_idx);
 				start_position_idx = cut_position_tree.size() - 1;
 				max_size = other.max_size;
 			}
+			
+			void count_paths(libbio::transient_variant const &var, std::size_t const alt_count)
+			{
+				for (std::size_t i(0); i < alt_count; ++i)
+				{
+					sorter.sort_by_variant_and_alt(var, 1 + i);
+					max_size = std::max(max_size, sorter.path_count());
+				}
+			}
 
 			void output_reversed_path(std::ostream &, std::vector <cut_position> const &) const;
 		};
 		
-		
 		friend std::ostream &operator<<(std::ostream &, dp_ctx const &);
 	};
-
-	std::ostream &operator<<(std::ostream &os, variant_graph_partitioner::dp_ctx const &ctx);
 }
 
 #endif
