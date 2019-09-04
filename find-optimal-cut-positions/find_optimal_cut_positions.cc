@@ -4,6 +4,7 @@
  */
 
 #include <cereal/archives/portable_binary.hpp>
+#include <cereal/types/vector.hpp>
 #include <range/v3/all.hpp>
 #include <tuple>
 #include <vcf2multialign/preprocess/variant_graph_partitioner.hh>
