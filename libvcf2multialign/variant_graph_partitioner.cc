@@ -23,8 +23,7 @@ namespace vcf2multialign {
 		m_reader->set_parsed_fields(lb::vcf_field::ALL);
 		
 		// Get the field descriptors needed for accessing the values.
-		libbio::vcf_info_field_end const *end_field{};
-		m_reader->get_info_field_ptr("END",	end_field);
+		auto const *end_field(m_reader->get_end_field_ptr());
 		
 		// Determine the fields used for filtering.
 		std::vector <lb::vcf_info_field_base *> filter_by_assigned;
@@ -35,7 +34,7 @@ namespace vcf2multialign {
 				auto const it(fields.find(name));
 				if (fields.end() == it)
 				{
-					//m_delegate->variant_preprocessor_no_field_for_identifier(name);
+					m_delegate->variant_processor_no_field_for_identifier(name);
 					continue;
 				}
 				
@@ -53,6 +52,9 @@ namespace vcf2multialign {
 			ctx.start_position_idx = cut_position_tree.size() - 1;
 		}
 		
+		auto &handled_line_numbers(out_cut_positions.handled_line_numbers);
+		handled_line_numbers.clear();
+		
 		bool should_continue(false);
 		std::size_t overlap_end{};
 		do {
@@ -65,6 +67,7 @@ namespace vcf2multialign {
 					&cut_position_tree,
 					&closable_partitions,
 					&unclosable_partitions,
+					&handled_line_numbers,
 				 	&overlap_end
 				](lb::transient_variant const &var) -> bool
 				{
@@ -77,13 +80,13 @@ namespace vcf2multialign {
 					
 					if (! (var_pos < m_reference->size()))
 					{
-						//m_delegate->variant_preprocessor_found_variant_with_position_greater_than_reference_length(var);
+						m_delegate->variant_processor_found_variant_with_position_greater_than_reference_length(var);
 						return false;
 					}
 					
 					if (!can_handle_variant_alts(var))
 					{
-						//m_delegate->variant_preprocessor_found_variant_with_no_suitable_alts(var);
+						m_delegate->variant_processor_found_variant_with_no_suitable_alts(var);
 						goto end;
 					}
 					
@@ -92,7 +95,7 @@ namespace vcf2multialign {
 					{
 						if (field_ptr->has_value(var))
 						{
-							//m_delegate->variant_preprocessor_found_filtered_variant(var, *field_ptr);
+							m_delegate->variant_processor_found_filtered_variant(var, *field_ptr);
 							goto end;
 						}
 					}
@@ -103,12 +106,14 @@ namespace vcf2multialign {
 						std::string_view const ref_sub(m_reference->data() + var_pos, ref_col.size());
 						if (ref_col != ref_sub)
 						{
-							//m_delegate->variant_preprocessor_found_variant_with_ref_mismatch(var, ref_sub);
+							m_delegate->variant_processor_found_variant_with_ref_mismatch(var, ref_sub);
 							goto end;
 						}
 					}
 					
 					// Variant passes the checks, handle it.
+					handled_line_numbers.emplace_back(lineno);
+					
 					// Check if the current node is a candidate for splitting.
 					if (overlap_end <= var_pos)
 					{

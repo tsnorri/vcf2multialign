@@ -9,7 +9,8 @@ OBJECTS =	can_handle_variant_alts.o \
 			variant_format.o \
 			variant_graph.o \
 			variant_graph_partitioner.o \
-			variant_preprocessor.o
+			variant_preprocessor.o \
+			variant_processor_delegate.o
 
 
 all: libvcf2multialign.a

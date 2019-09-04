@@ -47,6 +47,7 @@ int main(int argc, char **argv)
 		v2m::find_optimal_cut_positions(
 			args_info.reference_arg,
 			args_info.variants_arg,
+			args_info.output_arg,
 			args_info.reference_sequence_given ? args_info.reference_sequence_arg : nullptr,
 			args_info.chromosome_given ? args_info.chromosome_arg : nullptr,
 			field_names_for_filter_if_set,

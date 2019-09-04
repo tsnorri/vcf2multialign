@@ -18,6 +18,7 @@
 #include <vcf2multialign/preprocess/sample_sorter.hh>
 #include <vcf2multialign/preprocess/types.hh>
 #include <vcf2multialign/preprocess/variant_graph.hh>
+#include <vcf2multialign/preprocess/variant_processor_delegate.hh>
 #include <vcf2multialign/types.hh>
 #include <vector>
 
@@ -64,18 +65,6 @@ namespace vcf2multialign { namespace detail {
 
 namespace vcf2multialign {
 	
-	struct variant_preprocessor_delegate
-	{
-		virtual ~variant_preprocessor_delegate() {}
-		virtual void variant_preprocessor_no_field_for_identifier(std::string const &identifier) = 0;
-		virtual void variant_preprocessor_found_variant_with_position_greater_than_reference_length(libbio::transient_variant const &var) = 0;
-		virtual void variant_preprocessor_found_variant_with_no_suitable_alts(libbio::transient_variant const &var) = 0;
-		virtual void variant_preprocessor_found_filtered_variant(libbio::transient_variant const &var, libbio::vcf_info_field_base const &field) = 0;
-		virtual void variant_preprocessor_found_variant_with_ref_mismatch(libbio::transient_variant const &var, std::string_view const &ref_sub) = 0;
-		virtual void variant_preprocessor_will_handle_subgraph(libbio::variant const &first_var, std::size_t const variant_count, std::size_t const path_count) = 0;
-	};
-	
-	
 	class variant_preprocessor
 	{
 	protected:
@@ -90,7 +79,7 @@ namespace vcf2multialign {
 		libbio::vcf_reader								*m_reader{};
 		vector_type const								*m_reference{};
 		libbio::vcf_info_field_end						*m_end_field{};
-		variant_preprocessor_delegate					*m_delegate{};
+		variant_processor_delegate						*m_delegate{};
 		variant_graph									m_graph;
 		std::string										m_chromosome_name;
 		variant_stack									m_subgraph_variants;
@@ -111,7 +100,7 @@ namespace vcf2multialign {
 		}
 		
 		variant_preprocessor(
-			variant_preprocessor_delegate &delegate,
+			variant_processor_delegate &delegate,
 			libbio::vcf_reader &reader,
 			libbio::vcf_info_field_end &end_field,
 			vector_type const &reference,
@@ -131,10 +120,10 @@ namespace vcf2multialign {
 			m_minimum_subgraph_distance(minimum_subgraph_distance)
 		{
 		}
-	
+		
 	public:
 		variant_preprocessor(
-			variant_preprocessor_delegate &delegate,
+			variant_processor_delegate &delegate,
 			libbio::vcf_reader &reader,
 			vector_type const &reference,
 			std::string const chr_name,

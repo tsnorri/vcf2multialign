@@ -52,49 +52,6 @@ namespace {
 			std::forward_as_tuple(ptr_value)
 		);
 	}
-	
-	
-#if 0
-	struct graph_output_delegate final : public v2m::variant_preprocessor_delegate
-	{
-		std::size_t subgraph_number{};
-		
-		virtual void variant_preprocessor_no_field_for_identifier(std::string const &identifier) override
-		{
-			std::cerr << "WARNING: Did not find a field for identifier “" << identifier << "”.\n";
-		}
-		
-		
-		virtual void variant_preprocessor_found_variant_with_position_greater_than_reference_length(lb::transient_variant const &var) override
-		{
-			std::cerr << "ERROR: Found a variant with a position greater than the reference length on line " << var.lineno() << "\n";
-		}
-		
-		
-		virtual void variant_preprocessor_found_variant_with_no_suitable_alts(lb::transient_variant const &var) override
-		{
-			std::cerr << "Line " << var.lineno() << ": Variant has no ALTs that could be handled.\n";
-		}
-		
-		
-		virtual void variant_preprocessor_found_filtered_variant(lb::transient_variant const &var, lb::vcf_info_field_base const &field) override
-		{
-			std::cerr << "Line " << var.lineno() << ": Variant has the field '" << field.get_metadata()->get_id() << "' set; skipping.\n";
-		}
-		
-		
-		virtual void variant_preprocessor_found_variant_with_ref_mismatch(lb::transient_variant const &var, std::string_view const &ref_sub) override
-		{
-			std::cerr << "WARNING: reference column mismatch on line " << var.lineno() << ": expected '" << ref_sub << "', got '" << var.ref() << "'\n";
-		}
-		
-		
-		virtual void variant_preprocessor_will_handle_subgraph(lb::variant const &first_var, std::size_t const variant_count, std::size_t const path_count) override
-		{
-			std::cout << subgraph_number++ << '\t' << first_var.lineno() << '\t' << variant_count << '\t' << path_count << '\n';
-		}
-	};
-#endif
 }
 
 
@@ -103,6 +60,7 @@ namespace vcf2multialign {
 	void find_optimal_cut_positions(
 		char const *reference_path,
 		char const *variants_path,
+		char const *output_path,
 		char const *reference_seq_name,
 		char const *chr_name,
 		std::vector <std::string> const &field_names_for_filter_if_set,
@@ -111,7 +69,7 @@ namespace vcf2multialign {
 	)
 	{
 		vector_type reference;
-		lb::file_ostream output_graph_stream;
+		lb::file_ostream output_positions_stream;
 		
 		// Open the files.
 		{
@@ -119,7 +77,7 @@ namespace vcf2multialign {
 				lb::writing_open_mode::CREATE,
 				(should_overwrite_files ? lb::writing_open_mode::OVERWRITE : lb::writing_open_mode::NONE)
 			}));
-			//lb::open_file_for_writing(output_variants_path, output_graph_stream, mode);
+			lb::open_file_for_writing(output_path, output_positions_stream, mode);
 		}
 		
 		lb::mmap_handle <char> vcf_handle;
@@ -167,17 +125,21 @@ namespace vcf2multialign {
 		auto const chr_count(ploidy.begin()->second);
 		
 		// Process the variants.
-		variant_graph_partitioner partitioner(reader, reference, chr_name, donor_count, chr_count, minimum_subgraph_distance);
-		
+		logging_variant_processor_delegate delegate;
+		variant_graph_partitioner partitioner(
+			delegate,
+			reader,
+			reference,
+			chr_name,
+			donor_count,
+			chr_count,
+			minimum_subgraph_distance
+		);
 		variant_graph_partitioner::cut_position_list cut_positions;
 		partitioner.partition(field_names_for_filter_if_set, cut_positions);
 		
-		std::cerr << "Max segment size: " << cut_positions.max_segment_size << '\n' << "Cut positions: ";
-		ranges::copy(cut_positions.positions, ranges::make_ostream_joiner(std::cerr, ", "));
-		std::cerr << std::endl;
-		
 		// Output.
-		//cereal::PortableBinaryOutputArchive archive(output_graph_stream);
-		//archive(processor.variant_graph());
+		cereal::PortableBinaryOutputArchive archive(output_positions_stream);
+		archive(cut_positions);
 	}
 }

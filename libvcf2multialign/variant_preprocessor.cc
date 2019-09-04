@@ -51,7 +51,7 @@ namespace vcf2multialign {
 				auto const it(fields.find(name));
 				if (fields.end() == it)
 				{
-					m_delegate->variant_preprocessor_no_field_for_identifier(name);
+					m_delegate->variant_processor_no_field_for_identifier(name);
 					continue;
 				}
 				
@@ -82,13 +82,13 @@ namespace vcf2multialign {
 					
 					if (! (var_pos < m_reference->size()))
 					{
-						m_delegate->variant_preprocessor_found_variant_with_position_greater_than_reference_length(var);
+						m_delegate->variant_processor_found_variant_with_position_greater_than_reference_length(var);
 						return false;
 					}
 
 					if (!can_handle_variant_alts(var))
 					{
-						m_delegate->variant_preprocessor_found_variant_with_no_suitable_alts(var);
+						m_delegate->variant_processor_found_variant_with_no_suitable_alts(var);
 						goto end;
 					}
 					
@@ -97,7 +97,7 @@ namespace vcf2multialign {
 					{
 						if (field_ptr->has_value(var))
 						{
-							m_delegate->variant_preprocessor_found_filtered_variant(var, *field_ptr);
+							m_delegate->variant_processor_found_filtered_variant(var, *field_ptr);
 							goto end;
 						}
 					}
@@ -108,7 +108,7 @@ namespace vcf2multialign {
 						std::string_view const ref_sub(m_reference->data() + var_pos, ref_col.size());
 						if (ref_col != ref_sub)
 						{
-							m_delegate->variant_preprocessor_found_variant_with_ref_mismatch(var, ref_sub);
+							m_delegate->variant_processor_found_variant_with_ref_mismatch(var, ref_sub);
 							goto end;
 						}
 					}
@@ -163,7 +163,7 @@ namespace vcf2multialign {
 		
 		auto const sample_count(m_sample_indexer.total_samples());
 		auto const path_count(m_sample_sorter.path_count());
-		m_delegate->variant_preprocessor_will_handle_subgraph(m_subgraph_variants.front(), m_subgraph_variants.size(), path_count);
+		//m_delegate->variant_processor_will_handle_subgraph(m_subgraph_variants.front(), m_subgraph_variants.size(), path_count);
 		
 		// Begin a new subgraph; place the beginning between the last variant of the previous subgraph and the first variant of the next subgraph.
 		std::size_t const subgraph_start_pos(prev_overlap_end + std::ceil((m_subgraph_variants.front().zero_based_pos() - prev_overlap_end) / 2.0));

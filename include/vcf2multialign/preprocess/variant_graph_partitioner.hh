@@ -17,6 +17,7 @@
 #include <vcf2multialign/preprocess/sample_indexer.hh>
 #include <vcf2multialign/preprocess/sample_sorter.hh>
 #include <vcf2multialign/preprocess/types.hh>
+#include <vcf2multialign/preprocess/variant_processor_delegate.hh>
 #include <vcf2multialign/types.hh>
 #include <vector>
 
@@ -43,6 +44,7 @@ namespace vcf2multialign {
 		typedef std::vector <position_type>				position_vector;
 		
 	protected:
+		variant_processor_delegate						*m_delegate{};
 		libbio::vcf_reader								*m_reader{};
 		libbio::vcf_info_field_end						*m_end_field{};
 		vector_type const								*m_reference{};
@@ -51,50 +53,23 @@ namespace vcf2multialign {
 		std::size_t										m_minimum_subgraph_distance{};
 		std::size_t										m_processed_count{};
 		
-	protected:
-		static libbio::vcf_info_field_end *get_end_field_ptr(libbio::vcf_reader &reader)
-		{
-			libbio::vcf_info_field_end *retval{};
-			reader.get_info_field_ptr("END", retval);
-			return retval;
-		}
-
+	public:
 		variant_graph_partitioner(
+			variant_processor_delegate &delegate,
 			libbio::vcf_reader &reader,
-			libbio::vcf_info_field_end &end_field,
 			vector_type const &reference,
 			std::string const chr_name,
 			std::size_t const donor_count,
 			std::uint8_t const chr_count,
 			std::size_t const minimum_subgraph_distance
 		):
+			m_delegate(&delegate),
 			m_reader(&reader),
-			m_end_field(&end_field),
+			m_end_field(reader.get_end_field_ptr()),
 			m_reference(&reference),
 			m_sample_indexer(donor_count, chr_count),
 			m_chromosome_name(chr_name),
 			m_minimum_subgraph_distance(minimum_subgraph_distance)
-		{
-		}
-
-	public:
-		variant_graph_partitioner(
-			libbio::vcf_reader &reader,
-			vector_type const &reference,
-			std::string const chr_name,
-			std::size_t const donor_count,
-			std::uint8_t const chr_count,
-			std::size_t const minimum_subgraph_distance
-		):
-			variant_graph_partitioner(
-				reader,
-				*variant_graph_partitioner::get_end_field_ptr(reader),
-				reference,
-				chr_name,
-				donor_count,
-				chr_count,
-				minimum_subgraph_distance
-			)
 		{
 		}
 		
@@ -106,12 +81,16 @@ namespace vcf2multialign {
 	public:
 		struct cut_position_list
 		{
-			position_vector		positions;
-			path_number_type	max_segment_size{};
+			std::vector <std::size_t>	handled_line_numbers;	// Store also the line numbers that were handled.
+			position_vector				positions;
+			path_number_type			max_segment_size{};
 			
 			// Ignore the version for now.
 			template <typename t_archive>
-			void serialize(t_archive &archive, std::uint32_t const version) { archive(positions, max_segment_size); }
+			void serialize(t_archive &archive, std::uint32_t const version)
+			{
+				archive(handled_line_numbers, positions, max_segment_size);
+			}
 		};
 		
 	protected:
