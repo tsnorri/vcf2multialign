@@ -24,6 +24,9 @@ namespace vcf2multialign {
 	{
 		libbio::vcf_genotype_field_gt	*gt{};
 		
+		// Return a new empty instance of this class.
+		virtual variant_format *new_instance() const override { return new variant_format(); }
+		
 		virtual void reader_will_update_format(libbio::vcf_reader &reader) override;
 		virtual void reader_did_update_format(libbio::vcf_reader &reader) override;
 	};
