@@ -30,10 +30,10 @@
 *.out
 *.app
 
-find-optimal-cut-positions/cmdline.c
-find-optimal-cut-positions/cmdline.h
-find-optimal-cut-positions/config.h
-find-optimal-cut-positions/find_optimal_cut_positions
+create-variant-graph/cmdline.c
+create-variant-graph/cmdline.h
+create-variant-graph/config.h
+create-variant-graph/create_variant_graph
 preprocess-vcf/cmdline.c
 preprocess-vcf/cmdline.h
 preprocess-vcf/config.h
