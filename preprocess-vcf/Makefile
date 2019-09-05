@@ -2,15 +2,15 @@ include ../local.mk
 include ../common.mk
 
 OBJECTS		=	cmdline.o \
-				find_optimal_cut_positions.o \
-				main.o
+				main.o \
+				preprocess_vcf.o
 
-all: find_optimal_cut_positions
+all: preprocess_vcf
 
 clean:
-	$(RM) $(OBJECTS) find_optimal_cut_positions cmdline.c cmdline.h version.h
+	$(RM) $(OBJECTS) preprocess_vcf cmdline.c cmdline.h version.h
 
-find_optimal_cut_positions: $(OBJECTS)
+preprocess_vcf: $(OBJECTS)
 	$(CXX) -o $@ $(OBJECTS) ../libvcf2multialign/libvcf2multialign.a $(LDFLAGS)
 
 main.cc : cmdline.c

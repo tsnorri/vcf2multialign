@@ -9,7 +9,7 @@
 #include <libbio/dispatch.hh>
 #include <unistd.h>
 #include "cmdline.h"
-#include "find_optimal_cut_positions.hh"
+#include "preprocess_vcf.hh"
 
 
 namespace lb	= libbio;
@@ -39,7 +39,7 @@ int main(int argc, char **argv)
 	for (std::size_t i(0); i < args_info.filter_fields_set_given; ++i)
 		field_names_for_filter_if_set[i] = args_info.filter_fields_set_arg[i];
 	
-	v2m::find_optimal_cut_positions(
+	v2m::preprocess_vcf(
 		args_info.reference_arg,
 		args_info.variants_arg,
 		args_info.output_arg,

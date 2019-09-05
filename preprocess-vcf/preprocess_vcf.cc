@@ -10,7 +10,7 @@
 #include <vcf2multialign/preprocess/variant_graph_partitioner.hh>
 #include <vcf2multialign/utility/check_ploidy.hh>
 #include <vcf2multialign/vcf_processor.hh>
-#include "find_optimal_cut_positions.hh"
+#include "preprocess_vcf.hh"
 
 
 namespace lb	= libbio;
@@ -170,7 +170,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void find_optimal_cut_positions(
+	void preprocess_vcf(
 		char const *reference_path,
 		char const *variant_file_path,
 		char const *output_path,

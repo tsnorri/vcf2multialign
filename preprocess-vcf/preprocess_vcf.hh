@@ -3,8 +3,8 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#ifndef VCF2MULTIALIGN_PREPROCESS_FIND_OPTIMAL_CUT_POSITIONS_HH
-#define VCF2MULTIALIGN_PREPROCESS_FIND_OPTIMAL_CUT_POSITIONS_HH
+#ifndef VCF2MULTIALIGN_PREPROCESS_PREPROCESS_VCF_HH
+#define VCF2MULTIALIGN_PREPROCESS_PREPROCESS_VCF_HH
 
 #include <string>
 #include <vector>
@@ -12,7 +12,7 @@
 
 namespace vcf2multialign {
 	
-	void find_optimal_cut_positions(
+	void preprocess_vcf(
 		char const *reference_path,
 		char const *variants_path,
 		char const *output_path,
