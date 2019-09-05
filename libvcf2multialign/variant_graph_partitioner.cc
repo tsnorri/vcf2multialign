@@ -144,15 +144,12 @@ namespace vcf2multialign {
 					}
 					
 					{
-						// FIXME: save the processed variants’ identifiers / line numbers / something.
 						auto const var_end(lb::variant_end_pos(var, *end_field));
 						overlap_end = std::max(overlap_end, var_end);
 					}
 					
 				end:
-					++m_processed_count;
-					if (0 == m_processed_count % 100)
-						std::cerr << m_processed_count << '\n';
+					m_processed_count.fetch_add(1, std::memory_order_relaxed);
 					return true;
 				}
 			);

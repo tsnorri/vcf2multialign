@@ -5,12 +5,11 @@
 
 #include <cereal/archives/portable_binary.hpp>
 #include <cereal/types/vector.hpp>
-#include <range/v3/all.hpp>
-#include <tuple>
+#include <libbio/progress_indicator.hh>
+#include <libbio/utility.hh>
 #include <vcf2multialign/preprocess/variant_graph_partitioner.hh>
 #include <vcf2multialign/utility/check_ploidy.hh>
-#include <vcf2multialign/utility/read_single_fasta_seq.hh>
-#include <vcf2multialign/variant_format.hh>
+#include <vcf2multialign/vcf_processor.hh>
 #include "find_optimal_cut_positions.hh"
 
 
@@ -18,129 +17,210 @@ namespace lb	= libbio;
 namespace v2m	= vcf2multialign;
 
 
-namespace {
-	std::tuple <std::size_t, std::uint8_t> check_ploidy(lb::vcf_reader &vcf_reader)
+namespace vcf2multialign {
+	
+	class progress_indicator_delegate final : public lb::progress_indicator_delegate
 	{
-		v2m::ploidy_map ploidy_map;
-		v2m::check_ploidy(vcf_reader, ploidy_map);
+	protected:
+		variant_graph_partitioner const * const	m_partitioner{};
 		
-		auto const donor_count(ploidy_map.size());
-		auto const ploidy(ploidy_map.begin()->second);
-		
-		bool can_continue(true);
-		for (auto const [sample_no, sample_ploidy] : ploidy_map)
+	public:
+		progress_indicator_delegate(variant_graph_partitioner const &partitioner):
+			m_partitioner(&partitioner)
 		{
-			if (sample_ploidy != ploidy)
-			{
-				std::cerr << "ERROR: Ploidy for sample " << sample_no << " was " << sample_ploidy << ", expected " << ploidy << ".\n";
-				can_continue = false;
-			}
 		}
 		
-		if (!can_continue)
-			libbio_fail("Varying ploidy is not currently supported.");
-		
-		return std::tuple <std::size_t, std::uint8_t>(donor_count, ploidy);
-	}
+		virtual std::size_t progress_step_max() const override { return 0; }
+		virtual std::size_t progress_current_step() const override { return m_partitioner->processed_count(); }
+		virtual void progress_log_extra() const override {};
+	};
 	
 	
-	template <typename t_map, typename t_key, typename t_ptr_value>
-	void add_to_map(t_map &map, t_key const &key, t_ptr_value const ptr_value)
+	class cut_position_processor : public vcf_processor
 	{
-		map.emplace(
-			std::piecewise_construct,
-			std::forward_as_tuple(key),
-			std::forward_as_tuple(ptr_value)
-		);
+	protected:
+		lb::progress_indicator			m_progress_indicator;
+		std::vector <std::string> const	m_field_names_for_filter_if_set;
+		std::string	const				m_chr_name;
+		std::size_t const				m_minimum_subgraph_distance{};
+		
+	public:
+		cut_position_processor(
+			std::vector <std::string> &&field_names_for_filter_if_set,
+			std::string const &chr_name,
+			std::size_t const minimum_subgraph_distance
+		):
+			vcf_processor(),
+			m_field_names_for_filter_if_set(std::move(field_names_for_filter_if_set)),
+			m_chr_name(chr_name),
+			m_minimum_subgraph_distance(minimum_subgraph_distance)
+		{
+		}
+		
+		void process_and_output(std::size_t const donor_count, std::size_t const chr_count);
+		
+		void end_logging() { m_progress_indicator.end_logging(); }
+		
+		void finish();
+		void log_assertion_failure_and_exit(lb::assertion_failure_exception const &exc);
+		void log_exception_and_exit(std::exception const &exc);
+		void log_unknown_exception_and_exit();
+	};
+	
+	
+	void log_assertion_failure_exception(lb::assertion_failure_exception const &exc)
+	{
+		std::cerr << "Assertion failure: " << exc.what() << '\n';
+		boost::stacktrace::stacktrace const *st(boost::get_error_info <lb::traced>(exc));
+		if (st)
+			std::cerr << "Stack trace:\n" << *st << '\n';
 	}
-}
-
-
-namespace vcf2multialign {
+	
+	
+	void cut_position_processor::finish()
+	{
+		dispatch_async(dispatch_get_main_queue(), ^{
+			m_progress_indicator.uninstall();
+			std::exit(EXIT_SUCCESS);
+		});
+	}
+	
+	
+	void cut_position_processor::log_assertion_failure_and_exit(lb::assertion_failure_exception const &exc)
+	{
+		end_logging();
+		lb::dispatch_async_fn(dispatch_get_main_queue(), [this, exc](){
+			log_assertion_failure_exception(exc);
+			m_progress_indicator.uninstall();
+			std::exit(EXIT_FAILURE);
+		});
+	}
+	
+	
+	void cut_position_processor::log_exception_and_exit(std::exception const &exc)
+	{
+		end_logging();
+		lb::dispatch_async_fn(dispatch_get_main_queue(), [this, exc](){
+			std::cerr << "Caught an exception: " << exc.what() << '\n';
+			m_progress_indicator.uninstall();
+			std::exit(EXIT_FAILURE);
+		});
+	}
+	
+	
+	void cut_position_processor::log_unknown_exception_and_exit()
+	{
+		end_logging();
+		dispatch_async(dispatch_get_main_queue(), ^{
+			std::cerr << "Caught an unknown exception.\n";
+			m_progress_indicator.uninstall();
+			std::exit(EXIT_FAILURE);
+		});
+	}
+	
+	
+	void cut_position_processor::process_and_output(std::size_t const donor_count, std::size_t const chr_count)
+	{
+		try
+		{
+			// Set up the processor.
+			logging_variant_processor_delegate processor_delegate;
+			variant_graph_partitioner partitioner(
+				processor_delegate,
+				this->m_vcf_reader,
+				this->m_reference,
+				this->m_chr_name,
+				donor_count,
+				chr_count,
+				this->m_minimum_subgraph_distance
+			);
+			variant_graph_partitioner::cut_position_list cut_positions;
+			
+			// Partition.
+			progress_indicator_delegate indicator_delegate(partitioner);
+			if (m_progress_indicator.is_stderr_interactive())
+				m_progress_indicator.install();
+			
+			m_progress_indicator.log_with_counter(lb::copy_time() + "Processing the variants…", indicator_delegate);
+			partitioner.partition(m_field_names_for_filter_if_set, cut_positions);
+			end_logging();
+			m_progress_indicator.uninstall();
+			
+			lb::log_time(std::cerr);
+			std::cerr << "Done. Maximum segment size: " << cut_positions.max_segment_size << " Cut position count: " << cut_positions.positions.size() << '\n';
+			
+			// Output.
+			cereal::PortableBinaryOutputArchive archive(this->m_output_stream);
+			archive(cut_positions);
+			
+			finish();
+		}
+		catch (lb::assertion_failure_exception const &exc)
+		{
+			log_assertion_failure_and_exit(exc);
+		}
+		catch (std::exception const &exc)
+		{
+			log_exception_and_exit(exc);
+		}
+		catch (...)
+		{
+			log_unknown_exception_and_exit();
+		}
+	}
+	
 	
 	void find_optimal_cut_positions(
 		char const *reference_path,
-		char const *variants_path,
+		char const *variant_file_path,
 		char const *output_path,
 		char const *reference_seq_name,
 		char const *chr_name,
-		std::vector <std::string> const &field_names_for_filter_if_set,
+		std::vector <std::string> &&field_names_for_filter_if_set,
 		std::size_t const minimum_subgraph_distance,
 		bool const should_overwrite_files
 	)
 	{
-		vector_type reference;
-		lb::file_ostream output_positions_stream;
-		
-		// Open the files.
+		// main() calls dispatch_main() if this function does not throw, call std::exit or something similar.
+		try
 		{
-			auto const mode(lb::make_writing_open_mode({
-				lb::writing_open_mode::CREATE,
-				(should_overwrite_files ? lb::writing_open_mode::OVERWRITE : lb::writing_open_mode::NONE)
-			}));
-			lb::open_file_for_writing(output_path, output_positions_stream, mode);
-		}
-		
-		lb::mmap_handle <char> vcf_handle;
-		vcf_handle.open(variants_path);
-		
-		lb::mmap_handle <char> ref_handle;
-		ref_handle.open(reference_path);
-		
-		// Read the input FASTA.
-		read_single_fasta_seq(ref_handle, reference, reference_seq_name);
-
-		// Create a VCF reader.
-		lb::vcf_mmap_input vcf_input(vcf_handle);
-		lb::vcf_reader reader(vcf_input);
-		lb::add_reserved_genotype_keys(reader.genotype_fields());
-		
-		{
-			auto &info_fields(reader.info_fields());
-			lb::add_reserved_info_keys(info_fields);
+			// Since the processor has Boost’s streams, it cannot be moved. Hence the use of a pointer.
+			auto processor_ptr(std::make_unique <cut_position_processor>(std::move(field_names_for_filter_if_set), chr_name, minimum_subgraph_distance));
+			auto &processor(*processor_ptr);
 			
-			// Add some fields used in 1000G.
-			add_to_map(info_fields, "CIPOS",	new vcf_info_field_cipos());
-			add_to_map(info_fields, "CIEND",	new vcf_info_field_ciend());
-			add_to_map(info_fields, "SVLEN",	new vcf_info_field_svlen());
-			add_to_map(info_fields, "SVTYPE",	new vcf_info_field_svtype());
+			// These will eventually call std::exit if the file in question cannot be opened.
+			processor.open_variants_file(variant_file_path);
+			processor.read_reference(reference_path, reference_seq_name);
+			processor.open_output_file(output_path, should_overwrite_files);
+			
+			processor.prepare_reader();
+			
+			// Check the ploidy.
+			ploidy_map ploidy;
+			check_ploidy(processor.vcf_reader(), ploidy);
+			auto const donor_count(ploidy.size());
+			if (!donor_count)
+			{
+				std::cerr << "WARNING: No donors found." << std::endl;
+				std::exit(EXIT_SUCCESS);
+			}
+			auto const chr_count(ploidy.begin()->second);
+			
+			// Run in background in order to be able to update a progress bar.
+			lb::dispatch_async_fn(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
+				[
+					processor_ptr = std::move(processor_ptr),
+				 	chr_count,
+				 	donor_count
+				](){
+					processor_ptr->process_and_output(donor_count, chr_count);
+				}
+			);
 		}
-		
-		reader.set_variant_format(new variant_format());
-		
-		// Parse.
-		reader.set_parsed_fields(lb::vcf_field::ALL);
-		reader.set_input(vcf_input);
-		reader.fill_buffer();
-		reader.read_header();
-		
-		// Check the ploidy.
-		ploidy_map ploidy;
-		check_ploidy(reader, ploidy);
-		auto const donor_count(ploidy.size());
-		if (!donor_count)
+		catch (lb::assertion_failure_exception const &exc)
 		{
-			std::cerr << "WARNING: No donors found." << std::endl;
-			return;
+			log_assertion_failure_exception(exc);
+			throw exc;
 		}
-		auto const chr_count(ploidy.begin()->second);
-		
-		// Process the variants.
-		logging_variant_processor_delegate delegate;
-		variant_graph_partitioner partitioner(
-			delegate,
-			reader,
-			reference,
-			chr_name,
-			donor_count,
-			chr_count,
-			minimum_subgraph_distance
-		);
-		variant_graph_partitioner::cut_position_list cut_positions;
-		partitioner.partition(field_names_for_filter_if_set, cut_positions);
-		
-		// Output.
-		cereal::PortableBinaryOutputArchive archive(output_positions_stream);
-		archive(cut_positions);
 	}
 }

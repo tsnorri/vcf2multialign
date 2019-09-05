@@ -21,7 +21,7 @@ int main(int argc, char **argv)
 #ifndef NDEBUG
 	std::cerr << "Assertions have been enabled." << std::endl;
 #endif
-
+	
 	gengetopt_args_info args_info;
 	if (0 != cmdline_parser(argc, argv, &args_info))
 		std::exit(EXIT_FAILURE);
@@ -39,32 +39,18 @@ int main(int argc, char **argv)
 	for (std::size_t i(0); i < args_info.filter_fields_set_given; ++i)
 		field_names_for_filter_if_set[i] = args_info.filter_fields_set_arg[i];
 	
-	try
-	{
-		lb::log_time(std::cerr);
-		std::cerr << "Starting\n";
-		
-		v2m::find_optimal_cut_positions(
-			args_info.reference_arg,
-			args_info.variants_arg,
-			args_info.output_arg,
-			args_info.reference_sequence_given ? args_info.reference_sequence_arg : nullptr,
-			args_info.chromosome_given ? args_info.chromosome_arg : nullptr,
-			field_names_for_filter_if_set,
-			args_info.minimum_subgraph_distance_arg,
-			args_info.overwrite_flag
-		);
-		lb::log_time(std::cerr);
-		std::cerr << "Stopping\n";
-	}
-	catch (lb::assertion_failure_exception const &exc)
-	{
-		std::cerr << "Assertion failure: " << exc.what() << '\n';
-		boost::stacktrace::stacktrace const *st(boost::get_error_info <lb::traced>(exc));
-		if (st)
-			std::cerr << "Stack trace:\n" << *st << '\n';
-		throw exc;
-	}
+	v2m::find_optimal_cut_positions(
+		args_info.reference_arg,
+		args_info.variants_arg,
+		args_info.output_arg,
+		args_info.reference_sequence_given ? args_info.reference_sequence_arg : nullptr,
+		args_info.chromosome_given ? args_info.chromosome_arg : nullptr,
+		std::move(field_names_for_filter_if_set),
+		args_info.minimum_subgraph_distance_arg,
+		args_info.overwrite_flag
+	);
 	
+	dispatch_main();
+	// Not reached.
 	return EXIT_SUCCESS;
 }

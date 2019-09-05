@@ -3,6 +3,7 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
+#include <libbio/assert.hh>
 #include <range/v3/all.hpp>
 #include <vcf2multialign/preprocess/sample_sorter.hh>
 #include <vcf2multialign/utility/can_handle_variant_alts.hh>
@@ -79,8 +80,11 @@ namespace vcf2multialign {
 				// Convert to donor and chr indices.
 				// If the ALT cannot be handled, use REF in alt_idx_.
 				auto const [donor_idx, chr_idx] = m_sample_indexer->donor_and_chr_idx(sample_idx);
-				auto const &sample(var.samples()[donor_idx]);
+				auto const &var_samples(var.samples());
+				libbio_assert_lt(donor_idx, var_samples.size());
+				auto const &sample(var_samples[donor_idx]);
 				auto const &gt((*gt_field)(sample));
+				libbio_assert_lt(chr_idx, gt.size());
 				auto const alt_idx(gt[chr_idx].alt);
 				if (expected_alt_idx == alt_idx)
 				{
@@ -108,6 +112,7 @@ namespace vcf2multialign {
 			{
 				libbio_assert_lt(path_idx, m_branching_paths.size());
 				m_branching_paths[path_idx] = m_path_counter++;
+				libbio_assert_lt(m_path_counter, std::numeric_limits <path_number_type>::max());
 			}
 		}
 	

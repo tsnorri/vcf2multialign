@@ -51,7 +51,7 @@ namespace vcf2multialign {
 		sample_indexer									m_sample_indexer;
 		std::string										m_chromosome_name;
 		std::size_t										m_minimum_subgraph_distance{};
-		std::size_t										m_processed_count{};
+		std::atomic_size_t								m_processed_count{};
 		
 	public:
 		variant_graph_partitioner(
@@ -77,6 +77,8 @@ namespace vcf2multialign {
 			std::vector <std::string> const &field_names_for_filter_by_assigned,
 			cut_position_list &out_cut_positions
 		);
+		
+		std::size_t processed_count() const { return m_processed_count.load(std::memory_order_relaxed); }
 		
 	public:
 		struct cut_position_list
