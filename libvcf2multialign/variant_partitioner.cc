@@ -176,6 +176,8 @@ namespace vcf2multialign {
 				idx = cut_pos.previous_idx;
 			}
 			std::reverse(positions.begin(), positions.end());
+			libbio_assert(std::is_sorted(positions.begin(), positions.end()));
+			libbio_assert_eq(positions.end(), std::adjacent_find(positions.begin(), positions.end()));
 			out_cut_positions.max_segment_size = ctx.max_size;
 			return true;
 		}
