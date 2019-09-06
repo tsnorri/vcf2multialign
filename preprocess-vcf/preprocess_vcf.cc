@@ -7,8 +7,10 @@
 #include <cereal/types/vector.hpp>
 #include <libbio/progress_indicator.hh>
 #include <libbio/utility.hh>
-#include <vcf2multialign/preprocess/variant_graph_partitioner.hh>
+#include <vcf2multialign/preprocess/variant_partitioner.hh>
 #include <vcf2multialign/utility/check_ploidy.hh>
+#include <vcf2multialign/utility/log_assertion_failure.hh>
+#include <vcf2multialign/utility/progress_indicator_manager.hh>
 #include <vcf2multialign/vcf_processor.hh>
 #include "preprocess_vcf.hh"
 
@@ -17,15 +19,15 @@ namespace lb	= libbio;
 namespace v2m	= vcf2multialign;
 
 
-namespace vcf2multialign {
+namespace {
 	
 	class progress_indicator_delegate final : public lb::progress_indicator_delegate
 	{
 	protected:
-		variant_graph_partitioner const * const	m_partitioner{};
+		v2m::variant_partitioner const * const	m_partitioner{};
 		
 	public:
-		progress_indicator_delegate(variant_graph_partitioner const &partitioner):
+		progress_indicator_delegate(v2m::variant_partitioner const &partitioner):
 			m_partitioner(&partitioner)
 		{
 		}
@@ -34,12 +36,14 @@ namespace vcf2multialign {
 		virtual std::size_t progress_current_step() const override { return m_partitioner->processed_count(); }
 		virtual void progress_log_extra() const override {};
 	};
+}
+
+
+namespace vcf2multialign {
 	
-	
-	class cut_position_processor : public vcf_processor
+	class cut_position_processor : public vcf_processor, public progress_indicator_manager
 	{
 	protected:
-		lb::progress_indicator			m_progress_indicator;
 		std::vector <std::string> const	m_field_names_for_filter_if_set;
 		std::string	const				m_chr_name;
 		std::size_t const				m_minimum_subgraph_distance{};
@@ -51,6 +55,7 @@ namespace vcf2multialign {
 			std::size_t const minimum_subgraph_distance
 		):
 			vcf_processor(),
+			progress_indicator_manager(),
 			m_field_names_for_filter_if_set(std::move(field_names_for_filter_if_set)),
 			m_chr_name(chr_name),
 			m_minimum_subgraph_distance(minimum_subgraph_distance)
@@ -58,65 +63,7 @@ namespace vcf2multialign {
 		}
 		
 		void process_and_output(std::size_t const donor_count, std::size_t const chr_count);
-		
-		void end_logging() { m_progress_indicator.end_logging(); }
-		
-		void finish();
-		void log_assertion_failure_and_exit(lb::assertion_failure_exception const &exc);
-		void log_exception_and_exit(std::exception const &exc);
-		void log_unknown_exception_and_exit();
 	};
-	
-	
-	void log_assertion_failure_exception(lb::assertion_failure_exception const &exc)
-	{
-		std::cerr << "Assertion failure: " << exc.what() << '\n';
-		boost::stacktrace::stacktrace const *st(boost::get_error_info <lb::traced>(exc));
-		if (st)
-			std::cerr << "Stack trace:\n" << *st << '\n';
-	}
-	
-	
-	void cut_position_processor::finish()
-	{
-		dispatch_async(dispatch_get_main_queue(), ^{
-			m_progress_indicator.uninstall();
-			std::exit(EXIT_SUCCESS);
-		});
-	}
-	
-	
-	void cut_position_processor::log_assertion_failure_and_exit(lb::assertion_failure_exception const &exc)
-	{
-		end_logging();
-		lb::dispatch_async_fn(dispatch_get_main_queue(), [this, exc](){
-			log_assertion_failure_exception(exc);
-			m_progress_indicator.uninstall();
-			std::exit(EXIT_FAILURE);
-		});
-	}
-	
-	
-	void cut_position_processor::log_exception_and_exit(std::exception const &exc)
-	{
-		end_logging();
-		lb::dispatch_async_fn(dispatch_get_main_queue(), [this, exc](){
-			std::cerr << "Caught an exception: " << exc.what() << '\n';
-			m_progress_indicator.uninstall();
-			std::exit(EXIT_FAILURE);
-		});
-	}
-	
-	
-	void cut_position_processor::log_unknown_exception_and_exit()
-	{
-		end_logging();
-		dispatch_async(dispatch_get_main_queue(), ^{
-			std::cerr << "Caught an unknown exception.\n";
-			m_progress_indicator.uninstall();
-			std::exit(EXIT_FAILURE);
-		});
-	}
 	
 	
 	void cut_position_processor::process_and_output(std::size_t const donor_count, std::size_t const chr_count)
@@ -125,7 +72,7 @@ namespace vcf2multialign {
 		{
 			// Set up the processor.
 			logging_variant_processor_delegate processor_delegate;
-			variant_graph_partitioner partitioner(
+			variant_partitioner partitioner(
 				processor_delegate,
 				this->m_vcf_reader,
 				this->m_reference,
@@ -134,17 +81,19 @@ namespace vcf2multialign {
 				chr_count,
 				this->m_minimum_subgraph_distance
 			);
-			variant_graph_partitioner::cut_position_list cut_positions;
+			
+			cut_position_list cut_positions;
+			cut_positions.donor_count = donor_count;
+			cut_positions.chr_count = chr_count;
 			
 			// Partition.
 			progress_indicator_delegate indicator_delegate(partitioner);
-			if (m_progress_indicator.is_stderr_interactive())
-				m_progress_indicator.install();
+			this->install_progress_indicator();
 			
-			m_progress_indicator.log_with_counter(lb::copy_time() + "Processing the variants…", indicator_delegate);
+			this->progress_indicator().log_with_counter(lb::copy_time() + "Processing the variants…", indicator_delegate);
 			partitioner.partition(m_field_names_for_filter_if_set, cut_positions);
-			end_logging();
-			m_progress_indicator.uninstall();
+			this->end_logging();
+			this->uninstall_progress_indicator();
 			
 			lb::log_time(std::cerr);
 			std::cerr << "Done. Maximum segment size: " << cut_positions.max_segment_size << " Cut position count: " << cut_positions.positions.size() << '\n';
@@ -153,19 +102,19 @@ namespace vcf2multialign {
 			cereal::PortableBinaryOutputArchive archive(this->m_output_stream);
 			archive(cut_positions);
 			
-			finish();
+			this->finish();
 		}
 		catch (lb::assertion_failure_exception const &exc)
 		{
-			log_assertion_failure_and_exit(exc);
+			this->log_assertion_failure_and_exit(exc);
 		}
 		catch (std::exception const &exc)
 		{
-			log_exception_and_exit(exc);
+			this->log_exception_and_exit(exc);
 		}
 		catch (...)
 		{
-			log_unknown_exception_and_exit();
+			this->log_unknown_exception_and_exit();
 		}
 	}
 	
@@ -181,7 +130,7 @@ namespace vcf2multialign {
 		bool const should_overwrite_files
 	)
 	{
-		// main() calls dispatch_main() if this function does not throw, call std::exit or something similar.
+		// main() calls dispatch_main() if this function does not throw or call std::exit or something similar.
 		try
 		{
 			// Since the processor has Boost’s streams, it cannot be moved. Hence the use of a pointer.

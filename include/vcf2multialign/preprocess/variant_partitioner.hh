@@ -3,8 +3,8 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#ifndef VCF2MULTIALIGN_PREPROCESS_VARIANT_GRAPH_PARTITIONER_HH
-#define VCF2MULTIALIGN_PREPROCESS_VARIANT_GRAPH_PARTITIONER_HH
+#ifndef VCF2MULTIALIGN_PREPROCESS_VARIANT_PARTITIONER_HH
+#define VCF2MULTIALIGN_PREPROCESS_VARIANT_PARTITIONER_HH
 
 #include <libbio/matrix.hh>
 #include <libbio/int_matrix.hh>
@@ -17,31 +17,39 @@
 #include <vcf2multialign/preprocess/sample_indexer.hh>
 #include <vcf2multialign/preprocess/sample_sorter.hh>
 #include <vcf2multialign/preprocess/types.hh>
-#include <vcf2multialign/preprocess/variant_processor_delegate.hh>
 #include <vcf2multialign/types.hh>
+#include <vcf2multialign/variant_processor_delegate.hh>
 #include <vector>
 
 
 namespace vcf2multialign {
-	class variant_graph_partitioner; // Fwd.
+	class variant_partitioner; // Fwd.
 }
 
 
-namespace vcf2multialign { namespace detail {
-}}
-
-
 namespace vcf2multialign {
+	
+	struct cut_position_list
+	{
+		std::vector <std::size_t>	handled_line_numbers;	// In addition to the cut positions, store the line numbers that were handled.
+		position_vector				positions;
+		path_number_type			max_segment_size{};
+		std::size_t					donor_count{};
+		std::uint8_t				chr_count{};
+		
+		// Ignore the version for now.
+		template <typename t_archive>
+		void serialize(t_archive &archive, std::uint32_t const version)
+		{
+			archive(handled_line_numbers, positions, max_segment_size, donor_count, chr_count);
+		}
+	};
+	
 
-	class variant_graph_partitioner
+	class variant_partitioner
 	{
 	protected:
 		struct dp_ctx; // Fwd
-		
-	public:
-		struct cut_position_list; // Fwd
-		typedef std::size_t								position_type;
-		typedef std::vector <position_type>				position_vector;
 		
 	protected:
 		variant_processor_delegate						*m_delegate{};
@@ -54,7 +62,7 @@ namespace vcf2multialign {
 		std::atomic_size_t								m_processed_count{};
 		
 	public:
-		variant_graph_partitioner(
+		variant_partitioner(
 			variant_processor_delegate &delegate,
 			libbio::vcf_reader &reader,
 			vector_type const &reference,
@@ -80,21 +88,6 @@ namespace vcf2multialign {
 		
 		std::size_t processed_count() const { return m_processed_count.load(std::memory_order_relaxed); }
 		
-	public:
-		struct cut_position_list
-		{
-			std::vector <std::size_t>	handled_line_numbers;	// Store also the line numbers that were handled.
-			position_vector				positions;
-			path_number_type			max_segment_size{};
-			
-			// Ignore the version for now.
-			template <typename t_archive>
-			void serialize(t_archive &archive, std::uint32_t const version)
-			{
-				archive(handled_line_numbers, positions, max_segment_size);
-			}
-		};
-		
 	protected:
 		struct cut_position; // Fwd
 		
@@ -108,7 +101,7 @@ namespace vcf2multialign {
 		struct cut_position
 		{
 			position_type	value{};
-			std::size_t		previous_idx{SIZE_MAX};
+			std::size_t		previous_idx{SIZE_MAX};	// in cut position tree.
 			
 			cut_position() = default;
 			

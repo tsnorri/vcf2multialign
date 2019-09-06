@@ -5,7 +5,7 @@
 
 #include <libbio/dispatch.hh>
 #include <libbio/utility.hh>
-#include <vcf2multialign/preprocess/variant_graph_partitioner.hh>
+#include <vcf2multialign/preprocess/variant_partitioner.hh>
 #include <vcf2multialign/utility/can_handle_variant_alts.hh>
 
 namespace lb	= libbio;
@@ -14,7 +14,7 @@ namespace v2m	= vcf2multialign;
 
 namespace vcf2multialign {
 	
-	bool variant_graph_partitioner::partition(
+	bool variant_partitioner::partition(
 		std::vector <std::string> const &field_names_for_filter_by_assigned,
 		cut_position_list &out_cut_positions
 	)
@@ -165,6 +165,8 @@ namespace vcf2multialign {
 		{
 			auto &positions(out_cut_positions.positions);
 			positions.clear();
+			positions.emplace_back(ref_len);
+			
 			auto &ctx(closable_partitions.front());
 			auto idx(ctx.start_position_idx);
 			while (SIZE_MAX != idx)
@@ -180,7 +182,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void variant_graph_partitioner::check_closable(
+	void variant_partitioner::check_closable(
 		std::size_t const var_pos,
 		std::vector <cut_position> const &cut_position_tree,
 		std::list <dp_ctx> &unclosable_partitions,
@@ -245,14 +247,14 @@ namespace vcf2multialign {
 	}
 	
 	
-	std::ostream &operator<<(std::ostream &os, variant_graph_partitioner::dp_ctx const &ctx)
+	std::ostream &operator<<(std::ostream &os, variant_partitioner::dp_ctx const &ctx)
 	{
 		os << "dp_ctx max_size: " << ctx.max_size << " start_position_idx: " << ctx.start_position_idx;
 		return os;
 	}
 	
 	
-	void variant_graph_partitioner::dp_ctx::output_reversed_path(std::ostream &os, std::vector <cut_position> const &cut_position_tree) const
+	void variant_partitioner::dp_ctx::output_reversed_path(std::ostream &os, std::vector <cut_position> const &cut_position_tree) const
 	{
 		os << "dp_ctx max_size: " << max_size << " path:";
 		auto idx(start_position_idx);

@@ -3,7 +3,7 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#include <vcf2multialign/preprocess/variant_processor_delegate.hh>
+#include <vcf2multialign/variant_processor_delegate.hh>
 
 
 namespace lb = libbio;

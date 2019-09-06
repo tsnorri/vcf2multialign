@@ -8,7 +8,7 @@
 
 #include <libbio/file_handling.hh>
 #include <list>
-#include <vcf2multialign/preprocess/variant_graph.hh>
+#include <vcf2multialign/graph/variant_graph.hh>
 
 
 namespace vcf2multialign {

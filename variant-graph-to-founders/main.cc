@@ -8,7 +8,7 @@
 #include <libbio/assert.hh>
 #include <libbio/dispatch.hh>
 #include <unistd.h>
-#include <vcf2multialign/preprocess/variant_graph.hh>
+#include <vcf2multialign/graph/variant_graph.hh>
 #include "cmdline.h"
 #include "sequence_generator_base.hh"
 

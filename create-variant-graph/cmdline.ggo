@@ -8,9 +8,8 @@ description	"Reads the variant file and produces a graph representation that may
 
 option		"reference"					r	"Reference FASTA file path"															string		typestr = "filename"					required
 option		"variants"					a	"Variant call file path"															string		typestr = "filename"					required
+option		"cut-positions"				p	"Cut position file path"															string		typestr = "filename"					required
 option		"output"					o	"Output variant file path"															string		typestr = "filename"					required
 option		"chromosome"				c	"Chromosome identifier"																string		typestr = "identifier"					required
 option		"reference-sequence"		-	"Reference sequence identifier"														string		typestr = "identifier"					optional
-option		"filter-fields-set"			-	"Remove variants with any value for the given field (used with e.g. CIPOS, CIEND)"	string		typestr = "identifier"					optional	multiple
-option		"minimum-subgraph-distance"	-	"Minimum distance between clusters of variants"										longlong	typestr	= "distance"	default = "0"	optional
 option		"overwrite"					-	"Overwrite output files"															flag								off

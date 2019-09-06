@@ -1,7 +1,7 @@
 include local.mk
 include common.mk
 
-DEPENDENCIES = lib/msa2dag/lib/libMsa2Dag.a lib/libbio/src/libbio.a
+DEPENDENCIES = lib/libbio/src/libbio.a
 ifeq ($(shell uname -s),Linux)
 	DEPENDENCIES += lib/swift-corelibs-libdispatch/build/src/libdispatch.a
 endif
@@ -16,20 +16,23 @@ DIST_TAR_GZ = vcf2multialign-$(VERSION)-$(OS_NAME)$(DIST_NAME_SUFFIX).tar.gz
 
 .PHONY: all clean-all clean clean-dependencies dependencies
 
-all: libvcf2multialign/libvcf2multialign.a preprocess-vcf/preprocess_vcf variant-graph-to-founders/variant_graph_to_founders variant-graph-to-gv/variant_graph_to_gv vcf2multialign/vcf2multialign
+all:	libvcf2multialign/libvcf2multialign.a \
+		preprocess-vcf/preprocess_vcf \
+		create-variant-graph/create_variant_graph \
+		variant-graph-to-founders/variant_graph_to_founders \
+		variant-graph-to-gv/variant_graph_to_gv
 
 clean-all: clean clean-dependencies clean-dist
 
 clean:
 	$(MAKE) -C libvcf2multialign clean
 	$(MAKE) -C preprocess-vcf clean
+	$(MAKE) -C create-variant-graph clean
 	$(MAKE) -C variant-graph-to-founders clean
 	$(MAKE) -C variant-graph-to-gv clean
-	$(MAKE) -C vcf2multialign clean
 
 clean-dependencies: lib/libbio/local.mk
 	$(MAKE) -C lib/libbio clean-all
-	$(MAKE) -C lib/msa2dag clean-all
 	$(RM) -r lib/swift-corelibs-libdispatch/build
 
 clean-dist:
@@ -39,8 +42,14 @@ dependencies: $(DEPENDENCIES)
 
 dist: $(DIST_TAR_GZ)
 
+libvcf2multialign/libvcf2multialign.a: $(DEPENDENCIES)
+	$(MAKE) -C libvcf2multialign
+
 preprocess-vcf/preprocess_vcf: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
 	$(MAKE) -C preprocess-vcf
+
+create-variant-graph/create_variant_graph: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
+	$(MAKE) -C create-variant-graph
 
 variant-graph-to-founders/variant_graph_to_founders: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
 	$(MAKE) -C variant-graph-to-founders
@@ -48,15 +57,12 @@ variant-graph-to-founders/variant_graph_to_founders: $(DEPENDENCIES) libvcf2mult
 variant-graph-to-gv/variant_graph_to_gv: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
 	$(MAKE) -C variant-graph-to-gv
 
-vcf2multialign/vcf2multialign: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
-	$(MAKE) -C vcf2multialign
-
-libvcf2multialign/libvcf2multialign.a: $(DEPENDENCIES)
-	$(MAKE) -C libvcf2multialign
-
-$(DIST_TAR_GZ): preprocess-vcf/preprocess_vcf variant-graph-to-founders/variant_graph_to_founders variant-graph-to-gv/variant_graph_to_gv vcf2multialign/vcf2multialign
+$(DIST_TAR_GZ):	preprocess-vcf/preprocess_vcf \
+				variant-graph-to-founders/variant_graph_to_founders \
+				variant-graph-to-gv/variant_graph_to_gv
 	$(MKDIR) -p $(DIST_TARGET_DIR)
 	$(CP) preprocess-vcf/preprocess_vcf $(DIST_TARGET_DIR)
+	$(CP) create-variant-graph/create_variant_graph $(DIST_TARGET_DIR)
 	$(CP) variant-graph-to-founders/variant_graph_to_founders $(DIST_TARGET_DIR)
 	$(CP) variant-graph-to-gv/variant_graph_to_gv $(DIST_TARGET_DIR)
 	$(CP) vcf2multialign/vcf2multialign $(DIST_TARGET_DIR)
@@ -66,9 +72,6 @@ $(DIST_TAR_GZ): preprocess-vcf/preprocess_vcf variant-graph-to-founders/variant_
 	$(CP) lib/cereal/LICENSE $(DIST_TARGET_DIR)/cereal-license.txt
 	$(TAR) czf $(DIST_TAR_GZ) $(DIST_TARGET_DIR)
 	$(RM) -rf $(DIST_TARGET_DIR)
-
-lib/msa2dag/lib/libMsa2Dag.a:
-	$(MAKE) -C lib/msa2dag CXX=$(CXX)
 
 lib/libbio/local.mk: local.mk
 	$(CP) local.mk lib/libbio

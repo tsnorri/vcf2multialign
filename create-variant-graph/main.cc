@@ -8,9 +8,8 @@
 #include <libbio/assert.hh>
 #include <libbio/dispatch.hh>
 #include <unistd.h>
-#include <vcf2multialign/preprocess/variant_preprocessor.hh>
 #include "cmdline.h"
-#include "preprocess_variants.hh"
+#include "create_variant_graph.hh"
 
 
 namespace lb	= libbio;
@@ -30,26 +29,15 @@ int main(int argc, char **argv)
 	std::ios_base::sync_with_stdio(false);	// Don't use C style IO after calling cmdline_parser.
 	std::cin.tie(nullptr);					// We don't require any input from the user.
 	
-	if (! (0 < args_info.minimum_subgraph_distance_arg && args_info.minimum_subgraph_distance_arg <= SIZE_MAX))
-	{
-		std::cerr << "Minimum subgraph distance must be between 0 and " << SIZE_MAX << ".\n";
-		std::exit(EXIT_FAILURE);
-	}
-	
-	std::vector <std::string> field_names_for_filter_if_set(args_info.filter_fields_set_given);
-	for (std::size_t i(0); i < args_info.filter_fields_set_given; ++i)
-		field_names_for_filter_if_set[i] = args_info.filter_fields_set_arg[i];
-	
 	try
 	{
-		v2m::preprocess_variants(
+		v2m::create_variant_graph(
 			args_info.reference_arg,
 			args_info.variants_arg,
+			args_info.cut_positions_arg,
 			args_info.output_arg,
 			args_info.reference_sequence_given ? args_info.reference_sequence_arg : nullptr,
 			args_info.chromosome_given ? args_info.chromosome_arg : nullptr,
-			field_names_for_filter_if_set,
-			args_info.minimum_subgraph_distance_arg,
 			args_info.overwrite_flag
 		);
 	}
@@ -62,5 +50,7 @@ int main(int argc, char **argv)
 		throw exc;
 	}
 	
+	dispatch_main();
+	// Not reached.
 	return EXIT_SUCCESS;
 }

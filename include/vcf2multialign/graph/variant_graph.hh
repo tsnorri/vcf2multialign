@@ -3,8 +3,8 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#ifndef VCF2MULTIALIGN_PREPROCESS_VARIANT_GRAPH_HH
-#define VCF2MULTIALIGN_PREPROCESS_VARIANT_GRAPH_HH
+#ifndef VCF2MULTIALIGN_GRAPH_VARIANT_GRAPH_HH
+#define VCF2MULTIALIGN_GRAPH_VARIANT_GRAPH_HH
 
 #include <cereal/cereal.hpp>
 #include <cereal/types/string.hpp>

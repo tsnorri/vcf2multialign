@@ -3,20 +3,19 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#ifndef VCF2MULTIALIGN_PREPROCESS_PREPROCESS_VARIANTS_HH
-#define VCF2MULTIALIGN_PREPROCESS_PREPROCESS_VARIANTS_HH
+#ifndef VCF2MULTIALIGN_CREATE_VARIANT_GRAPH_CREATE_VARIANT_GRAPH_HH
+#define VCF2MULTIALIGN_CREATE_VARIANT_GRAPH_CREATE_VARIANT_GRAPH_HH
 
 
 namespace vcf2multialign {
 	
-	void preprocess_variants(
-		char const *reference_path,
-		char const *variants_path,
-		char const *output_variants_path,
+	void create_variant_graph(
+		char const *reference_file_path,
+		char const *variant_file_path,
+		char const *cut_position_file_path,
+		char const *output_graph_path,
 		char const *reference_seq_name,
 		char const *chr_name,
-		std::vector <std::string> const &field_names_for_filter_if_set,
-		std::size_t const minimum_subgraph_distance,
 		bool const should_overwrite_files
 	);
 }

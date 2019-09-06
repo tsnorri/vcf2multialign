@@ -3,8 +3,8 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#ifndef VCF2MULTIALIGN_PREPROCESS_VARIANT_PREPROCESSOR_HH
-#define VCF2MULTIALIGN_PREPROCESS_VARIANT_PREPROCESSOR_HH
+#ifndef VCF2MULTIALIGN_GRAPH_VARIANT_PREPROCESSOR_HH
+#define VCF2MULTIALIGN_GRAPH_VARIANT_PREPROCESSOR_HH
 
 #include <libbio/matrix.hh>
 #include <libbio/int_matrix.hh>
@@ -13,18 +13,25 @@
 #include <ostream>
 #include <queue>
 #include <string>
+#include <vcf2multialign/graph/variant_graph.hh>
 #include <vcf2multialign/preprocess/path_sorted_variant.hh>
 #include <vcf2multialign/preprocess/sample_indexer.hh>
 #include <vcf2multialign/preprocess/sample_sorter.hh>
 #include <vcf2multialign/preprocess/types.hh>
-#include <vcf2multialign/preprocess/variant_graph.hh>
-#include <vcf2multialign/preprocess/variant_processor_delegate.hh>
+#include <vcf2multialign/preprocess/variant_partitioner.hh>
 #include <vcf2multialign/types.hh>
+#include <vcf2multialign/variant_processor_delegate.hh>
 #include <vector>
 
 
 namespace vcf2multialign {
-	class variant_preprocessor; // Fwd.
+	class variant_graph_generator; // Fwd.
+	
+	struct variant_graph_generator_delegate
+	{
+		virtual ~variant_graph_generator_delegate() {}
+		virtual void variant_graph_generator_will_handle_subgraph(libbio::variant const &first_var, std::size_t const variant_count, std::size_t const path_count) = 0;
+	};
 }
 
 
@@ -65,7 +72,7 @@ namespace vcf2multialign { namespace detail {
 
 namespace vcf2multialign {
 	
-	class variant_preprocessor
+	class variant_graph_generator
 	{
 	protected:
 		typedef std::vector <libbio::variant>			variant_stack;
@@ -76,12 +83,12 @@ namespace vcf2multialign {
 		>												overlap_stack;
 	
 	protected:
+		variant_graph_generator_delegate				*m_delegate{};
 		libbio::vcf_reader								*m_reader{};
-		vector_type const								*m_reference{};
-		libbio::vcf_info_field_end						*m_end_field{};
-		variant_processor_delegate						*m_delegate{};
+		vector_type const * const						m_reference{};
+		cut_position_list const * const					m_cut_position_list{};
+		libbio::vcf_info_field_end const * const		m_end_field{};
 		variant_graph									m_graph;
-		std::string										m_chromosome_name;
 		variant_stack									m_subgraph_variants;
 		sample_indexer									m_sample_indexer;
 		sample_sorter									m_sample_sorter;
@@ -89,64 +96,30 @@ namespace vcf2multialign {
 		overlap_stack									m_overlap_stack;
 		std::size_t										m_minimum_subgraph_distance{};
 		std::size_t										m_output_lineno{};
-		std::size_t										m_processed_count{};
+		std::atomic_size_t								m_processed_count{};
 	
-	protected:
-		static libbio::vcf_info_field_end *get_end_field_ptr(libbio::vcf_reader &reader)
-		{
-			libbio::vcf_info_field_end *retval{};
-			reader.get_info_field_ptr("END", retval);
-			return retval;
-		}
-		
-		variant_preprocessor(
-			variant_processor_delegate &delegate,
+	public:
+		variant_graph_generator(
+			variant_graph_generator_delegate &delegate,
 			libbio::vcf_reader &reader,
-			libbio::vcf_info_field_end &end_field,
 			vector_type const &reference,
-			std::string const chr_name,
-			std::size_t const donor_count,
-			std::uint8_t const chr_count,
-			std::size_t const minimum_subgraph_distance
+			cut_position_list const &cut_position_list
 		):
+			m_delegate(&delegate),
 			m_reader(&reader),
 			m_reference(&reference),
-			m_end_field(&end_field),
-			m_delegate(&delegate),
-			m_chromosome_name(chr_name),
-			m_sample_indexer(donor_count, chr_count),
+			m_cut_position_list(&cut_position_list),
+			m_end_field(reader.get_end_field_ptr()),
+			m_sample_indexer(cut_position_list.donor_count, cut_position_list.chr_count),
 			m_sample_sorter(reader, m_sample_indexer),
-			m_overlap_stack(detail::overlap_stack_compare(end_field)),
-			m_minimum_subgraph_distance(minimum_subgraph_distance)
-		{
-		}
-		
-	public:
-		variant_preprocessor(
-			variant_processor_delegate &delegate,
-			libbio::vcf_reader &reader,
-			vector_type const &reference,
-			std::string const chr_name,
-			std::size_t const donor_count,
-			std::uint8_t const chr_count,
-			std::size_t const minimum_subgraph_distance
-		):
-			variant_preprocessor(
-				delegate,
-				reader,
-				*variant_preprocessor::get_end_field_ptr(reader),
-				reference,
-				chr_name,
-				donor_count,
-				chr_count,
-				minimum_subgraph_distance
-			)
+			m_overlap_stack(detail::overlap_stack_compare(*m_end_field))
 		{
 		}
 		
 		variant_graph const &variant_graph() const { return m_graph; }
 		
-		void process(std::vector <std::string> const &field_names_for_filter_by_assigned);
+		void generate_graph();
+		std::size_t processed_count() const { return m_processed_count.load(std::memory_order_relaxed); }
 		
 	protected:
 		void update_sample_names();

@@ -7,7 +7,7 @@
 #include <libbio/bits.hh>
 #include <range/v3/algorithm/copy.hpp>
 #include <range/v3/view/transform.hpp>
-#include <vcf2multialign/preprocess/variant_preprocessor.hh>
+#include <vcf2multialign/graph/variant_graph_generator.hh>
 #include <vcf2multialign/utility/can_handle_variant_alts.hh>
 #include <vcf2multialign/variant_format.hh>
 
@@ -16,7 +16,7 @@ namespace lb	= libbio;
 
 namespace vcf2multialign {
 	
-	void variant_preprocessor::update_sample_names()
+	void variant_graph_generator::update_sample_names()
 	{
 		// XXX I don’t remember why vcf_reader outputs the sample names as a map with names as keys and positions as indices but it should be fixed unless a good reason is found not to.
 		auto const &sample_name_map(m_reader->sample_names());
@@ -26,117 +26,77 @@ namespace vcf2multialign {
 	}
 	
 	
-	void variant_preprocessor::process(std::vector <std::string> const &field_names_for_filter_by_assigned)
+	void variant_graph_generator::generate_graph()
 	{
 		update_sample_names();
 		m_graph.clear();
 		
-		m_processed_count = 0;
+		m_processed_count.store(0, std::memory_order_relaxed);
 		m_reader->reset();
 		m_reader->set_parsed_fields(lb::vcf_field::ALL);
-		std::size_t overlap_start(0);
-		std::size_t overlap_end(0);
-		std::size_t prev_overlap_end(0);
 		
-		// Get the field descriptors needed for accessing the values.
-		libbio::vcf_info_field_end const *end_field{};
-		m_reader->get_info_field_ptr("END",	end_field);
-		
-		// Determine the fields used for filtering.
-		std::vector <lb::vcf_info_field_base *> filter_by_assigned;
-		{
-			auto const &fields(m_reader->info_fields());
-			for (auto const &name : field_names_for_filter_by_assigned)
-			{
-				auto const it(fields.find(name));
-				if (fields.end() == it)
-				{
-					m_delegate->variant_processor_no_field_for_identifier(name);
-					continue;
-				}
-				
-				filter_by_assigned.emplace_back(it->second.get());
-			}
-		}
+		auto const &cut_positions(*m_cut_position_list);
+		auto const cut_pos_rng(cut_positions.positions | ranges::view::tail);
+		auto cut_pos_it(ranges::begin(cut_pos_rng));
+		auto const cut_pos_end(ranges::end(cut_pos_rng));
+		auto line_no_it(ranges::begin(cut_positions.handled_line_numbers));
+		auto const line_no_end(ranges::end(cut_positions.handled_line_numbers));
+		std::size_t overlap_end_pos(0);
+		std::size_t prev_overlap_end_pos(0);
+		libbio_always_assert_neq(cut_pos_it, cut_pos_end);
 		
 		// Process the variants.
 		bool should_continue(false);
-		do {
+		do
+		{
 			m_reader->fill_buffer();
+			bool should_continue_line_number_loop(false);
 			should_continue = m_reader->parse(
 				[
 					this,
-					end_field,
-					&filter_by_assigned,
-				 	&overlap_start,
-				 	&overlap_end,
-				 	&prev_overlap_end
+					&cut_pos_it,
+					cut_pos_end,
+					&line_no_it,
+					line_no_end,
+					&overlap_end_pos,
+					&prev_overlap_end_pos
 				](lb::transient_variant const &var) -> bool
 				{
 					auto const lineno(var.lineno());
-					auto const var_pos(var.zero_based_pos());
-
-					// Check the chromosome name.
-					if (var.chrom_id() != m_chromosome_name)
-						goto end;
-					
-					if (! (var_pos < m_reference->size()))
+					libbio_always_assert_lte(lineno, *line_no_it);
+					if (lineno == *line_no_it)
 					{
-						m_delegate->variant_processor_found_variant_with_position_greater_than_reference_length(var);
-						return false;
-					}
-
-					if (!can_handle_variant_alts(var))
-					{
-						m_delegate->variant_processor_found_variant_with_no_suitable_alts(var);
-						goto end;
-					}
-					
-					// Filter.
-					for (auto const *field_ptr : filter_by_assigned)
-					{
-						if (field_ptr->has_value(var))
-						{
-							m_delegate->variant_processor_found_filtered_variant(var, *field_ptr);
-							goto end;
-						}
-					}
-					
-					// Compare the REF column against the reference sequence.
-					{
-						auto const &ref_col(var.ref());
-						std::string_view const ref_sub(m_reference->data() + var_pos, ref_col.size());
-						if (ref_col != ref_sub)
-						{
-							m_delegate->variant_processor_found_variant_with_ref_mismatch(var, ref_sub);
-							goto end;
-						}
-					}
-					
-					// Variant passes the checks, handle it.
-					{
-						auto const var_end(lb::variant_end_pos(var, *end_field));
+						auto const var_pos(var.zero_based_pos());
+						auto const var_end(lb::variant_end_pos(var, *m_end_field));
+						libbio_always_assert_lte(var_pos, var_end);
+						libbio_always_assert_lte(var_pos, *cut_pos_it);
 						
-						if (overlap_end + m_minimum_subgraph_distance <= var_pos)
+						if (! (var_pos == *cut_pos_it))
 						{
-							process_subgraph(prev_overlap_end);
-							overlap_start = var_pos;
-							prev_overlap_end = overlap_end;
+							// Handle the subgraph.
+							process_subgraph(prev_overlap_end_pos);
+							prev_overlap_end_pos = overlap_end_pos;
+							
+							++cut_pos_it;
+							libbio_always_assert_neq(cut_pos_it, cut_pos_end);
 						}
 						
-						overlap_end = std::max(overlap_end, var_end);
+						// Add to the stack.
+						overlap_end_pos = std::max(overlap_end_pos, var_end);
 						m_subgraph_variants.emplace_back(var);
+						
+						++m_processed_count;
+						++line_no_it;
+						return (line_no_it == line_no_end);
 					}
-					
-				end:
-					++m_processed_count;
 					return true;
 				}
 			);
+			
 		} while (should_continue);
 		
 		// Process the remaining variants.
-		process_subgraph(prev_overlap_end);
+		process_subgraph(prev_overlap_end_pos);
 		
 		// Copy the sample names and finalize.
 		m_graph.sample_names() = m_sample_names;
@@ -145,7 +105,7 @@ namespace vcf2multialign {
 	
 	
 	// Retrieve the accumulated group of variants and pass them to the worker thread for processing.
-	void variant_preprocessor::process_subgraph(std::size_t const prev_overlap_end)
+	void variant_graph_generator::process_subgraph(std::size_t const prev_overlap_end_pos)
 	{
 		// Fast path: empty stack.
 		if (m_subgraph_variants.empty())
@@ -163,10 +123,10 @@ namespace vcf2multialign {
 		
 		auto const sample_count(m_sample_indexer.total_samples());
 		auto const path_count(m_sample_sorter.path_count());
-		//m_delegate->variant_processor_will_handle_subgraph(m_subgraph_variants.front(), m_subgraph_variants.size(), path_count);
+		m_delegate->variant_graph_generator_will_handle_subgraph(m_subgraph_variants.front(), m_subgraph_variants.size(), path_count);
 		
 		// Begin a new subgraph; place the beginning between the last variant of the previous subgraph and the first variant of the next subgraph.
-		std::size_t const subgraph_start_pos(prev_overlap_end + std::ceil((m_subgraph_variants.front().zero_based_pos() - prev_overlap_end) / 2.0));
+		std::size_t const subgraph_start_pos(prev_overlap_end_pos + std::ceil((m_subgraph_variants.front().zero_based_pos() - prev_overlap_end_pos) / 2.0));
 		auto const [subgraph_start_node_idx, subgraph_start_alt_edge_start_idx, did_create_node_for_subgraph_start] = m_graph.add_main_node(subgraph_start_pos, 0);
 		auto const subgraph_idx(m_graph.add_subgraph(subgraph_start_node_idx, sample_count, m_subgraph_variants.size(), path_count));
 		if (did_create_node_for_subgraph_start)
@@ -286,7 +246,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void variant_preprocessor::calculate_aligned_ref_pos_for_new_node(std::size_t const node_idx)
+	void variant_graph_generator::calculate_aligned_ref_pos_for_new_node(std::size_t const node_idx)
 	{
 		auto const &ref_positions(m_graph.ref_positions());					// 1-based.
 		auto &aligned_ref_positions(m_graph.aligned_ref_positions());		// 1-based.
@@ -301,7 +261,7 @@ namespace vcf2multialign {
 	
 	
 	// Take the in-side-edge aligned positions in account.
-	void variant_preprocessor::calculate_aligned_ref_pos_for_new_node(std::size_t const node_idx, std::size_t const max_in_alt_edge_aligned_pos)
+	void variant_graph_generator::calculate_aligned_ref_pos_for_new_node(std::size_t const node_idx, std::size_t const max_in_alt_edge_aligned_pos)
 	{
 		calculate_aligned_ref_pos_for_new_node(node_idx);
 		
@@ -310,7 +270,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void variant_preprocessor::assign_alt_edge_labels_and_queue(libbio::variant const &var, std::size_t const node_idx, std::size_t const alt_edge_start_idx)
+	void variant_graph_generator::assign_alt_edge_labels_and_queue(libbio::variant const &var, std::size_t const node_idx, std::size_t const alt_edge_start_idx)
 	{
 		auto &alt_edge_labels(m_graph.alt_edge_labels());
 		auto const &edge_count_csum(m_graph.alt_edge_count_csum());
@@ -335,7 +295,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void variant_preprocessor::finalize_graph()
+	void variant_graph_generator::finalize_graph()
 	{
 		auto const ref_size(m_reference->size());
 		auto const [node_idx, alt_edge_start_idx, did_create] = m_graph.add_main_node(ref_size, 0);

@@ -4,7 +4,7 @@
  */
 
 #include <libbio/bits.hh>
-#include <vcf2multialign/preprocess/variant_graph.hh>
+#include <vcf2multialign/graph/variant_graph.hh>
 
 
 namespace lb	= libbio;

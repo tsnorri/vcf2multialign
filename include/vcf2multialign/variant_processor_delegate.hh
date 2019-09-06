@@ -3,8 +3,8 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#ifndef VCF2MULTIALIGN_PREPROCESS_VARIANT_PROCESSOR_DELEGATE_HH
-#define VCF2MULTIALIGN_PREPROCESS_VARIANT_PROCESSOR_DELEGATE_HH
+#ifndef VCF2MULTIALIGN_VARIANT_PROCESSOR_DELEGATE_HH
+#define VCF2MULTIALIGN_VARIANT_PROCESSOR_DELEGATE_HH
 
 #include <libbio/vcf/variant.hh>
 #include <libbio/vcf/vcf_subfield_def.hh>
@@ -22,7 +22,6 @@ namespace vcf2multialign {
 		virtual void variant_processor_found_variant_with_no_suitable_alts(libbio::transient_variant const &var) = 0;
 		virtual void variant_processor_found_filtered_variant(libbio::transient_variant const &var, libbio::vcf_info_field_base const &field) = 0;
 		virtual void variant_processor_found_variant_with_ref_mismatch(libbio::transient_variant const &var, std::string_view const &ref_sub) = 0;
-		//virtual void variant_processor_will_handle_subgraph(libbio::variant const &first_var, std::size_t const variant_count, std::size_t const path_count) = 0;
 	};
 	
 	

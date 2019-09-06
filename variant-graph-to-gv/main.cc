@@ -10,7 +10,7 @@
 #include <libbio/dispatch.hh>
 #include <range/v3/view/sliding.hpp>
 #include <unistd.h>
-#include <vcf2multialign/preprocess/variant_graph.hh>
+#include <vcf2multialign/graph/variant_graph.hh>
 #include <vcf2multialign/utility/read_single_fasta_seq.hh>
 #include "cmdline.h"
 
