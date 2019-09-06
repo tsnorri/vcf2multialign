@@ -25,7 +25,8 @@ namespace vcf2multialign {
 
 		void end_logging() { m_progress_indicator.end_logging(); }
 		void finish();
-
+		void finish_mt();
+		
 		void log_assertion_failure_and_exit(libbio::assertion_failure_exception const &exc);
 		void log_exception_and_exit(std::exception const &exc);
 		void log_unknown_exception_and_exit();

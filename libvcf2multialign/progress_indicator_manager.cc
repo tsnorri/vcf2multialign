@@ -11,12 +11,18 @@ namespace v2m	= vcf2multialign;
 
 
 namespace vcf2multialign {
-
+	
+	void progress_indicator_manager::finish_mt()
+	{
+		m_progress_indicator.uninstall();
+		std::exit(EXIT_SUCCESS);
+	}
+	
+	
 	void progress_indicator_manager::finish()
 	{
 		dispatch_async(dispatch_get_main_queue(), ^{
-			m_progress_indicator.uninstall();
-			std::exit(EXIT_SUCCESS);
+			finish_mt();
 		});
 	}
 	
