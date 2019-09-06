@@ -9,6 +9,8 @@
 #include <libbio/file_handling.hh>
 #include <list>
 #include <vcf2multialign/graph/variant_graph.hh>
+#include <vcf2multialign/utility/progress_indicator_manager.hh>
+#include <vcf2multialign/vcf_processor.hh>
 
 
 namespace vcf2multialign {
@@ -25,26 +27,38 @@ namespace vcf2multialign {
 	class alt_edge_handler_base;
 	
 	
-	class sequence_generator_base
+	class sequence_generator_base :	public reference_controller,
+									public progress_indicator_manager
 	{
 	public:
 		typedef std::vector <libbio::file_ostream>	output_stream_vector;
 		typedef std::list <stream_position>			stream_position_list;
 		
-	public:
-		virtual ~sequence_generator_base() {}
+	protected:
+		variant_graph								m_graph;
+		std::size_t									m_chunk_size{};
+		bool										m_output_reference{};
+		bool										m_may_overwrite{};
 		
-		void output_sequences(
-			char const *reference_path,
-			char const *input_graph_path,
-			char const *reference_seq_name,
+	public:
+		sequence_generator_base(
 			std::size_t const chunk_size,
 			bool const output_reference,
 			bool const may_overwrite
-		);
+		):
+			m_chunk_size(chunk_size),
+			m_output_reference(output_reference),
+			m_may_overwrite(may_overwrite)
+		{
+		}
+		
+		virtual ~sequence_generator_base() {}
+		
+		void read_variant_graph(char const *variant_graph_path);
+		void output_sequences();
 		
 	protected:
-		virtual std::size_t const get_stream_count(variant_graph const &graph, bool const get_stream_count) const = 0;
+		virtual std::size_t const get_stream_count() const = 0;
 		
 		virtual std::unique_ptr <alt_edge_handler_base> make_alt_edge_handler(
 			std::string_view const &reference_sv,
@@ -52,9 +66,9 @@ namespace vcf2multialign {
 			output_stream_vector &output_files
 		) const = 0;
 		
-		virtual void open_output_file(std::size_t const idx, libbio::file_ostream &of, libbio::writing_open_mode const mode, variant_graph const &graph) const = 0;
+		virtual void open_output_file(std::size_t const idx, libbio::file_ostream &of, libbio::writing_open_mode const mode) const = 0;
 		
-		void output_chunk(std::string_view const &reference_sv, variant_graph const &graph, output_stream_vector &output_files);
+		void output_chunk(std::string_view const &reference_sv, output_stream_vector &output_files);
 	};
 	
 	

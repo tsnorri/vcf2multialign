@@ -66,6 +66,8 @@ namespace {
 	public:
 		typedef v2m::sequence_generator_base::output_stream_vector	output_stream_vector;
 		
+		using v2m::sequence_generator_base::sequence_generator_base;
+		
 		std::unique_ptr <v2m::alt_edge_handler_base> make_alt_edge_handler(
 			std::string_view const &reference_sv,
 			v2m::variant_graph const &graph,
@@ -75,14 +77,14 @@ namespace {
 			return std::unique_ptr <v2m::alt_edge_handler_base>(new founder_alt_edge_handler(reference_sv, graph, output_files));
 		}
 		
-		std::size_t const get_stream_count(v2m::variant_graph const &graph, bool const output_reference) const override
+		std::size_t const get_stream_count() const override
 		{
-			auto const max_paths(graph.max_paths_in_subgraph());
-			return (output_reference ? 1 : 0) + max_paths;
+			auto const max_paths(m_graph.max_paths_in_subgraph());
+			return (m_output_reference ? 1 : 0) + max_paths;
 		}
 		
 	protected:
-		void open_output_file(std::size_t const idx, lb::file_ostream &of, lb::writing_open_mode const mode, v2m::variant_graph const &graph) const override
+		void open_output_file(std::size_t const idx, lb::file_ostream &of, lb::writing_open_mode const mode) const override
 		{
 			lb::open_file_for_writing(std::to_string(1 + idx), of, mode);
 		}
@@ -94,6 +96,8 @@ namespace {
 	public:
 		typedef v2m::sequence_generator_base::output_stream_vector	output_stream_vector;
 		
+		using v2m::sequence_generator_base::sequence_generator_base;
+		
 		std::unique_ptr <v2m::alt_edge_handler_base> make_alt_edge_handler(
 			std::string_view const &reference_sv,
 			v2m::variant_graph const &graph,
@@ -103,29 +107,52 @@ namespace {
 			return std::unique_ptr <v2m::alt_edge_handler_base>(new haplotype_alt_edge_handler(reference_sv, graph, output_files));
 		}
 		
-		std::size_t const get_stream_count(v2m::variant_graph const &graph, bool const output_reference) const override
+		std::size_t const get_stream_count() const override
 		{
-			return (output_reference ? 1 : 0) + graph.sample_names().size();
+			return (m_output_reference ? 1 : 0) + m_graph.sample_names().size();
 		}
 		
 	protected:
-		void open_output_file(std::size_t const idx, lb::file_ostream &of, lb::writing_open_mode const mode, v2m::variant_graph const &graph) const override
+		void open_output_file(std::size_t const idx, lb::file_ostream &of, lb::writing_open_mode const mode) const override
 		{
-			auto const &name(graph.sample_names()[idx]);
+			auto const &name(m_graph.sample_names()[idx]);
 			lb::open_file_for_writing(name, of, mode);
 		}
 	};
 	
 	
-	void output_sequences(v2m::sequence_generator_base &gen, gengetopt_args_info const &args_info)
+	template <typename t_generator>
+	std::unique_ptr <t_generator> instantiate_generator(gengetopt_args_info const &args_info)
 	{
-		gen.output_sequences(
-			args_info.reference_arg,
-			args_info.variants_arg,
-			args_info.reference_sequence_given ? args_info.reference_sequence_arg : nullptr,
+		return std::make_unique <t_generator>(
 			args_info.chunk_size_arg,
 			(args_info.omit_reference_output_flag ? false : true),
 			args_info.overwrite_flag
+		);
+	}
+	
+	
+	void prepare(v2m::sequence_generator_base &gen, gengetopt_args_info const &args_info)
+	{
+		gen.read_reference(
+			args_info.reference_arg,
+			(args_info.reference_sequence_given ? args_info.reference_sequence_arg : nullptr)
+		);
+		
+		gen.read_variant_graph(args_info.variants_arg);
+	}
+	
+	
+	template <typename t_generator>
+	void output_sequences(std::unique_ptr <t_generator> &&gen_ptr)
+	{
+		// Run in background in order to be able to update a progress bar.
+		lb::dispatch_async_fn(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
+			[
+				gen_ptr = std::move(gen_ptr)
+			](){
+				gen_ptr->output_sequences();
+			}
 		);
 	}
 }
@@ -163,14 +190,18 @@ int main(int argc, char **argv)
 	{
 		if (args_info.output_founders_given)
 		{
-			founder_sequence_generator gen;
-			output_sequences(gen, args_info);
+			auto gen_ptr(instantiate_generator <founder_sequence_generator>(args_info));
+			prepare(*gen_ptr, args_info);
+			output_sequences(std::move(gen_ptr));
 		}
 		else if (args_info.output_haplotypes_given)
 		{
-			haplotype_sequence_generator gen;
-			output_sequences(gen, args_info);
+			auto gen_ptr(instantiate_generator <haplotype_sequence_generator>(args_info));
+			prepare(*gen_ptr, args_info);
+			output_sequences(std::move(gen_ptr));
 		}
+		
+		dispatch_main();
 	}
 	catch (lb::assertion_failure_exception const &exc)
 	{

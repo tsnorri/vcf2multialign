@@ -7,7 +7,7 @@ usage		"variant_graph_to_founders -H|-F --reference=filename.fa --variants=varia
 description	"Reads the variant graph file and produces a reference-guided alignment of haplotype or founder sequences. The sequences will be written one sequence per file to the current working directory."
 
 option		"reference"				r	"Reference FASTA file path"																	string	typestr = "filename"					required
-option		"variants"				a	"Variant graph file path"																	string	typestr = "filename"					required
+option		"variants"				g	"Variant graph file path"																	string	typestr = "filename"					required
 option		"reference-sequence"	-	"Reference sequence identifier"																string	typestr = "identifier"					optional
 option		"chunk-size"			-	"Number of output files to be opened simultaneously"										long	typestr = "size"		default = "500"	optional
 option		"overwrite"				-	"Allow overwriting existing files"															flag	off

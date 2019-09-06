@@ -18,97 +18,138 @@ namespace lb	= libbio;
 namespace v2m	= vcf2multialign;
 
 
-namespace vcf2multialign {
+namespace {
 	
-	void sequence_generator_base::output_sequences(
-		char const *reference_path,
-		char const *input_graph_path,
-		char const *reference_seq_name,
-		std::size_t const chunk_size,
-		bool const output_ref,
-		bool const may_overwrite
-	)
+	class progress_indicator_delegate final : public lb::progress_indicator_delegate
 	{
-		vector_type reference;
-		variant_graph graph;
+	protected:
+		std::size_t			m_progress_max{};
+		std::atomic_size_t	m_progress_current{};
 		
-		// Open the input files.
+	public:
+		progress_indicator_delegate(std::size_t const progress_max):
+			m_progress_max(progress_max)
 		{
-			lb::file_istream input_graph_stream;
-			lb::open_file_for_reading(input_graph_path, input_graph_stream);
-			
-			lb::mmap_handle <char> ref_handle;
-			ref_handle.open(reference_path);
-			
-			// Read the input FASTA.
-			v2m::read_single_fasta_seq(ref_handle, reference, reference_seq_name);
-			
-			// Read the intermediate graph.
-			cereal::PortableBinaryInputArchive iarchive(input_graph_stream);
-			iarchive(graph);
 		}
 		
-		// Create a string view from the reference.
-		std::string_view const reference_sv(reference.data(), reference.size());
+		virtual std::size_t progress_step_max() const { return m_progress_max; }
+		virtual std::size_t progress_current_step() const { return m_progress_current.load(std::memory_order_relaxed); }
+		virtual void progress_log_extra() const {}
+		void advance() { m_progress_current.fetch_add(1, std::memory_order_relaxed); }
+	};
+	
+	
+	inline void dispatch_async_main(dispatch_block_t block)
+	{
+		dispatch_async(dispatch_get_main_queue(), block);
+	}
+}
+
+
+namespace vcf2multialign {
+	
+	void sequence_generator_base::read_variant_graph(char const *input_graph_path)
+	{
+		lb::file_istream input_graph_stream;
+		lb::open_file_for_reading(input_graph_path, input_graph_stream);
 		
-		// Output in chunks.
+		cereal::PortableBinaryInputArchive iarchive(input_graph_stream);
+		iarchive(m_graph);
+	}
+	
+	
+	void sequence_generator_base::output_sequences()
+	{
+		try
 		{
+			// Setup the progress indicator.
+			this->install_progress_indicator();
+			
+			// Create a string view from the reference.
+			std::string_view const reference_sv(m_reference.data(), m_reference.size());
+		
+			// Output in chunks.
 			auto const mode(lb::make_writing_open_mode({
 				lb::writing_open_mode::CREATE,
-				(may_overwrite ? lb::writing_open_mode::OVERWRITE : lb::writing_open_mode::NONE)
+				(m_may_overwrite ? lb::writing_open_mode::OVERWRITE : lb::writing_open_mode::NONE)
 			}));
 			
-			auto const stream_count(this->get_stream_count(graph, output_ref));
-			std::cerr << stream_count << " sequences will be written.\n";
-			std::size_t const chunk_count(std::ceil(1.0 * stream_count / chunk_size));
+			auto const stream_count(this->get_stream_count());
+			dispatch_async_main(^{ lb::log_time(std::cerr); std::cerr << stream_count << " sequences will be written.\n"; });
+			std::size_t const chunk_count(std::ceil(1.0 * stream_count / m_chunk_size));
 			for (auto const &pair : ranges::view::closed_iota(std::size_t(0), chunk_count) | ranges::view::sliding(2))
 			{
 				auto const lhs(pair[0]);
 				auto const rhs(pair[1]);
-				auto const rhs_(std::min(rhs, stream_count));
-				std::cerr << "Processing chunk " << rhs << '/' << chunk_count << "…\n";
-				output_stream_vector output_files(chunk_size * (rhs_ - lhs)); // Cannot reuse b.c. lb::file_ostream has a deleted copy constructor.
+				auto const lhsc(m_chunk_size * lhs);
+				auto const rhsc(std::min(stream_count, m_chunk_size * rhs));
+				dispatch_async_main(^{ lb::log_time(std::cerr); std::cerr << "Processing chunk " << rhs << '/' << chunk_count << "…\n"; });
+				output_stream_vector output_files(rhsc - lhsc); // Cannot reuse b.c. lb::file_ostream has a deleted copy constructor.
 				
 				// Open the output files.
 				// The last stream will be REF.
-				if (output_ref && rhs_ == stream_count)
+				if (m_output_reference && rhsc == stream_count)
 				{
 					lb::open_file_for_writing("REF", output_files.back(), mode);
-					for (auto &&[i, of] : ranges::view::zip(ranges::view::iota(chunk_size * lhs, chunk_size * rhs_), output_files) | ranges::view::drop_last(1))
-						open_output_file(i, of, mode, graph);
+					for (auto &&[i, of] : ranges::view::zip(ranges::view::iota(lhsc, rhsc), output_files) | ranges::view::drop_last(1))
+						open_output_file(i, of, mode);
 				}
 				else
 				{
-					for (auto &&[i, of] : ranges::view::zip(ranges::view::iota(chunk_size * lhs, chunk_size * rhs_), output_files))
-						open_output_file(i, of, mode, graph);
+					for (auto &&[i, of] : ranges::view::zip(ranges::view::iota(lhsc, rhsc), output_files))
+						open_output_file(i, of, mode);
 				}
 				
-				output_chunk(reference_sv, graph, output_files);
+				output_chunk(reference_sv, output_files);
 			}
+			
+			dispatch_async(dispatch_get_main_queue(), ^{
+				lb::log_time(std::cerr);
+				std::cerr << "Done.\n"; // FIXME: log statistics?
+				this->finish_mt();
+			});
+		}
+		catch (lb::assertion_failure_exception const &exc)
+		{
+			this->log_assertion_failure_and_exit(exc);
+		}
+		catch (std::exception const &exc)
+		{
+			this->log_exception_and_exit(exc);
+		}
+		catch (...)
+		{
+			this->log_unknown_exception_and_exit();
 		}
 	}
 	
 	
-	void sequence_generator_base::output_chunk(std::string_view const &reference_sv, v2m::variant_graph const &graph, output_stream_vector &output_files)
+	void sequence_generator_base::output_chunk(std::string_view const &reference_sv, output_stream_vector &output_files)
 	{
-		// Output.
+		// Use a simple queue for keeping track of the aligned positions of the founders.
+		// first: node index, second: stream number.
+		stream_position_list files_available(output_files.size()), files_waiting;
+		
+		auto const &ref_positions(m_graph.ref_positions());
+		auto const &aln_positions(m_graph.aligned_ref_positions());
+		
 		{
 			typedef v2m::variant_graph::sample_path_vector	sample_paths_type;
 			typedef v2m::variant_graph::path_edge_matrix	path_edges_type;
 			
-			auto handler(this->make_alt_edge_handler(reference_sv, graph, output_files));
-			auto const &ref_positions(graph.ref_positions());
-			auto const &aln_positions(graph.aligned_ref_positions());
-			auto const &subgraph_start_positions(graph.subgraph_start_positions());
-			auto const &alt_edge_count_csum(graph.alt_edge_count_csum());
-			auto const &alt_edge_targets(graph.alt_edge_targets());
-			auto const &alt_edge_labels(graph.alt_edge_labels());
-			auto const &sample_paths(graph.sample_paths());
-			auto const &path_edges(graph.path_edges());
+			auto handler(this->make_alt_edge_handler(reference_sv, m_graph, output_files));
+			auto const &subgraph_start_positions(m_graph.subgraph_start_positions());
+			auto const &alt_edge_count_csum(m_graph.alt_edge_count_csum());
+			auto const &alt_edge_targets(m_graph.alt_edge_targets());
+			auto const &alt_edge_labels(m_graph.alt_edge_labels());
+			auto const &sample_paths(m_graph.sample_paths());
+			auto const &path_edges(m_graph.path_edges());
 			
-			// Use a simple queue for keeping track of the aligned positions of the founders.
-			// first: node index, second: stream number.
-			stream_position_list files_available(output_files.size()), files_waiting;
+			// Setup the progress bar.
+			progress_indicator_delegate progress_delegate(ref_positions.size() - 2); // FIXME: is the maximum value exact?
+			this->progress_indicator().log_with_progress_bar("\t", progress_delegate);
+			
+			// Setup files_available.
 			for (auto &&[i, sp] : ranges::view::enumerate(files_available))
 				sp.stream_number = i;
 			
@@ -130,7 +171,7 @@ namespace vcf2multialign {
 							ranges::view::repeat(path_edges_type())
 						),
 						ranges::view::concat(
-							ranges::view::repeat_n(0, (first_subgraph_starts_from_zero ? 0 : 1)),	// Handle the possible padding. (The initial zero could be included when creating the graph.)
+							ranges::view::repeat_n(0, (first_subgraph_starts_from_zero ? 0 : 1)),	// Handle the possible padding. (The initial zero could also be included when creating the graph.)
 							subgraph_start_positions,
 							ranges::view::single(ref_positions.size() - 2)
 						) | ranges::view::sliding(2)
@@ -139,8 +180,6 @@ namespace vcf2multialign {
 			);
 			for (auto const &[subgraph_idx, tup] : rsv)
 			{
-				std::cerr << "Subgraph " << (1 + subgraph_idx) << '/' << (subgraph_start_positions.size() + (first_subgraph_starts_from_zero ? 0 : 1)) << "…\n";
-				
 				auto const &[sample_paths, edges_by_path_and_variant, ssp_pair] = tup;
 				auto const subgraph_lhs(ssp_pair[0]);
 				auto const subgraph_rhs(ssp_pair[1]);
@@ -151,8 +190,6 @@ namespace vcf2multialign {
 				handler->set_subgraph_samples_and_edges(sample_paths, edges_by_path_and_variant);
 				for (auto const &[node_idx, idx_pair] : ranges::view::enumerate(ranges::view::closed_iota(subgraph_lhs, subgraph_rhs) | ranges::view::sliding(2)))
 				{
-					std::cerr << "Node " << (1 + node_idx) << '/' << (subgraph_rhs - subgraph_lhs) << "…\n";
-					
 					auto const lhs(idx_pair[0]);
 					auto const rhs(idx_pair[1]);
 					auto const alt_lhs(alt_edge_count_csum[lhs]);
@@ -205,25 +242,36 @@ namespace vcf2multialign {
 					// Sort the stream numbers by the writing position, i.e. node number.
 					files_waiting.sort();
 					files_available.merge(files_waiting);
+					
+					progress_delegate.advance();
 				}
 			}
-			
-			// Fill with the reference up to aligned reference length.
-			{
-				std::cerr << "Filling with the reference…\n";
-				auto const ref_end(ref_positions.back());
-				for (auto const &sp : files_available)
-				{
-					// Fill.
-					auto const ref_begin(ref_positions[1 + sp.node]);
-					auto const ref_sub(reference_sv.substr(ref_begin, ref_end - ref_begin));
-					auto &stream(output_files[sp.stream_number]);
-					stream << ref_sub << std::flush;
-				}
-			}
-			
-			std::cerr << "Finishing…\n";
+			this->end_logging();
 		}
+		
+		// Fill with the reference up to aligned reference length.
+		{
+			dispatch_async_main(^{ lb::log_time(std::cerr); std::cerr << "Filling with the reference…\n"; });
+			
+			progress_indicator_delegate progress_delegate(files_available.size());
+			this->progress_indicator().log_with_progress_bar("\t", progress_delegate);
+			
+			auto const ref_end(ref_positions.back());
+			for (auto const &sp : files_available)
+			{
+				// Fill.
+				auto const ref_begin(ref_positions[1 + sp.node]);
+				auto const ref_sub(reference_sv.substr(ref_begin, ref_end - ref_begin));
+				auto &stream(output_files[sp.stream_number]);
+				stream << ref_sub << std::flush;
+				
+				progress_delegate.advance();
+			}
+			
+			this->end_logging();
+		}
+		
+		dispatch_async_main(^{ lb::log_time(std::cerr); std::cerr << "Finishing…\n"; });
 	}
 	
 	
