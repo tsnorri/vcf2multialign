@@ -36,12 +36,21 @@ namespace {
 		virtual std::size_t progress_current_step() const override { return m_partitioner->processed_count(); }
 		virtual void progress_log_extra() const override {};
 	};
+	
+	
+	inline void dispatch_async_main(dispatch_block_t block)
+	{
+		dispatch_async(dispatch_get_main_queue(), block);
+	}
 }
 
 
 namespace vcf2multialign {
 	
-	class cut_position_processor : public vcf_processor, public progress_indicator_manager
+	class cut_position_processor :	public vcf_processor,
+									public output_stream_controller,
+									public reference_controller,
+									public progress_indicator_manager
 	{
 	protected:
 		std::vector <std::string> const	m_field_names_for_filter_if_set;
@@ -55,6 +64,7 @@ namespace vcf2multialign {
 			std::size_t const minimum_subgraph_distance
 		):
 			vcf_processor(),
+			output_stream_controller(),
 			progress_indicator_manager(),
 			m_field_names_for_filter_if_set(std::move(field_names_for_filter_if_set)),
 			m_chr_name(chr_name),
@@ -95,12 +105,15 @@ namespace vcf2multialign {
 			this->end_logging();
 			this->uninstall_progress_indicator();
 			
-			lb::log_time(std::cerr);
-			std::cerr << "Done. Maximum segment size: " << cut_positions.max_segment_size << " Cut position count: " << cut_positions.positions.size() << '\n';
+			dispatch_async_main(^{
+				lb::log_time(std::cerr);
+				std::cerr << "Done. Maximum segment size: " << cut_positions.max_segment_size << " Cut position count: " << cut_positions.positions.size() << '\n';
+			});
 			
 			// Output.
 			cereal::PortableBinaryOutputArchive archive(this->m_output_stream);
 			archive(cut_positions);
+			this->m_output_stream << std::flush;
 			
 			this->finish();
 		}

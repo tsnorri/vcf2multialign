@@ -6,8 +6,9 @@
 #ifndef VCF2MULTIALIGN_GRAPH_VARIANT_PREPROCESSOR_HH
 #define VCF2MULTIALIGN_GRAPH_VARIANT_PREPROCESSOR_HH
 
-#include <libbio/matrix.hh>
+#include <libbio/copyable_atomic.hh>
 #include <libbio/int_matrix.hh>
+#include <libbio/matrix.hh>
 #include <libbio/vcf/variant.hh>
 #include <libbio/vcf/vcf_subfield_def.hh>
 #include <ostream>
@@ -56,6 +57,8 @@ namespace vcf2multialign { namespace detail {
 	{
 		libbio::vcf_info_field_end const *end_field{};
 		
+		overlap_stack_compare() = default;
+		
 		overlap_stack_compare(libbio::vcf_info_field_end const &end_field_):
 			end_field(&end_field_)
 		{
@@ -85,9 +88,9 @@ namespace vcf2multialign {
 	protected:
 		variant_graph_generator_delegate				*m_delegate{};
 		libbio::vcf_reader								*m_reader{};
-		vector_type const * const						m_reference{};
-		cut_position_list const * const					m_cut_position_list{};
-		libbio::vcf_info_field_end const * const		m_end_field{};
+		vector_type const								*m_reference{};
+		cut_position_list const							*m_cut_position_list{};
+		libbio::vcf_info_field_end const				*m_end_field{};
 		variant_graph									m_graph;
 		variant_stack									m_subgraph_variants;
 		sample_indexer									m_sample_indexer;
@@ -96,9 +99,11 @@ namespace vcf2multialign {
 		overlap_stack									m_overlap_stack;
 		std::size_t										m_minimum_subgraph_distance{};
 		std::size_t										m_output_lineno{};
-		std::atomic_size_t								m_processed_count{};
+		libbio::copyable_atomic <std::size_t>			m_processed_count{};
 	
 	public:
+		variant_graph_generator() = default;
+		
 		variant_graph_generator(
 			variant_graph_generator_delegate &delegate,
 			libbio::vcf_reader &reader,

@@ -44,7 +44,11 @@ namespace {
 
 namespace vcf2multialign {
 	
-	class variant_graph_processor : public vcf_processor, progress_indicator_manager, variant_graph_generator_delegate
+	class variant_graph_processor :	public vcf_processor,
+									public output_stream_controller,
+									public reference_controller,
+									public progress_indicator_manager,
+									public variant_graph_generator_delegate
 	{
 		friend progress_indicator_delegate;
 		
@@ -53,15 +57,7 @@ namespace vcf2multialign {
 		variant_graph_generator	m_generator;
 		
 	public:
-		variant_graph_processor():
-			m_generator(
-				*this,
-				this->m_vcf_reader,
-				this->m_reference,
-				m_cut_position_list
-			)
-		{
-		}
+		variant_graph_processor() = default;
 		
 		void open_cut_position_file(char const *path);
 		void process_and_output();
@@ -83,6 +79,12 @@ namespace {
 	{
 		return m_processor->m_generator.processed_count();
 	}
+	
+	
+	inline void dispatch_async_main(dispatch_block_t block)
+	{
+		dispatch_async(dispatch_get_main_queue(), block);
+	}
 }
 
 
@@ -103,10 +105,12 @@ namespace vcf2multialign {
 		std::size_t const path_count
 	)
 	{
+#if 0
 		auto const var_pos(first_var.zero_based_pos());
-		dispatch_async(dispatch_get_main_queue(), ^{
-			std::cerr << "Subgraph start: " << var_pos << " variants: " << variant_count << " paths: " << path_count << '\n';
+		dispatch_async_main(^{
+			std::cerr << "\33[1G" << "Subgraph start: " << var_pos << " variants: " << variant_count << " paths: " << path_count << '\n';
 		});
+#endif
 	}
 	
 	
@@ -114,23 +118,24 @@ namespace vcf2multialign {
 	{
 		try
 		{
+			m_generator = variant_graph_generator(*this, this->m_vcf_reader, this->m_reference, m_cut_position_list);
+			
 			// Partition.
 			progress_indicator_delegate indicator_delegate(*this);
 			this->install_progress_indicator();
 			
-			lb::log_time(std::cerr);
-			std::cerr << "Processing the variants…\n";
-			this->progress_indicator().log_with_progress_bar("", indicator_delegate);
+			dispatch_async_main(^{ lb::log_time(std::cerr); std::cerr << "Creating a variant graph…\n"; });
+			this->progress_indicator().log_with_progress_bar("\t", indicator_delegate);
 			m_generator.generate_graph();
 			this->end_logging();
 			this->uninstall_progress_indicator();
 			
-			lb::log_time(std::cerr);
-			std::cerr << "Done.\n"; // FIXME: log statistics?
+			dispatch_async_main(^{ lb::log_time(std::cerr); std::cerr << "Done.\n"; }); // FIXME: log statistics?
 			
 			// Output.
 			cereal::PortableBinaryOutputArchive archive(this->m_output_stream);
 			archive(m_generator.variant_graph());
+			this->m_output_stream << std::flush;
 			
 			this->finish();
 		}
@@ -155,7 +160,6 @@ namespace vcf2multialign {
 		char const *cut_position_file_path,
 		char const *output_graph_path,
 		char const *reference_seq_name,
-		char const *chr_name,
 		bool const should_overwrite_files
 	)
 	{

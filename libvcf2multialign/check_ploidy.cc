@@ -17,8 +17,10 @@ namespace vcf2multialign {
 		vcf_reader.reset();
 		vcf_reader.set_parsed_fields(lb::vcf_field::ALL);
 		
+		bool handled_variant(false);
 		vcf_reader.fill_buffer();
-		if (!vcf_reader.parse([&vcf_reader, &out_ploidy](lb::transient_variant const &var) -> bool {
+		vcf_reader.parse([&vcf_reader, &out_ploidy, &handled_variant](lb::transient_variant const &var) -> bool {
+			handled_variant = true;
 			auto const *gt_field(get_variant_format(var).gt);
 			for (auto const &kv : vcf_reader.sample_names())
 			{
@@ -30,7 +32,9 @@ namespace vcf2multialign {
 			}
 		
 			return false;
-		}))
+		});
+		
+		if (!handled_variant)
 		{
 			libbio_fail("Unable to read the first variant");
 		}

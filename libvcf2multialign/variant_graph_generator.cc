@@ -71,7 +71,7 @@ namespace vcf2multialign {
 						libbio_always_assert_lte(var_pos, var_end);
 						libbio_always_assert_lte(var_pos, *cut_pos_it);
 						
-						if (! (var_pos == *cut_pos_it))
+						if (var_pos == *cut_pos_it)
 						{
 							// Handle the subgraph.
 							process_subgraph(prev_overlap_end_pos);
@@ -87,7 +87,9 @@ namespace vcf2multialign {
 						
 						++m_processed_count;
 						++line_no_it;
-						return (line_no_it == line_no_end);
+						
+						auto const should_continue(line_no_it != line_no_end);
+						return should_continue;
 					}
 					return true;
 				}

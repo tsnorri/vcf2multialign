@@ -26,7 +26,7 @@ namespace {
 
 namespace vcf2multialign {
 
-	void vcf_processor::read_reference(char const *reference_path, char const *reference_seq_name)
+	void reference_controller::read_reference(char const *reference_path, char const *reference_seq_name)
 	{
 		// Read the input FASTA.
 		lb::mmap_handle <char> ref_handle;
@@ -42,7 +42,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void vcf_processor::open_output_file(char const *output_path, bool const should_overwrite_files)
+	void output_stream_controller::open_output_file(char const *output_path, bool const should_overwrite_files)
 	{
 		auto const mode(lb::make_writing_open_mode({
 			lb::writing_open_mode::CREATE,

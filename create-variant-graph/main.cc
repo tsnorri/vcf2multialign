@@ -26,6 +26,14 @@ int main(int argc, char **argv)
 	if (0 != cmdline_parser(argc, argv, &args_info))
 		std::exit(EXIT_FAILURE);
 	
+	if (args_info.show_invocation_given)
+	{
+		std::cerr << "Invocation:";
+		for (int i(0); i < argc; ++i)
+			std::cerr << ' ' << argv[i];
+		std::cerr << '\n';
+	}
+	
 	std::ios_base::sync_with_stdio(false);	// Don't use C style IO after calling cmdline_parser.
 	std::cin.tie(nullptr);					// We don't require any input from the user.
 	
@@ -37,7 +45,6 @@ int main(int argc, char **argv)
 			args_info.cut_positions_arg,
 			args_info.output_arg,
 			args_info.reference_sequence_given ? args_info.reference_sequence_arg : nullptr,
-			args_info.chromosome_given ? args_info.chromosome_arg : nullptr,
 			args_info.overwrite_flag
 		);
 	}

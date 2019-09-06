@@ -15,7 +15,6 @@ namespace vcf2multialign {
 		char const *cut_position_file_path,
 		char const *output_graph_path,
 		char const *reference_seq_name,
-		char const *chr_name,
 		bool const should_overwrite_files
 	);
 }

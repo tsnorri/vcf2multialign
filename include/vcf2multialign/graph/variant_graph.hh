@@ -22,10 +22,10 @@ namespace vcf2multialign {
 	class variant_graph
 	{
 	public:
-		typedef std::vector <std::size_t>	position_vector;
-		typedef std::vector <std::string>	string_vector;
-		typedef libbio::int_vector <0>		sample_path_vector;
-		typedef libbio::int_matrix <0>		path_edge_matrix;
+		typedef std::vector <std::size_t>		position_vector;
+		typedef std::vector <std::string>		string_vector;
+		typedef libbio::int_vector <0>			sample_path_vector;
+		typedef libbio::int_matrix <0>			path_edge_matrix;
 		
 	protected:
 		position_vector							m_ref_positions;			// REF positions (0-based) by node number. We use 1-based indexing in order to make summing easier.
