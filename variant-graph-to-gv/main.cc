@@ -25,8 +25,7 @@ namespace {
 		char const *input_graph_path,
 		char const *output_graph_path,
 		char const *reference_seq_name,
-		bool const should_overwrite_files,
-		bool const output_ref_labels
+		bool const should_overwrite_files
 	)
 	{
 		v2m::vector_type reference;
@@ -70,7 +69,6 @@ namespace {
 		output_graph_stream << "\trank = same;\n";
 		
 		// Labels if needed, otherwise use node ID as the label.
-		if (output_ref_labels)
 		{
 			// Since background colours are needed at subgraph start positions, handle them, too.
 			auto sg_it(subgraph_start_positions.begin());
@@ -82,21 +80,12 @@ namespace {
 				if (i == next_subgraph_start_idx)
 				{
 					next_subgraph_start_idx = (sg_it == sg_end ? SIZE_MAX : *sg_it++);
-					output_graph_stream << '\t' << aligned_ref_pos << " [label = " << ref_pos << ", style = filled, fillcolor = grey95];\n";
+					output_graph_stream << '\t' << aligned_ref_pos << " [shape = Mrecord, label = \"" << ref_pos << " | " << aligned_ref_pos << "\", style = filled, fillcolor = grey95];\n";
 				}
 				else
 				{
-					output_graph_stream << '\t' << aligned_ref_pos << " [label = " << ref_pos << "];\n";
+					output_graph_stream << '\t' << aligned_ref_pos << " [shape = Mrecord, label = \"" << ref_pos << " | " << aligned_ref_pos << "\"];\n";
 				}
-			}
-		}
-		else
-		{
-			// Only subgraph start positions.
-			for (auto const idx : subgraph_start_positions)
-			{
-				auto const aligned_ref_pos(aligned_ref_positions[1 + idx]);
-				output_graph_stream << '\t' << aligned_ref_pos << " [style = filled, fillcolor = grey95];\n";
 			}
 		}
 		output_graph_stream << '\n';
@@ -175,8 +164,7 @@ int main(int argc, char **argv)
 			args_info.variants_arg,
 			args_info.output_arg,
 			args_info.reference_sequence_given ? args_info.reference_sequence_arg : nullptr,
-			args_info.overwrite_flag,
-			args_info.node_labels_arg == node_labels_arg_REF
+			args_info.overwrite_flag
 		);
 	}
 	catch (lb::assertion_failure_exception const &exc)
@@ -187,6 +175,6 @@ int main(int argc, char **argv)
 			std::cerr << "Stack trace:\n" << *st << '\n';
 		throw exc;
 	}
-	
+
 	return EXIT_SUCCESS;
 }

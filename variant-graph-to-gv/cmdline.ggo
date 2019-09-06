@@ -3,12 +3,11 @@
 
 package		"variant-graph-to-gv"
 purpose		"Convert the intermediate graph format to Graphviz input."
-usage		"variant_graph_to_gv --reference=filename.fa --variants=variants.graph --output=output.dot [...]"
+usage		"variant_graph_to_gv --reference=filename.fa --variants=variants.graph --output=output.dot [<options>]"
 description	"Reads the variant graph file and produces input for Graphviz."
 
 option		"reference"				r	"Reference FASTA file path"																	string	typestr = "filename"	required
-option		"variants"				a	"Variant graph file path"																	string	typestr = "filename"	required
+option		"variants"				g	"Variant graph file path"																	string	typestr = "filename"	required
 option		"output"				o	"Output graph file path"																	string	typestr = "filename"	required
 option		"reference-sequence"	-	"Reference sequence identifier"																string	typestr = "identifier"	optional
 option		"overwrite"				-	"Overwrite output files"																	flag	off
-option		"node-labels"			-	"Node label value (one of REF positions, aligned positions)"	values = "REF", "aligned"	enum	default = "aligned"		optional
