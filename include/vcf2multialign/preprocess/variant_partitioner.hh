@@ -45,14 +45,17 @@ namespace vcf2multialign {
 		}
 	};
 	
-
+	
+	struct variant_partitioner_delegate : public variant_processor_delegate, public sample_sorter_delegate {};
+	
+	
 	class variant_partitioner
 	{
 	protected:
 		struct dp_ctx; // Fwd
 		
 	protected:
-		variant_processor_delegate						*m_delegate{};
+		variant_partitioner_delegate					*m_delegate{};
 		libbio::vcf_reader								*m_reader{};
 		libbio::vcf_info_field_end						*m_end_field{};
 		vector_type const								*m_reference{};
@@ -63,7 +66,7 @@ namespace vcf2multialign {
 		
 	public:
 		variant_partitioner(
-			variant_processor_delegate &delegate,
+			variant_partitioner_delegate &delegate,
 			libbio::vcf_reader &reader,
 			vector_type const &reference,
 			std::string const chr_name,
@@ -120,8 +123,8 @@ namespace vcf2multialign {
 			
 			dp_ctx() = default;
 			
-			dp_ctx(libbio::vcf_reader &reader, sample_indexer const &indexer):
-				sorter(reader, indexer)
+			dp_ctx(sample_sorter_delegate &delegate, libbio::vcf_reader &reader, sample_indexer const &indexer):
+				sorter(delegate, reader, indexer)
 			{
 				sorter.prepare_for_next_subgraph();
 			}

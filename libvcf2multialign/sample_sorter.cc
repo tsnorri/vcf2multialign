@@ -35,10 +35,7 @@ namespace vcf2multialign {
 			}
 			else
 			{
-				// FIXME: logging should be elsewhere.
-				std::cerr << "Line " << var.lineno() << ": Sample " << sample_idx << "’s end position was ";
-				std::cerr << m_end_positions_by_sample[sample_idx];
-				std::cerr << " but the variant’s position was " << pos << ".\n";
+				m_delegate->sample_sorter_found_overlapping_variant(var, sample_idx, m_end_positions_by_sample[sample_idx]);
 			}
 		}
 		else

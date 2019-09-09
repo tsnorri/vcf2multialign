@@ -48,7 +48,7 @@ namespace vcf2multialign {
 		{
 			// Set up the first cut position and segment.
 			cut_position_tree.emplace_back();
-			auto &ctx(unclosable_partitions.emplace_back(*m_reader, m_sample_indexer));
+			auto &ctx(unclosable_partitions.emplace_back(*m_delegate, *m_reader, m_sample_indexer));
 			ctx.start_position_idx = cut_position_tree.size() - 1;
 		}
 		
@@ -122,7 +122,7 @@ namespace vcf2multialign {
 						// If there is a closable partition, make a copy of it.
 						if (!closable_partitions.empty())
 						{
-							auto &new_ctx(unclosable_partitions.emplace_back(*m_reader, m_sample_indexer));
+							auto &new_ctx(unclosable_partitions.emplace_back(*m_delegate, *m_reader, m_sample_indexer));
 							new_ctx.chain_previous(closable_partitions.front(), var_pos, cut_position_tree);
 						}
 					}

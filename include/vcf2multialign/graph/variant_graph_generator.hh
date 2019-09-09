@@ -75,7 +75,7 @@ namespace vcf2multialign { namespace detail {
 
 namespace vcf2multialign {
 	
-	class variant_graph_generator
+	class variant_graph_generator : public sample_sorter_delegate
 	{
 	protected:
 		typedef std::vector <libbio::variant>			variant_stack;
@@ -116,7 +116,7 @@ namespace vcf2multialign {
 			m_cut_position_list(&cut_position_list),
 			m_end_field(reader.get_end_field_ptr()),
 			m_sample_indexer(cut_position_list.donor_count, cut_position_list.chr_count),
-			m_sample_sorter(reader, m_sample_indexer),
+			m_sample_sorter(*this, reader, m_sample_indexer),
 			m_overlap_stack(detail::overlap_stack_compare(*m_end_field))
 		{
 		}
@@ -125,6 +125,12 @@ namespace vcf2multialign {
 		
 		void generate_graph();
 		std::size_t processed_count() const { return m_processed_count.load(std::memory_order_relaxed); }
+		
+		virtual void sample_sorter_found_overlapping_variant(
+			libbio::variant const &var,
+			std::size_t const sample_idx,
+			std::size_t const prev_end_pos
+		) override {}
 		
 	protected:
 		void update_sample_names();

@@ -16,6 +16,13 @@
 
 namespace vcf2multialign {
 	
+	struct sample_sorter_delegate
+	{
+		virtual ~sample_sorter_delegate() {}
+		virtual void sample_sorter_found_overlapping_variant(libbio::variant const &var, std::size_t const sample_idx, std::size_t const prev_end_pos) = 0;
+	};
+	
+	
 	class sample_sorter
 	{
 	protected:
@@ -23,6 +30,7 @@ namespace vcf2multialign {
 		typedef libbio::atomic_int_vector <2>				branch_vector;
 
 	protected:
+		sample_sorter_delegate		*m_delegate{};
 		sample_indexer const		*m_sample_indexer{};
 		libbio::vcf_info_field_end	*m_end_field{};
 		path_vector					m_src_paths;
@@ -35,7 +43,8 @@ namespace vcf2multialign {
 	public:
 		sample_sorter() = default;
 	
-		sample_sorter(libbio::vcf_reader &reader, sample_indexer const &indexer):
+		sample_sorter(sample_sorter_delegate &delegate, libbio::vcf_reader &reader, sample_indexer const &indexer):
+			m_delegate(&delegate),
 			m_sample_indexer(&indexer),
 			m_src_paths(indexer.total_samples(), 0),
 			m_dst_paths(indexer.total_samples(), 0),
