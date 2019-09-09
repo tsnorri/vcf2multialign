@@ -17,32 +17,38 @@ namespace vcf2multialign {
 	// Assume same ploidy for each donor.
 	class sample_indexer
 	{
-	protected:
-		std::size_t		m_donor_count{};
-		std::uint8_t	m_chr_count{};
+	public:
+		typedef std::size_t								sample_type;
+		typedef	std::size_t								donor_type;
+		typedef std::uint8_t							chr_type;
+		typedef std::tuple <donor_type, chr_type>		donor_and_chr_pair;
 		
+	protected:
+		donor_type	m_donor_count{};
+		chr_type	m_chr_count{};
+
 	public:
 		sample_indexer() = default;
 		
-		sample_indexer(std::size_t donor_count, std::uint8_t chr_count):
+		sample_indexer(donor_type const donor_count, chr_type const chr_count):
 			m_donor_count(donor_count),
 			m_chr_count(chr_count)
 		{
 		}
 		
-		inline void set_counts(std::size_t donor_count, std::uint8_t chr_count) { m_donor_count = donor_count; m_chr_count = chr_count; }
-		inline std::size_t donor_count() const { return m_donor_count; }
-		inline std::uint8_t chr_count() const { return m_chr_count; }
-		inline std::size_t total_samples() const { return m_donor_count * m_chr_count; }
+		inline void set_counts(donor_type const donor_count, chr_type const chr_count) { m_donor_count = donor_count; m_chr_count = chr_count; }
+		inline donor_type donor_count() const { return m_donor_count; }
+		inline chr_type chr_count() const { return m_chr_count; }
+		inline sample_type total_samples() const { return m_donor_count * m_chr_count; }
 		
-		inline std::size_t sample_idx(std::size_t donor_idx, std::uint8_t chr_idx) const
+		inline sample_type sample_idx(donor_type const donor_idx, chr_type const chr_idx) const
 		{
 			return donor_idx * m_chr_count + chr_idx;
 		}
 		
-		inline std::tuple <std::size_t, std::uint8_t> donor_and_chr_idx(std::size_t sample_idx) const
+		inline donor_and_chr_pair donor_and_chr_idx(std::size_t sample_idx) const
 		{
-			return std::make_tuple(sample_idx / m_chr_count, sample_idx % m_chr_count);
+			return donor_and_chr_pair(sample_idx / m_chr_count, sample_idx % m_chr_count);
 		}
 	};
 }
