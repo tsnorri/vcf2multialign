@@ -239,7 +239,7 @@ namespace vcf2multialign {
 				
 				// Check whether the ALT was handled. Otherwise don’t modify the zero stored in dst_path_edges.
 				// FIXME: allow substituting the null allele with something else than REF.
-				if (alt_idx && alt_idx != lb::NULL_ALLELE && 0 == unhandled_alt_csum[alt_idx] - unhandled_alt_csum[alt_idx - 1])
+				if (alt_idx && lb::sample_genotype::NULL_ALLELE != alt_idx && 0 == unhandled_alt_csum[alt_idx] - unhandled_alt_csum[alt_idx - 1])
 				{
 					auto const fixed_alt_idx(alt_idx - unhandled_alt_csum[alt_idx]);
 					dst_path_edges(var_idx, path_idx) |= fixed_alt_idx;

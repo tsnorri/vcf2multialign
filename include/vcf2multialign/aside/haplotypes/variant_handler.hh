@@ -490,7 +490,7 @@ namespace vcf2multialign {
 							auto &ref_ptrs(m_ref_haplotype_ptrs.find(sample_no)->second); // Has nodes for every sample_no.
 					
 							std::string const *alt_ptr{m_null_allele_seq};
-							if (lb::NULL_ALLELE != alt_idx)
+							if (lb::sample_genotype::NULL_ALLELE != alt_idx)
 							{
 								auto const &alt(var_alts[alt_idx - 1]);
 								switch (alt.alt_sv_type)
