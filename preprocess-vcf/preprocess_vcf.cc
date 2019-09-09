@@ -108,8 +108,11 @@ namespace {
 	
 	void preprocess_logger::variant_processor_found_variant_with_no_suitable_alts(libbio::transient_variant const &var)
 	{
+		if (!m_queue)
+			return;
+		
 		auto const lineno(var.lineno());
-		dispatch_async(dispatch_get_main_queue(), ^{
+		dispatch_async(*m_queue, ^{
 			this->log_wt(lineno, "Variant has no ALTs that could be handled");
 		});
 	}
@@ -117,9 +120,12 @@ namespace {
 	
 	void preprocess_logger::variant_processor_found_filtered_variant(libbio::transient_variant const &var, libbio::vcf_info_field_base const &field)
 	{
+		if (!m_queue)
+			return;
+		
 		auto const lineno(var.lineno());
 		auto const &field_id(field.get_metadata()->get_id());
-		dispatch_async(dispatch_get_main_queue(), ^{
+		dispatch_async(*m_queue, ^{
 			this->log_wt(lineno, "Variant has a filtered field set", field_id);
 		});
 	}
@@ -138,6 +144,9 @@ namespace {
 	
 	void preprocess_logger::sample_sorter_found_overlapping_variant(lb::variant const &var, std::size_t const sample_idx, std::size_t const prev_end_pos)
 	{
+		if (!m_queue)
+			return;
+		
 		auto const lineno(var.lineno());
 		auto const p(std::make_pair(lineno, sample_idx));
 		bool should_write(false);
@@ -264,6 +273,7 @@ namespace vcf2multialign {
 		char const *reference_path,
 		char const *variant_file_path,
 		char const *output_path,
+		char const *log_path,
 		char const *reference_seq_name,
 		char const *chr_name,
 		std::vector <std::string> &&field_names_for_filter_if_set,
@@ -282,6 +292,8 @@ namespace vcf2multialign {
 			processor.open_variants_file(variant_file_path);
 			processor.read_reference(reference_path, reference_seq_name);
 			processor.open_output_file(output_path, should_overwrite_files);
+			if (log_path)
+				processor.open_log_file(log_path, should_overwrite_files);
 			
 			processor.prepare_reader();
 			

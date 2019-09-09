@@ -9,6 +9,7 @@ description	"Reads the variant file and produces a list of optimal cut positions
 option		"reference"					r	"Reference FASTA file path"															string		typestr = "filename"					required
 option		"variants"					a	"Variant call file path"															string		typestr = "filename"					required
 option		"output"					o	"Output file path"																	string		typestr = "filename"					required
+option		"log"						-	"Log file path"																		string		typestr = "filename"					optional
 option		"chromosome"				c	"Chromosome identifier"																string		typestr = "identifier"					required
 option		"reference-sequence"		-	"Reference sequence identifier"														string		typestr = "identifier"					optional
 option		"filter-fields-set"			-	"Remove variants with any value for the given field (used with e.g. CIPOS, CIEND)"	string		typestr = "identifier"					optional	multiple

@@ -43,6 +43,7 @@ int main(int argc, char **argv)
 		args_info.reference_arg,
 		args_info.variants_arg,
 		args_info.output_arg,
+		args_info.log_arg,
 		args_info.reference_sequence_given ? args_info.reference_sequence_arg : nullptr,
 		args_info.chromosome_given ? args_info.chromosome_arg : nullptr,
 		std::move(field_names_for_filter_if_set),
