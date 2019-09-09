@@ -175,6 +175,7 @@ namespace vcf2multialign {
 		}
 		
 		variant_handler() = default;
+		virtual ~variant_handler() {}
 		
 	public:
 		void process_variants(haplotype_map_type &haplotypes);
