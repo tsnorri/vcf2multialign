@@ -121,6 +121,8 @@ namespace vcf2multialign {
 		{
 			for (std::size_t i(0), count(var.alts().size()); i < count; ++i)
 				m_sample_sorter.sort_by_variant_and_alt(var, 1 + i);
+			
+			// FIXME: consider handling null alleles.
 		}
 		
 		auto const sample_count(m_sample_indexer.total_samples());
@@ -236,7 +238,8 @@ namespace vcf2multialign {
 				auto const alt_idx(gt[chr_idx].alt);
 				
 				// Check whether the ALT was handled. Otherwise don’t modify the zero stored in dst_path_edges.
-				if (alt_idx && 0 == unhandled_alt_csum[alt_idx] - unhandled_alt_csum[alt_idx - 1])
+				// FIXME: allow substituting the null allele with something else than REF.
+				if (alt_idx && alt_idx != lb::NULL_ALLELE && 0 == unhandled_alt_csum[alt_idx] - unhandled_alt_csum[alt_idx - 1])
 				{
 					auto const fixed_alt_idx(alt_idx - unhandled_alt_csum[alt_idx]);
 					dst_path_edges(var_idx, path_idx) |= fixed_alt_idx;

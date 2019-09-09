@@ -144,6 +144,8 @@ namespace vcf2multialign {
 					sorter.sort_by_variant_and_alt(var, 1 + i);
 					max_size = std::max(max_size, sorter.path_count());
 				}
+				
+				// FIXME: consider handling null alleles.
 			}
 
 			void output_reversed_path(std::ostream &, std::vector <cut_position> const &) const;

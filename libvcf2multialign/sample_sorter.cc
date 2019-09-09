@@ -122,7 +122,7 @@ namespace vcf2multialign {
 				auto const &sample(var.samples()[donor_idx]);
 				auto const &gt((*gt_field)(sample));
 				auto const alt_idx(gt[chr_idx].alt);
-			
+				
 				libbio_assert_lt(src_path_idx, m_branching_paths.size());
 				auto const dst_path_idx(
 					(m_branches_by_path_index.load(src_path_idx, std::memory_order_acquire) == 0x3 && expected_alt_idx == alt_idx)
