@@ -124,7 +124,7 @@ namespace vcf2multialign {
 			progress_indicator_delegate indicator_delegate(*this);
 			this->install_progress_indicator();
 			
-			dispatch_async_main(^{ lb::log_time(std::cerr); std::cerr << "Creating a variant graph…\n"; });
+			dispatch_async_main(^{ lb::log_time(std::cerr); std::cerr << "Creating the variant graph…\n"; });
 			this->progress_indicator().log_with_progress_bar("\t", indicator_delegate);
 			m_generator.generate_graph();
 			this->end_logging();
