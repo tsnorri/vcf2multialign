@@ -24,6 +24,7 @@ namespace vcf2multialign {
 		void uninstall_progress_indicator() { m_progress_indicator.uninstall(); }
 
 		void end_logging() { m_progress_indicator.end_logging(); }
+		void end_logging_no_update() { m_progress_indicator.end_logging_no_update(); }
 		void finish();
 		void finish_mt();
 		
