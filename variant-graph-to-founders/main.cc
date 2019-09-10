@@ -139,6 +139,8 @@ namespace {
 			(args_info.reference_sequence_given ? args_info.reference_sequence_arg : nullptr)
 		);
 		
+		lb::log_time(std::cerr);
+		std::cerr << "Reading the variant graph…\n";
 		gen.read_variant_graph(args_info.variants_arg);
 	}
 	
@@ -147,6 +149,8 @@ namespace {
 	void output_sequences(std::unique_ptr <t_generator> &&gen_ptr)
 	{
 		// Run in background in order to be able to update a progress bar.
+		lb::log_time(std::cerr);
+		std::cerr << "Outputting the sequences.\n";
 		lb::dispatch_async_fn(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
 			[
 				gen_ptr = std::move(gen_ptr)
@@ -200,8 +204,6 @@ int main(int argc, char **argv)
 			prepare(*gen_ptr, args_info);
 			output_sequences(std::move(gen_ptr));
 		}
-		
-		dispatch_main();
 	}
 	catch (lb::assertion_failure_exception const &exc)
 	{
@@ -212,5 +214,8 @@ int main(int argc, char **argv)
 		throw exc;
 	}
 	
+	dispatch_main(); // Needs to be outside the try block.
+
+	// Not reached.
 	return EXIT_SUCCESS;
 }
