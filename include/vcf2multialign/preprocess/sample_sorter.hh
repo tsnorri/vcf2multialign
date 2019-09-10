@@ -55,6 +55,7 @@ namespace vcf2multialign {
 			reader.get_info_field_ptr("END", m_end_field);
 		}
 	
+		void set_delegate(sample_sorter_delegate &delegate) { m_delegate = &delegate; }
 		void prepare_for_next_subgraph();
 		void sort_by_variant_and_alt(libbio::variant const &var, std::uint8_t const expected_alt_idx);
 		path_vector const &paths_by_sample() const { return m_src_paths; }
