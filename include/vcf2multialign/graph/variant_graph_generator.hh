@@ -136,7 +136,7 @@ namespace vcf2multialign {
 		void update_sample_names();
 		void process_subgraph(std::size_t const prev_overlap_end);
 		void calculate_aligned_ref_pos_for_new_node(std::size_t const node_idx);
-		void calculate_aligned_ref_pos_for_new_node(std::size_t const node_idx, std::size_t const max_in_alt_edge_aligned_pos);
+		void update_aligned_ref_pos(std::size_t const node_idx, std::size_t const max_in_alt_edge_aligned_pos);
 		void assign_alt_edge_labels_and_queue(libbio::variant const &var, std::size_t const node_idx, std::size_t const alt_edge_start_idx);
 		void finalize_graph();
 	};

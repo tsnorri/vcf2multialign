@@ -165,7 +165,8 @@ namespace vcf2multialign {
 				{
 					auto const [node_idx, alt_edge_start_idx, did_create] = m_graph.add_main_node(prev_end_pos, handled_alt_count);
 					if (did_create)
-						calculate_aligned_ref_pos_for_new_node(node_idx, top_entry.max_alt_edge_aligned_dst_pos);
+						calculate_aligned_ref_pos_for_new_node(node_idx);
+					update_aligned_ref_pos(node_idx, top_entry.max_alt_edge_aligned_dst_pos);
 					m_graph.connect_alt_edges(top_entry.node_number, node_idx);
 					assign_alt_edge_labels_and_queue(var, node_idx, alt_edge_start_idx);
 					m_overlap_stack.pop();
@@ -175,7 +176,8 @@ namespace vcf2multialign {
 				{
 					auto const [prev_node_idx, prev_alt_edge_start_idx, did_create] = m_graph.add_main_node(prev_end_pos, 0);
 					if (did_create)
-						calculate_aligned_ref_pos_for_new_node(prev_node_idx, top_entry.max_alt_edge_aligned_dst_pos);
+						calculate_aligned_ref_pos_for_new_node(prev_node_idx);
+					update_aligned_ref_pos(prev_node_idx, top_entry.max_alt_edge_aligned_dst_pos);
 					m_graph.connect_alt_edges(top_entry.node_number, prev_node_idx);
 					m_overlap_stack.pop();
 				}
@@ -201,7 +203,8 @@ namespace vcf2multialign {
 			auto const end_pos(lb::variant_end_pos(var, *m_end_field));
 			auto const [node_idx, alt_edge_start_idx, did_create] = m_graph.add_main_node(end_pos, 0);
 			if (did_create)
-				calculate_aligned_ref_pos_for_new_node(node_idx, top_entry.max_alt_edge_aligned_dst_pos);
+				calculate_aligned_ref_pos_for_new_node(node_idx);
+			update_aligned_ref_pos(node_idx, top_entry.max_alt_edge_aligned_dst_pos);
 			m_graph.connect_alt_edges(top_entry.node_number, node_idx);
 			m_overlap_stack.pop();
 		}
@@ -266,12 +269,11 @@ namespace vcf2multialign {
 	
 	
 	// Take the in-side-edge aligned positions in account.
-	void variant_graph_generator::calculate_aligned_ref_pos_for_new_node(std::size_t const node_idx, std::size_t const max_in_alt_edge_aligned_pos)
+	void variant_graph_generator::update_aligned_ref_pos(std::size_t const node_idx, std::size_t const max_in_alt_edge_aligned_pos)
 	{
-		calculate_aligned_ref_pos_for_new_node(node_idx);
-		
 		auto &aligned_ref_positions(m_graph.aligned_ref_positions());	 // 1-based.
-		aligned_ref_positions[1 + node_idx] = std::max(aligned_ref_positions[1 + node_idx], max_in_alt_edge_aligned_pos);
+		auto const aln_pos(std::max(aligned_ref_positions[1 + node_idx], max_in_alt_edge_aligned_pos));
+		aligned_ref_positions[1 + node_idx] = aln_pos;
 	}
 	
 	
