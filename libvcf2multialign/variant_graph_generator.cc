@@ -24,10 +24,13 @@ namespace vcf2multialign {
 		for (auto const & [sample_name, idx1] : sample_name_map)
 			m_sample_names[idx1 - 1] = sample_name; // Copy.
 	}
-	
-	
+
+
 	void variant_graph_generator::generate_graph()
 	{
+		// Update the delegate in case *this has been moved.
+		m_sample_sorter.set_delegate(*this);
+		
 		update_sample_names();
 		m_graph.clear();
 		
