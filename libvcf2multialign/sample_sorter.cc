@@ -26,15 +26,16 @@ namespace vcf2multialign {
 		if (can_handle_variant_alt(alt))
 		{
 			auto const pos(var.zero_based_pos());
+			libbio_assert_lt(sample_idx, m_end_positions_by_sample.size());
 			if (m_end_positions_by_sample[sample_idx] <= pos)
 			{
 				auto const end_pos(variant_end_pos(var));
-				libbio_assert_lt(sample_idx, m_end_positions_by_sample.size());
 				m_end_positions_by_sample[sample_idx] = end_pos;
 				return true;
 			}
 			else
 			{
+				libbio_assert_neq(nullptr, m_delegate);
 				m_delegate->sample_sorter_found_overlapping_variant(var, sample_idx, m_end_positions_by_sample[sample_idx]);
 			}
 		}
