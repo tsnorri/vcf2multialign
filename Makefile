@@ -30,6 +30,7 @@ clean:
 	$(MAKE) -C create-variant-graph clean
 	$(MAKE) -C variant-graph-to-founders clean
 	$(MAKE) -C variant-graph-to-gv clean
+	$(MAKE) -C inspect-variant-graph clean
 
 clean-dependencies: lib/libbio/local.mk
 	$(MAKE) -C lib/libbio clean-all
@@ -45,11 +46,14 @@ dist: $(DIST_TAR_GZ)
 libvcf2multialign/libvcf2multialign.a: $(DEPENDENCIES)
 	$(MAKE) -C libvcf2multialign
 
-preprocess-vcf/preprocess_vcf: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
-	$(MAKE) -C preprocess-vcf
-
 create-variant-graph/create_variant_graph: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
 	$(MAKE) -C create-variant-graph
+
+inspect-variant-graph/inspect_variant_graph: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
+	$(MAKE) -C inspect-variant-graph
+
+preprocess-vcf/preprocess_vcf: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
+	$(MAKE) -C preprocess-vcf
 
 variant-graph-to-founders/variant_graph_to_founders: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
 	$(MAKE) -C variant-graph-to-founders
@@ -58,11 +62,14 @@ variant-graph-to-gv/variant_graph_to_gv: $(DEPENDENCIES) libvcf2multialign/libvc
 	$(MAKE) -C variant-graph-to-gv
 
 $(DIST_TAR_GZ):	preprocess-vcf/preprocess_vcf \
+				create-variant-graph/create_variant_graph \
+				inspect-variant-graph/inspect_variant_graph \
 				variant-graph-to-founders/variant_graph_to_founders \
 				variant-graph-to-gv/variant_graph_to_gv
 	$(MKDIR) -p $(DIST_TARGET_DIR)
 	$(CP) preprocess-vcf/preprocess_vcf $(DIST_TARGET_DIR)
 	$(CP) create-variant-graph/create_variant_graph $(DIST_TARGET_DIR)
+	$(CP) inspect-variant-graph/inspect_variant_graph $(DIST_TARGET_DIR)
 	$(CP) variant-graph-to-founders/variant_graph_to_founders $(DIST_TARGET_DIR)
 	$(CP) variant-graph-to-gv/variant_graph_to_gv $(DIST_TARGET_DIR)
 	$(CP) vcf2multialign/vcf2multialign $(DIST_TARGET_DIR)
