@@ -19,7 +19,7 @@ DIST_TAR_GZ = vcf2multialign-$(VERSION)-$(OS_NAME)$(DIST_NAME_SUFFIX).tar.gz
 all:	libvcf2multialign/libvcf2multialign.a \
 		preprocess-vcf/preprocess_vcf \
 		create-variant-graph/create_variant_graph \
-		variant-graph-to-founders/variant_graph_to_founders \
+		variant-graph-to-sequences/variant_graph_to_sequences \
 		variant-graph-to-gv/variant_graph_to_gv
 
 clean-all: clean clean-dependencies clean-dist
@@ -28,7 +28,7 @@ clean:
 	$(MAKE) -C libvcf2multialign clean
 	$(MAKE) -C preprocess-vcf clean
 	$(MAKE) -C create-variant-graph clean
-	$(MAKE) -C variant-graph-to-founders clean
+	$(MAKE) -C variant-graph-to-sequences clean
 	$(MAKE) -C variant-graph-to-gv clean
 	$(MAKE) -C inspect-variant-graph clean
 
@@ -55,8 +55,8 @@ inspect-variant-graph/inspect_variant_graph: $(DEPENDENCIES) libvcf2multialign/l
 preprocess-vcf/preprocess_vcf: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
 	$(MAKE) -C preprocess-vcf
 
-variant-graph-to-founders/variant_graph_to_founders: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
-	$(MAKE) -C variant-graph-to-founders
+variant-graph-to-sequences/variant_graph_to_sequences: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
+	$(MAKE) -C variant-graph-to-sequences
 
 variant-graph-to-gv/variant_graph_to_gv: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
 	$(MAKE) -C variant-graph-to-gv
@@ -64,13 +64,13 @@ variant-graph-to-gv/variant_graph_to_gv: $(DEPENDENCIES) libvcf2multialign/libvc
 $(DIST_TAR_GZ):	preprocess-vcf/preprocess_vcf \
 				create-variant-graph/create_variant_graph \
 				inspect-variant-graph/inspect_variant_graph \
-				variant-graph-to-founders/variant_graph_to_founders \
+				variant-graph-to-sequences/variant_graph_to_sequences \
 				variant-graph-to-gv/variant_graph_to_gv
 	$(MKDIR) -p $(DIST_TARGET_DIR)
 	$(CP) preprocess-vcf/preprocess_vcf $(DIST_TARGET_DIR)
 	$(CP) create-variant-graph/create_variant_graph $(DIST_TARGET_DIR)
 	$(CP) inspect-variant-graph/inspect_variant_graph $(DIST_TARGET_DIR)
-	$(CP) variant-graph-to-founders/variant_graph_to_founders $(DIST_TARGET_DIR)
+	$(CP) variant-graph-to-sequences/variant_graph_to_sequences $(DIST_TARGET_DIR)
 	$(CP) variant-graph-to-gv/variant_graph_to_gv $(DIST_TARGET_DIR)
 	$(CP) vcf2multialign/vcf2multialign $(DIST_TARGET_DIR)
 	$(CP) README.md $(DIST_TARGET_DIR)

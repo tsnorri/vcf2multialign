@@ -5,12 +5,12 @@ OBJECTS		=	cmdline.o \
 				main.o \
 				sequence_generator_base.o
 
-all: variant_graph_to_founders
+all: variant_graph_to_sequences
 
 clean:
-	$(RM) $(OBJECTS) variant_graph_to_founders cmdline.c cmdline.h version.h
+	$(RM) $(OBJECTS) variant_graph_to_sequences cmdline.c cmdline.h version.h
 
-variant_graph_to_founders: $(OBJECTS)
+variant_graph_to_sequences: $(OBJECTS)
 	$(CXX) -o $@ $(OBJECTS) ../libvcf2multialign/libvcf2multialign.a $(LDFLAGS)
 
 main.cc : cmdline.c
