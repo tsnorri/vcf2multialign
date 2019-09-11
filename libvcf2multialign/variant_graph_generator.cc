@@ -156,6 +156,7 @@ namespace vcf2multialign {
 				auto const &top_entry(m_overlap_stack.top());
 				auto const &prev_var(*top_entry.variant);
 				auto const prev_end_pos(lb::variant_end_pos(prev_var, *m_end_field));
+
 				if (ref_pos < prev_end_pos)
 				{
 					auto const [node_idx, alt_edge_start_idx, did_create] = m_graph.add_main_node(ref_pos, handled_alt_count);
@@ -166,14 +167,14 @@ namespace vcf2multialign {
 				}
 				else if (ref_pos == prev_end_pos)
 				{
+					// There may be multiple variants that end at ref_pos. Hence we don’t move directly to did_handle_current_variant
+					// in the end of this branch.
 					auto const [node_idx, alt_edge_start_idx, did_create] = m_graph.add_main_node(prev_end_pos, handled_alt_count);
 					if (did_create)
 						calculate_aligned_ref_pos_for_new_node(node_idx);
 					update_aligned_ref_pos(node_idx, top_entry.max_alt_edge_aligned_dst_pos);
 					m_graph.connect_alt_edges(top_entry.node_number, node_idx);
-					assign_alt_edge_labels_and_queue(var, node_idx, alt_edge_start_idx);
 					m_overlap_stack.pop();
-					goto did_handle_current_variant;
 				}
 				else // ref_pos > prev_end_pos
 				{
@@ -275,7 +276,8 @@ namespace vcf2multialign {
 	void variant_graph_generator::update_aligned_ref_pos(std::size_t const node_idx, std::size_t const max_in_alt_edge_aligned_pos)
 	{
 		auto &aligned_ref_positions(m_graph.aligned_ref_positions());	 // 1-based.
-		auto const aln_pos(std::max(aligned_ref_positions[1 + node_idx], max_in_alt_edge_aligned_pos));
+		auto const prev_aln_pos(aligned_ref_positions[1 + node_idx]);
+		auto const aln_pos(std::max(prev_aln_pos, max_in_alt_edge_aligned_pos));
 		aligned_ref_positions[1 + node_idx] = aln_pos;
 	}
 	
