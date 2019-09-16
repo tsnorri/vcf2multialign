@@ -1,0 +1,18 @@
+# Copyright (c) 2019 Tuukka Norri
+# This code is licensed under MIT license (see LICENSE for details).
+
+package		"vcf-to-unaligned"
+purpose		"Applies variants to a reference."
+usage		"vcf_to_unaligned --reference=filename.fa --variants=filename.vcf --output=sequence.txt [<options>]"
+description	"Reads the variant file and produces a sequence with the variants applied."
+
+option		"reference"					r	"Reference FASTA file path"															string		typestr = "filename"					required
+option		"variants"					a	"Variant call file path"															string		typestr = "filename"					required
+option		"output"					o	"Output file path"																	string		typestr = "filename"					required
+option		"log"						-	"Log file path"																		string		typestr = "filename"					optional
+option		"chromosome"				c	"Chromosome identifier"																string		typestr = "identifier"					required
+option		"sample-index"				s	"Sample index to output"															int			typestr = "index"						required
+option		"chromosome-copy-index"		p	"Chromosome copy index to output (typically 0 or 1)"								short		typestr = "index"						required
+option		"reference-sequence"		-	"Reference sequence identifier"														string		typestr = "identifier"					optional
+option		"filter-fields-set"			-	"Remove variants with any value for the given field (used with e.g. CIPOS, CIEND)"	string		typestr = "identifier"					optional	multiple
+option		"overwrite"					-	"Overwrite output files"															flag								off

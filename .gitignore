@@ -50,3 +50,7 @@ variant-graph-to-sequences/cmdline.c
 variant-graph-to-sequences/cmdline.h
 variant-graph-to-sequences/config.h
 variant-graph-to-sequences/variant_graph_to_sequences
+vcf-to-unaligned/cmdline.c
+vcf-to-unaligned/cmdline.h
+vcf-to-unaligned/config.h
+vcf-to-unaligned/vcf_to_unaligned
