@@ -205,16 +205,32 @@ namespace vcf2multialign {
 						{
 							if (! (prev_end_pos <= var_pos))
 							{
-								// FIXME: log overlap?
+								// FIXME: log the overlap?
 								goto end;
+							}
+							
+							auto const &alt(var.alts()[alt_idx - 1]);
+							switch (alt.alt_sv_type)
+							{
+								// Handled ALTs:
+								case lb::sv_type::NONE:
+								case lb::sv_type::UNKNOWN:
+								case lb::sv_type::DEL:
+								case lb::sv_type::DEL_ME:
+									break;
+								default:
+									// FIXME: log the ALT?
+									goto end;
 							}
 							
 							std::string_view const ref_sub(m_reference.data() + prev_end_pos, var_pos - prev_end_pos);
 							this->m_output_stream << ref_sub;
 							
-							auto const &alt(var.alts()[alt_idx - 1]);
-							auto const &alt_seq(alt.alt);
-							this->m_output_stream << alt_seq;
+							if (lb::sv_type::NONE == alt.alt_sv_type)
+							{
+								auto const &alt_seq(alt.alt);
+								this->m_output_stream << alt_seq;
+							}
 							
 							auto const var_end(lb::variant_end_pos(var, *end_field));
 							prev_end_pos = var_end;

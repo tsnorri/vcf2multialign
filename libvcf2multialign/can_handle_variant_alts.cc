@@ -24,6 +24,7 @@ namespace vcf2multialign {
 				case lb::sv_type::NONE:
 				case lb::sv_type::DEL:
 				case lb::sv_type::DEL_ME:
+				case lb::sv_type::UNKNOWN:
 					return true;
 					
 				case lb::sv_type::INS:
@@ -32,7 +33,7 @@ namespace vcf2multialign {
 				case lb::sv_type::CNV:
 				case lb::sv_type::DUP_TANDEM:
 				case lb::sv_type::INS_ME:
-				case lb::sv_type::UNKNOWN:
+				case lb::sv_type::UNKNOWN_SV:
 				default:
 					break;
 			}
@@ -50,6 +51,7 @@ namespace vcf2multialign {
 			case lb::sv_type::NONE:
 			case lb::sv_type::DEL:
 			case lb::sv_type::DEL_ME:
+			case lb::sv_type::UNKNOWN:
 				return true;
 				
 			case lb::sv_type::INS:
@@ -58,7 +60,7 @@ namespace vcf2multialign {
 			case lb::sv_type::CNV:
 			case lb::sv_type::DUP_TANDEM:
 			case lb::sv_type::INS_ME:
-			case lb::sv_type::UNKNOWN:
+			case lb::sv_type::UNKNOWN_SV:
 			default:
 				break;
 		}
