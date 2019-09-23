@@ -297,8 +297,23 @@ namespace vcf2multialign {
 			if (can_handle_variant_alt(alt))
 			{
 				libbio_assert_lt(i, alt_edge_end_idx);
-				alt_edge_labels[i] = alt.alt;
-				max_alt_edge_aligned_dst_pos = std::max(max_alt_edge_aligned_dst_pos, start_aligned_pos + alt.alt.size());
+				
+				switch (alt.alt_sv_type)
+				{
+					// Handled ALTs:
+					case lb::sv_type::NONE:
+						alt_edge_labels[i] = alt.alt;
+						max_alt_edge_aligned_dst_pos = std::max(max_alt_edge_aligned_dst_pos, start_aligned_pos + alt.alt.size());
+						break;
+					case lb::sv_type::UNKNOWN:
+					case lb::sv_type::DEL:
+					case lb::sv_type::DEL_ME:
+						alt_edge_labels[i] = "";
+						break;
+					default:
+						break;
+				}
+				
 				++i;
 			}
 		}
