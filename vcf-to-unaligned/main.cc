@@ -8,6 +8,7 @@
 #include <libbio/assert.hh>
 #include <libbio/dispatch.hh>
 #include <libbio/progress_indicator.hh>
+#include <tuple>
 #include <unistd.h>
 #include <vcf2multialign/preprocess/preprocess_logger.hh>
 #include <vcf2multialign/utility/can_handle_variant_alts.hh>
@@ -69,7 +70,7 @@ namespace vcf2multialign {
 		void process_and_output(std::size_t const sample_idx, std::uint8_t const chr_idx);
 		
 	protected:
-		std::pair <std::size_t, std::size_t> output_variants(std::size_t const sample_idx, std::uint8_t const chr_idx, progress_indicator_delegate &progress_delegate);
+		std::tuple <std::size_t, std::size_t, std::size_t> output_variants(std::size_t const sample_idx, std::uint8_t const chr_idx, progress_indicator_delegate &progress_delegate);
 	};
 	
 	
@@ -89,9 +90,12 @@ namespace vcf2multialign {
 			this->uninstall_progress_indicator();
 			
 			dispatch_async(dispatch_get_main_queue(), ^{ 
-				auto const &[included_variants, skipped_variants] = res;
+				auto const &[included_variants, not_included_variants, skipped_variants] = res;
 				lb::log_time(std::cerr);
-				std::cerr << "Done. Included variants: " << included_variants << " Skipped variants: " << skipped_variants << "\n";
+				std::cerr << "Done. Included variants: " << included_variants
+					<< " Skipped variants (GT = 0): " << not_included_variants
+					<< " Skipped variants (ALT not handled): " << skipped_variants
+					<< "\n";
 			});
 			
 			this->m_output_stream << std::flush;
@@ -112,7 +116,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	std::pair <std::size_t, std::size_t> unaligned_processor::output_variants(std::size_t const sample_idx, std::uint8_t const chr_idx, progress_indicator_delegate &indicator_delegate)
+	std::tuple <std::size_t, std::size_t, std::size_t> unaligned_processor::output_variants(std::size_t const sample_idx, std::uint8_t const chr_idx, progress_indicator_delegate &indicator_delegate)
 	{
 		auto &reader(this->vcf_reader());
 		reader.reset();
@@ -142,6 +146,7 @@ namespace vcf2multialign {
 		std::size_t prev_end_pos{};
 		std::size_t overlap_end{};
 		std::size_t included_variants{};
+		std::size_t not_included_variants{};
 		std::size_t skipped_variants{};
 		do {
 			reader.fill_buffer();
@@ -154,8 +159,9 @@ namespace vcf2multialign {
 					&prev_end_pos,
 					&filter_by_assigned,
 					&indicator_delegate,
-					&skipped_variants,
-					&included_variants
+					&included_variants,
+					&not_included_variants,
+					&skipped_variants
 				](lb::transient_variant const &var) -> bool
 				{
 					auto const lineno(var.lineno());
@@ -206,7 +212,12 @@ namespace vcf2multialign {
 						auto const &gt((*gt_field)(sample));
 						libbio_always_assert_lt(chr_idx, gt.size());
 						auto const alt_idx(gt[chr_idx].alt);
-						if (0 != alt_idx)
+						if (0 == alt_idx)
+						{
+							++not_included_variants;
+							goto end_2;
+						}
+						else
 						{
 							if (! (prev_end_pos <= var_pos))
 							{
@@ -260,7 +271,7 @@ namespace vcf2multialign {
 		std::string_view const ref_sub(m_reference.data() + prev_end_pos, m_reference.size() - prev_end_pos);
 		this->m_output_stream << ref_sub;
 
-		return std::make_pair(included_variants, skipped_variants);
+		return std::make_tuple(included_variants, not_included_variants, skipped_variants);
 	}
 	
 	
