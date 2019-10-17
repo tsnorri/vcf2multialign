@@ -69,7 +69,7 @@ namespace vcf2multialign {
 		void process_and_output(std::size_t const sample_idx, std::uint8_t const chr_idx);
 		
 	protected:
-		void output_variants(std::size_t const sample_idx, std::uint8_t const chr_idx, progress_indicator_delegate &progress_delegate);
+		std::pair <std::size_t, std::size_t> output_variants(std::size_t const sample_idx, std::uint8_t const chr_idx, progress_indicator_delegate &progress_delegate);
 	};
 	
 	
@@ -83,14 +83,15 @@ namespace vcf2multialign {
 			
 			this->progress_indicator().log_with_counter(lb::copy_time() + "Processing the variants…", indicator_delegate);
 			
-			output_variants(sample_idx, chr_idx, indicator_delegate);
+			auto const res(output_variants(sample_idx, chr_idx, indicator_delegate));
 			
 			this->end_logging();
 			this->uninstall_progress_indicator();
 			
-			dispatch_async(dispatch_get_main_queue(), ^{
+			dispatch_async(dispatch_get_main_queue(), ^{ 
+				auto const &[included_variants, skipped_variants] = res;
 				lb::log_time(std::cerr);
-				std::cerr << "Done.\n";
+				std::cerr << "Done. Included variants: " << included_variants << " Skipped variants: " << skipped_variants << "\n";
 			});
 			
 			this->m_output_stream << std::flush;
@@ -111,7 +112,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void unaligned_processor::output_variants(std::size_t const sample_idx, std::uint8_t const chr_idx, progress_indicator_delegate &indicator_delegate)
+	std::pair <std::size_t, std::size_t> unaligned_processor::output_variants(std::size_t const sample_idx, std::uint8_t const chr_idx, progress_indicator_delegate &indicator_delegate)
 	{
 		auto &reader(this->vcf_reader());
 		reader.reset();
@@ -140,6 +141,8 @@ namespace vcf2multialign {
 		bool should_continue(false);
 		std::size_t prev_end_pos{};
 		std::size_t overlap_end{};
+		std::size_t included_variants{};
+		std::size_t skipped_variants{};
 		do {
 			reader.fill_buffer();
 			should_continue = reader.parse(
@@ -150,7 +153,9 @@ namespace vcf2multialign {
 					end_field,
 					&prev_end_pos,
 					&filter_by_assigned,
-					&indicator_delegate
+					&indicator_delegate,
+					&skipped_variants,
+					&included_variants
 				](lb::transient_variant const &var) -> bool
 				{
 					auto const lineno(var.lineno());
@@ -205,7 +210,8 @@ namespace vcf2multialign {
 						{
 							if (! (prev_end_pos <= var_pos))
 							{
-								// FIXME: log the overlap?
+								// FIXME: log the overlap.
+								//this->variant_processor_found_overlapping_variant(var, prev_end_pos);
 								goto end;
 							}
 							
@@ -219,7 +225,8 @@ namespace vcf2multialign {
 								case lb::sv_type::DEL_ME:
 									break;
 								default:
-									// FIXME: log the ALT?
+									// FIXME: log the ALT.
+									//this->variant_processor_unhandled_alt(var, alt_idx);
 									goto end;
 							}
 							
@@ -234,10 +241,16 @@ namespace vcf2multialign {
 							
 							auto const var_end(lb::variant_end_pos(var, *end_field));
 							prev_end_pos = var_end;
+							++included_variants;
 						}
+
+						goto end_2;
 					}
 					
 				end:
+					++skipped_variants;
+
+				end_2:
 					indicator_delegate.increment();
 					return true;
 				}
@@ -246,6 +259,8 @@ namespace vcf2multialign {
 		
 		std::string_view const ref_sub(m_reference.data() + prev_end_pos, m_reference.size() - prev_end_pos);
 		this->m_output_stream << ref_sub;
+
+		return std::make_pair(included_variants, skipped_variants);
 	}
 	
 	
