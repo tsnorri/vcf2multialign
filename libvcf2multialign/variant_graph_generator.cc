@@ -38,12 +38,12 @@ namespace vcf2multialign {
 		m_reader->reset();
 		m_reader->set_parsed_fields(lb::vcf_field::ALL);
 		
-		auto const &cut_positions(*m_cut_position_list);
-		auto const cut_pos_rng(cut_positions.positions | ranges::view::tail);
+		auto const &preprocessing_res(*m_preprocessing_result);
+		auto const cut_pos_rng(preprocessing_res.positions | ranges::view::tail);
 		auto cut_pos_it(ranges::begin(cut_pos_rng));
 		auto const cut_pos_end(ranges::end(cut_pos_rng));
-		auto line_no_it(ranges::begin(cut_positions.handled_line_numbers));
-		auto const line_no_end(ranges::end(cut_positions.handled_line_numbers));
+		auto line_no_it(ranges::begin(preprocessing_res.handled_line_numbers));
+		auto const line_no_end(ranges::end(preprocessing_res.handled_line_numbers));
 		std::size_t overlap_end_pos(0);
 		std::size_t prev_overlap_end_pos(0);
 		libbio_always_assert_neq(cut_pos_it, cut_pos_end);

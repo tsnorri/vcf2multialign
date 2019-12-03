@@ -53,13 +53,13 @@ namespace vcf2multialign {
 		friend progress_indicator_delegate;
 		
 	protected:
-		cut_position_list		m_cut_position_list;
+		preprocessing_result	m_preprocessing_result;
 		variant_graph_generator	m_generator;
 		
 	public:
 		variant_graph_processor() = default;
 		
-		void open_cut_position_file(char const *path);
+		void open_preprocessing_result_file(char const *path);
 		void process_and_output();
 		void variant_graph_generator_will_handle_subgraph(libbio::variant const &, std::size_t const, std::size_t const);
 	};
@@ -70,8 +70,7 @@ namespace {
 	
 	std::size_t progress_indicator_delegate::progress_step_max() const
 	{
-		return m_processor->m_cut_position_list.handled_line_numbers.size();
-		
+		return m_processor->m_preprocessing_result.handled_line_numbers.size();
 	}
 	
 	
@@ -90,12 +89,12 @@ namespace {
 
 namespace vcf2multialign {
 	
-	void variant_graph_processor::open_cut_position_file(char const *path)
+	void variant_graph_processor::open_preprocessing_result_file(char const *path)
 	{
-		lb::file_istream input_cut_position_stream;
-		lb::open_file_for_reading(path, input_cut_position_stream);
-		cereal::PortableBinaryInputArchive iarchive(input_cut_position_stream);
-		iarchive(m_cut_position_list);
+		lb::file_istream input_preprocessing_result_stream;
+		lb::open_file_for_reading(path, input_preprocessing_result_stream);
+		cereal::PortableBinaryInputArchive iarchive(input_preprocessing_result_stream);
+		iarchive(m_preprocessing_result);
 	}
 	
 	
@@ -118,7 +117,7 @@ namespace vcf2multialign {
 	{
 		try
 		{
-			m_generator = variant_graph_generator(*this, this->m_vcf_reader, this->m_reference, m_cut_position_list);
+			m_generator = variant_graph_generator(*this, this->m_vcf_reader, this->m_reference, m_preprocessing_result);
 			
 			// Partition.
 			progress_indicator_delegate indicator_delegate(*this);
@@ -157,7 +156,7 @@ namespace vcf2multialign {
 	void create_variant_graph(
 		char const *reference_file_path,
 		char const *variant_file_path,
-		char const *cut_position_file_path,
+		char const *preprocessing_result_file_path,
 		char const *output_graph_path,
 		char const *reference_seq_name,
 		bool const should_overwrite_files
@@ -172,7 +171,7 @@ namespace vcf2multialign {
 			
 			// These will eventually call std::exit if the file in question cannot be opened.
 			processor.open_variants_file(variant_file_path);
-			processor.open_cut_position_file(cut_position_file_path);
+			processor.open_preprocessing_result_file(preprocessing_result_file_path);
 			processor.read_reference(reference_file_path, reference_seq_name);
 			processor.open_output_file(output_graph_path, should_overwrite_files);
 			

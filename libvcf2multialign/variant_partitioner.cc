@@ -16,7 +16,7 @@ namespace vcf2multialign {
 	
 	bool variant_partitioner::partition(
 		std::vector <std::string> const &field_names_for_filter_by_assigned,
-		cut_position_list &out_cut_positions
+		preprocessing_result &out_preprocessing_result
 	)
 	{
 		m_reader->reset();
@@ -52,7 +52,7 @@ namespace vcf2multialign {
 			ctx.start_position_idx = cut_position_tree.size() - 1;
 		}
 		
-		auto &handled_line_numbers(out_cut_positions.handled_line_numbers);
+		auto &handled_line_numbers(out_preprocessing_result.handled_line_numbers);
 		handled_line_numbers.clear();
 		
 		bool should_continue(false);
@@ -163,7 +163,7 @@ namespace vcf2multialign {
 			return false;
 		
 		{
-			auto &positions(out_cut_positions.positions);
+			auto &positions(out_preprocessing_result.positions);
 			positions.clear();
 			positions.emplace_back(ref_len);
 			
@@ -178,7 +178,7 @@ namespace vcf2multialign {
 			std::reverse(positions.begin(), positions.end());
 			libbio_assert(std::is_sorted(positions.begin(), positions.end()));
 			libbio_assert_eq(positions.end(), std::adjacent_find(positions.begin(), positions.end()));
-			out_cut_positions.max_segment_size = ctx.max_size;
+			out_preprocessing_result.max_segment_size = ctx.max_size;
 			return true;
 		}
 	}

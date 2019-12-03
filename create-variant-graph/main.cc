@@ -42,7 +42,7 @@ int main(int argc, char **argv)
 		v2m::create_variant_graph(
 			args_info.reference_arg,
 			args_info.variants_arg,
-			args_info.cut_positions_arg,
+			args_info.preprocessing_result_arg,
 			args_info.output_arg,
 			args_info.reference_sequence_given ? args_info.reference_sequence_arg : nullptr,
 			args_info.overwrite_flag

@@ -89,7 +89,7 @@ namespace vcf2multialign {
 		variant_graph_generator_delegate				*m_delegate{};
 		libbio::vcf_reader								*m_reader{};
 		vector_type const								*m_reference{};
-		cut_position_list const							*m_cut_position_list{};
+		preprocessing_result const						*m_preprocessing_result{};
 		libbio::vcf_info_field_end const				*m_end_field{};
 		variant_graph									m_graph;
 		variant_stack									m_subgraph_variants;
@@ -108,14 +108,14 @@ namespace vcf2multialign {
 			variant_graph_generator_delegate &delegate,
 			libbio::vcf_reader &reader,
 			vector_type const &reference,
-			cut_position_list const &cut_position_list
+			preprocessing_result const &preprocessing_result
 		):
 			m_delegate(&delegate),
 			m_reader(&reader),
 			m_reference(&reference),
-			m_cut_position_list(&cut_position_list),
+			m_preprocessing_result(&preprocessing_result),
 			m_end_field(reader.get_end_field_ptr()),
-			m_sample_indexer(cut_position_list.donor_count, cut_position_list.chr_count),
+			m_sample_indexer(preprocessing_result.donor_count, preprocessing_result.chr_count),
 			m_sample_sorter(*this, reader, m_sample_indexer),
 			m_overlap_stack(detail::overlap_stack_compare(*m_end_field))
 		{

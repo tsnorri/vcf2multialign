@@ -87,27 +87,27 @@ namespace vcf2multialign {
 				this->m_minimum_subgraph_distance
 			);
 			
-			cut_position_list cut_positions;
-			cut_positions.donor_count = donor_count;
-			cut_positions.chr_count = chr_count;
+			preprocessing_result result;
+			result.donor_count = donor_count;
+			result.chr_count = chr_count;
 			
 			// Partition.
 			progress_indicator_delegate indicator_delegate(partitioner);
 			this->install_progress_indicator();
 			
 			this->progress_indicator().log_with_counter(lb::copy_time() + "Processing the variants…", indicator_delegate);
-			partitioner.partition(m_field_names_for_filter_if_set, cut_positions);
+			partitioner.partition(m_field_names_for_filter_if_set, result);
 			this->end_logging();
 			this->uninstall_progress_indicator();
 			
 			dispatch_async(dispatch_get_main_queue(), ^{
 				lb::log_time(std::cerr);
-				std::cerr << "Done. Maximum segment size: " << cut_positions.max_segment_size << " Cut position count: " << cut_positions.positions.size() << '\n';
+				std::cerr << "Done. Maximum segment size: " << result.max_segment_size << " Cut position count: " << result.positions.size() << '\n';
 			});
 			
 			// Output.
 			cereal::PortableBinaryOutputArchive archive(this->m_output_stream);
-			archive(cut_positions);
+			archive(result);
 			this->m_output_stream << std::flush;
 			
 			this->finish();

@@ -29,7 +29,7 @@ namespace vcf2multialign {
 
 namespace vcf2multialign {
 	
-	struct cut_position_list
+	struct preprocessing_result
 	{
 		std::vector <std::size_t>	handled_line_numbers;	// In addition to the cut positions, store the line numbers that were handled.
 		position_vector				positions;
@@ -86,7 +86,7 @@ namespace vcf2multialign {
 		
 		bool partition(
 			std::vector <std::string> const &field_names_for_filter_by_assigned,
-			cut_position_list &out_cut_positions
+			preprocessing_result &out_preprocessing_results
 		);
 		
 		std::size_t processed_count() const { return m_processed_count.load(std::memory_order_relaxed); }
