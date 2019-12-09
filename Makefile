@@ -19,8 +19,10 @@ DIST_TAR_GZ = vcf2multialign-$(VERSION)-$(OS_NAME)$(DIST_NAME_SUFFIX).tar.gz
 all:	libvcf2multialign/libvcf2multialign.a \
 		preprocess-vcf/preprocess_vcf \
 		create-variant-graph/create_variant_graph \
+		inspect-variant-graph/inspect_variant_graph \
 		variant-graph-to-sequences/variant_graph_to_sequences \
-		variant-graph-to-gv/variant_graph_to_gv
+		variant-graph-to-gv/variant_graph_to_gv \
+		vcf-to-unaligned/vcf_to_unaligned
 
 clean-all: clean clean-dependencies clean-dist
 
@@ -28,9 +30,10 @@ clean:
 	$(MAKE) -C libvcf2multialign clean
 	$(MAKE) -C preprocess-vcf clean
 	$(MAKE) -C create-variant-graph clean
+	$(MAKE) -C inspect-variant-graph clean
 	$(MAKE) -C variant-graph-to-sequences clean
 	$(MAKE) -C variant-graph-to-gv clean
-	$(MAKE) -C inspect-variant-graph clean
+	$(MAKE) -C vcf-to-unaligned clean
 
 clean-dependencies: lib/libbio/local.mk
 	$(MAKE) -C lib/libbio clean-all
@@ -60,6 +63,9 @@ variant-graph-to-sequences/variant_graph_to_sequences: $(DEPENDENCIES) libvcf2mu
 
 variant-graph-to-gv/variant_graph_to_gv: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
 	$(MAKE) -C variant-graph-to-gv
+
+vcf-to-unaligned/vcf_to_unaligned: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
+	$(MAKE) -C vcf-to-unaligned
 
 $(DIST_TAR_GZ):	preprocess-vcf/preprocess_vcf \
 				create-variant-graph/create_variant_graph \
