@@ -19,15 +19,18 @@ namespace vcf2multialign {
 	void variant_graph_generator::update_sample_names()
 	{
 		// XXX I don’t remember why vcf_reader outputs the sample names as a map with names as keys and positions as indices but it should be fixed unless a good reason is found not to.
-		auto const &sample_name_map(m_reader->sample_names());
+		auto &reader(this->vcf_reader());
+		auto const &sample_name_map(reader.sample_names());
 		m_sample_names.resize(sample_name_map.size());
 		for (auto const & [sample_name, idx1] : sample_name_map)
 			m_sample_names[idx1 - 1] = sample_name; // Copy.
 	}
-
-
-	void variant_graph_generator::generate_graph()
+	
+	
+	void variant_graph_generator::generate_graph_setup()
 	{
+		auto &reader(this->vcf_reader());
+		
 		// Update the delegate in case *this has been moved.
 		m_sample_sorter.set_delegate(*this);
 		
@@ -35,9 +38,102 @@ namespace vcf2multialign {
 		m_graph.clear();
 		
 		m_processed_count.store(0, std::memory_order_relaxed);
-		m_reader->reset();
-		m_reader->set_parsed_fields(lb::vcf_field::ALL);
+		reader.reset();
+		reader.set_parsed_fields(lb::vcf_field::ALL);
+	}
+	
+	
+	void variant_graph_single_pass_generator::generate_graph(
+		std::vector <std::string> const &field_names_for_filter_by_assigned
+	)
+	{
+		auto &reader(this->vcf_reader());
+		auto &delegate(this->delegate());
 		
+		generate_graph_setup();
+		
+		reader.reset();
+		reader.set_parsed_fields(lb::vcf_field::ALL);
+		
+		// Get the field descriptors needed for accessing the values.
+		auto const *end_field(reader.get_end_field_ptr());
+		
+		// Determine the fields used for filtering.
+		std::vector <lb::vcf_info_field_base *> filter_by_assigned;
+		this->fill_filter_by_assigned(field_names_for_filter_by_assigned, filter_by_assigned, delegate);
+		
+		std::size_t prev_overlap_end_pos(0);
+		std::size_t overlap_end_pos(0);
+		
+		// Process the variants.
+		bool should_continue(false);
+		do
+		{
+			reader.fill_buffer();
+			bool should_continue_line_number_loop(false);
+			should_continue = reader.parse(
+				[
+					this,
+					&delegate,
+					&filter_by_assigned,
+					&overlap_end_pos,
+					&prev_overlap_end_pos
+				]
+				(lb::transient_variant const &var) -> bool
+				{
+					auto const lineno(var.lineno());
+					auto const var_pos(var.zero_based_pos());
+					auto const var_end(lb::variant_end_pos(var, *m_end_field));
+					libbio_always_assert_lte(var_pos, var_end);
+					
+					switch (this->check_variant(var, filter_by_assigned, delegate))
+					{
+						case variant_check_status::PASS:
+							break;
+						case variant_check_status::ERROR:
+							goto end;
+						case variant_check_status::FATAL_ERROR:
+							return false;
+					}
+					
+					// Check for a suitable subgraph starting position.
+					// process_subgraph() actually does a similar check in order to
+					// handle overlaps within a subgraph.
+					if (overlap_end_pos <= var_pos)
+					{
+						// Handle the subgraph.
+						process_subgraph(prev_overlap_end_pos);
+						prev_overlap_end_pos = overlap_end_pos;
+					}
+					
+					// Add to the stack.
+					overlap_end_pos = std::max(overlap_end_pos, var_end);
+					m_subgraph_variants.emplace_back(var);
+					
+				end:
+					++m_processed_count;
+					return true;
+				}
+			);
+		} while (should_continue);
+		
+		// Process the remaining variants.
+		process_subgraph(prev_overlap_end_pos);
+		
+		// Copy the sample names and finalize.
+		m_graph.sample_names() = m_sample_names;
+		finalize_graph();
+	}
+	
+	
+	void variant_graph_precalculated_generator::generate_graph()
+	{
+		auto &reader(this->vcf_reader());
+		auto &delegate(this->delegate());
+		
+		generate_graph_setup();
+		
+		// Prepare using the preprocessing result.
 		auto const &preprocessing_res(*m_preprocessing_result);
 		auto const cut_pos_rng(preprocessing_res.positions | ranges::view::tail);
 		auto cut_pos_it(ranges::begin(cut_pos_rng));
@@ -52,9 +148,9 @@ namespace vcf2multialign {
 		bool should_continue(false);
 		do
 		{
-			m_reader->fill_buffer();
+			reader.fill_buffer();
 			bool should_continue_line_number_loop(false);
-			should_continue = m_reader->parse(
+			should_continue = reader.parse(
 				[
 					this,
 					&cut_pos_it,
@@ -130,7 +226,7 @@ namespace vcf2multialign {
 		
 		auto const sample_count(m_sample_indexer.total_samples());
 		auto const path_count(m_sample_sorter.path_count());
-		m_delegate->variant_graph_generator_will_handle_subgraph(m_subgraph_variants.front(), m_subgraph_variants.size(), path_count);
+		this->delegate().variant_graph_generator_will_handle_subgraph(m_subgraph_variants.front(), m_subgraph_variants.size(), path_count);
 		
 		// Begin a new subgraph; place the beginning between the last variant of the previous subgraph and the first variant of the next subgraph.
 		std::size_t const subgraph_start_pos(prev_overlap_end_pos + std::ceil((m_subgraph_variants.front().zero_based_pos() - prev_overlap_end_pos) / 2.0));
@@ -324,7 +420,7 @@ namespace vcf2multialign {
 	
 	void variant_graph_generator::finalize_graph()
 	{
-		auto const ref_size(m_reference->size());
+		auto const ref_size(reference().size());
 		auto const [node_idx, alt_edge_start_idx, did_create] = m_graph.add_main_node(ref_size, 0);
 		if (did_create)
 			calculate_aligned_ref_pos_for_new_node(node_idx);

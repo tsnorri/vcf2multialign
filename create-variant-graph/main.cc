@@ -39,14 +39,34 @@ int main(int argc, char **argv)
 	
 	try
 	{
-		v2m::create_variant_graph(
-			args_info.reference_arg,
-			args_info.variants_arg,
-			args_info.preprocessing_result_arg,
-			args_info.output_arg,
-			args_info.reference_sequence_given ? args_info.reference_sequence_arg : nullptr,
-			args_info.overwrite_flag
-		);
+		if (args_info.cut_by_overlap_start_given)
+		{
+			std::vector <std::string> field_names_for_filter_if_set(args_info.filter_fields_set_given);
+			for (std::size_t i(0); i < args_info.filter_fields_set_given; ++i)
+				field_names_for_filter_if_set[i] = args_info.filter_fields_set_arg[i];
+			
+			v2m::create_variant_graph_single_pass(
+				args_info.reference_arg,
+				args_info.variants_arg,
+				args_info.output_arg,
+				args_info.log_arg,
+				args_info.reference_sequence_given ? args_info.reference_sequence_arg : nullptr,
+				args_info.chromosome_arg,
+				std::move(field_names_for_filter_if_set),
+				args_info.overwrite_flag
+			);
+		}
+		else if (args_info.cut_by_precalculated_given)
+		{
+			v2m::create_variant_graph_preprocessed(
+				args_info.reference_arg,
+				args_info.variants_arg,
+				args_info.cut_positions_arg,
+				args_info.output_arg,
+				args_info.reference_sequence_given ? args_info.reference_sequence_arg : nullptr,
+				args_info.overwrite_flag
+			);
+		}
 	}
 	catch (lb::assertion_failure_exception const &exc)
 	{

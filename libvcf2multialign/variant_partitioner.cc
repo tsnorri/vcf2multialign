@@ -19,28 +19,15 @@ namespace vcf2multialign {
 		preprocessing_result &out_preprocessing_result
 	)
 	{
-		m_reader->reset();
-		m_reader->set_parsed_fields(lb::vcf_field::ALL);
+		this->m_reader->reset();
+		this->m_reader->set_parsed_fields(lb::vcf_field::ALL);
 		
 		// Get the field descriptors needed for accessing the values.
-		auto const *end_field(m_reader->get_end_field_ptr());
+		auto const *end_field(this->m_reader->get_end_field_ptr());
 		
 		// Determine the fields used for filtering.
 		std::vector <lb::vcf_info_field_base *> filter_by_assigned;
-		{
-			auto const &fields(m_reader->info_fields());
-			for (auto const &name : field_names_for_filter_by_assigned)
-			{
-				auto const it(fields.find(name));
-				if (fields.end() == it)
-				{
-					m_delegate->variant_processor_no_field_for_identifier(name);
-					continue;
-				}
-				
-				filter_by_assigned.emplace_back(it->second.get());
-			}
-		}
+		this->fill_filter_by_assigned(field_names_for_filter_by_assigned, filter_by_assigned, *m_delegate);
 		
 		std::vector <cut_position> cut_position_tree;
 		std::list <dp_ctx> closable_partitions, unclosable_partitions;
@@ -48,7 +35,7 @@ namespace vcf2multialign {
 		{
 			// Set up the first cut position and segment.
 			cut_position_tree.emplace_back();
-			auto &ctx(unclosable_partitions.emplace_back(*m_delegate, *m_reader, m_sample_indexer));
+			auto &ctx(unclosable_partitions.emplace_back(*m_delegate, *this->m_reader, m_sample_indexer));
 			ctx.start_position_idx = cut_position_tree.size() - 1;
 		}
 		
@@ -58,8 +45,8 @@ namespace vcf2multialign {
 		bool should_continue(false);
 		std::size_t overlap_end{};
 		do {
-			m_reader->fill_buffer();
-			should_continue = m_reader->parse(
+			this->m_reader->fill_buffer();
+			should_continue = this->m_reader->parse(
 				[
 					this,
 					end_field,
@@ -73,42 +60,17 @@ namespace vcf2multialign {
 				{
 					auto const lineno(var.lineno());
 					auto const var_pos(var.zero_based_pos());
+					auto const var_end(lb::variant_end_pos(var, *end_field));
+					libbio_always_assert_lte(var_pos, var_end);
 					
-					// Check the chromosome name.
-					if (var.chrom_id() != m_chromosome_name)
-						goto end;
-					
-					if (! (var_pos < m_reference->size()))
+					switch (this->check_variant(var, filter_by_assigned, *m_delegate))
 					{
-						m_delegate->variant_processor_found_variant_with_position_greater_than_reference_length(var);
-						return false;
-					}
-					
-					if (!can_handle_variant_alts(var))
-					{
-						m_delegate->variant_processor_found_variant_with_no_suitable_alts(var);
-						goto end;
-					}
-					
-					// Filter.
-					for (auto const *field_ptr : filter_by_assigned)
-					{
-						if (field_ptr->has_value(var))
-						{
-							m_delegate->variant_processor_found_filtered_variant(var, *field_ptr);
+						case variant_check_status::PASS:
+							break;
+						case variant_check_status::ERROR:
 							goto end;
-						}
-					}
-					
-					// Compare the REF column against the reference sequence.
-					{
-						auto const &ref_col(var.ref());
-						std::string_view const ref_sub(m_reference->data() + var_pos, ref_col.size());
-						if (ref_col != ref_sub)
-						{
-							m_delegate->variant_processor_found_variant_with_ref_mismatch(var, ref_sub);
-							goto end;
-						}
+						case variant_check_status::FATAL_ERROR:
+							return false;
 					}
 					
 					// Variant passes the checks, handle it.
@@ -122,7 +84,7 @@ namespace vcf2multialign {
 						// If there is a closable partition, make a copy of it.
 						if (!closable_partitions.empty())
 						{
-							auto &new_ctx(unclosable_partitions.emplace_back(*m_delegate, *m_reader, m_sample_indexer));
+							auto &new_ctx(unclosable_partitions.emplace_back(*m_delegate, *this->m_reader, m_sample_indexer));
 							new_ctx.chain_previous(closable_partitions.front(), var_pos, cut_position_tree);
 						}
 					}
@@ -179,6 +141,7 @@ namespace vcf2multialign {
 			libbio_assert(std::is_sorted(positions.begin(), positions.end()));
 			libbio_assert_eq(positions.end(), std::adjacent_find(positions.begin(), positions.end()));
 			out_preprocessing_result.max_segment_size = ctx.max_size;
+			out_preprocessing_result.is_valid = true; // Mark as valid.
 			return true;
 		}
 	}

@@ -56,6 +56,7 @@ namespace vcf2multialign {
 		}
 	
 		void set_delegate(sample_sorter_delegate &delegate) { m_delegate = &delegate; }
+		void set_sample_indexer(sample_indexer &indexer) { m_sample_indexer = &indexer; }
 		void prepare_for_next_subgraph();
 		void sort_by_variant_and_alt(libbio::variant const &var, std::uint8_t const expected_alt_idx);
 		path_vector const &paths_by_sample() const { return m_src_paths; }

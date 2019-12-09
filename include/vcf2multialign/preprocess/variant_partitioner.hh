@@ -18,6 +18,7 @@
 #include <vcf2multialign/preprocess/sample_sorter.hh>
 #include <vcf2multialign/preprocess/types.hh>
 #include <vcf2multialign/types.hh>
+#include <vcf2multialign/variant_processor.hh>
 #include <vcf2multialign/variant_processor_delegate.hh>
 #include <vector>
 
@@ -36,31 +37,29 @@ namespace vcf2multialign {
 		path_number_type			max_segment_size{};
 		std::size_t					donor_count{};
 		std::uint8_t				chr_count{};
+		bool						is_valid{};
 		
 		// Ignore the version for now.
 		template <typename t_archive>
 		void serialize(t_archive &archive, std::uint32_t const version)
 		{
-			archive(handled_line_numbers, positions, max_segment_size, donor_count, chr_count);
+			archive(handled_line_numbers, positions, max_segment_size, donor_count, chr_count, is_valid);
 		}
 	};
 	
 	
-	struct variant_partitioner_delegate : public variant_processor_delegate, public sample_sorter_delegate {};
+	struct variant_partitioner_delegate : public virtual variant_processor_delegate, public sample_sorter_delegate {};
 	
 	
-	class variant_partitioner
+	class variant_partitioner : public variant_processor
 	{
 	protected:
 		struct dp_ctx; // Fwd
 		
 	protected:
 		variant_partitioner_delegate					*m_delegate{};
-		libbio::vcf_reader								*m_reader{};
-		libbio::vcf_info_field_end						*m_end_field{};
-		vector_type const								*m_reference{};
+		//libbio::vcf_info_field_end						*m_end_field{};
 		sample_indexer									m_sample_indexer;
-		std::string										m_chromosome_name;
 		std::size_t										m_minimum_subgraph_distance{};
 		std::atomic_size_t								m_processed_count{};
 		
@@ -74,12 +73,10 @@ namespace vcf2multialign {
 			std::uint8_t const chr_count,
 			std::size_t const minimum_subgraph_distance
 		):
+			variant_processor(reader, reference, chr_name),
 			m_delegate(&delegate),
-			m_reader(&reader),
-			m_end_field(reader.get_end_field_ptr()),
-			m_reference(&reference),
+			//m_end_field(reader.get_end_field_ptr()),
 			m_sample_indexer(donor_count, chr_count),
-			m_chromosome_name(chr_name),
 			m_minimum_subgraph_distance(minimum_subgraph_distance)
 		{
 		}

@@ -170,8 +170,8 @@ namespace vcf2multialign {
 			lb::dispatch_async_fn(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
 				[
 					processor_ptr = std::move(processor_ptr),
-				 	chr_count,
-				 	donor_count
+					chr_count,
+					donor_count
 				](){
 					processor_ptr->process_and_output(donor_count, chr_count);
 				}
