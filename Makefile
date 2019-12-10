@@ -19,6 +19,7 @@ DIST_TAR_GZ = vcf2multialign-$(VERSION)-$(OS_NAME)$(DIST_NAME_SUFFIX).tar.gz
 all:	libvcf2multialign/libvcf2multialign.a \
 		preprocess-vcf/preprocess_vcf \
 		create-variant-graph/create_variant_graph \
+		index-vcf/index_vcf \
 		inspect-variant-graph/inspect_variant_graph \
 		variant-graph-to-sequences/variant_graph_to_sequences \
 		variant-graph-to-gv/variant_graph_to_gv \
@@ -30,6 +31,7 @@ clean:
 	$(MAKE) -C libvcf2multialign clean
 	$(MAKE) -C preprocess-vcf clean
 	$(MAKE) -C create-variant-graph clean
+	$(MAKE) -C index-vcf clean
 	$(MAKE) -C inspect-variant-graph clean
 	$(MAKE) -C variant-graph-to-sequences clean
 	$(MAKE) -C variant-graph-to-gv clean
@@ -51,6 +53,9 @@ libvcf2multialign/libvcf2multialign.a: $(DEPENDENCIES)
 
 create-variant-graph/create_variant_graph: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
 	$(MAKE) -C create-variant-graph
+
+index-vcf/index_vcf: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
+	$(MAKE) -C index-vcf
 
 inspect-variant-graph/inspect_variant_graph: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
 	$(MAKE) -C inspect-variant-graph

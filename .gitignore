@@ -34,10 +34,14 @@ create-variant-graph/cmdline.c
 create-variant-graph/cmdline.h
 create-variant-graph/config.h
 create-variant-graph/create_variant_graph
+index-vcf/cmdline.c
+index-vcf/cmdline.h
+index-vcf/config.h
+index-vcf/index_vcf
 inspect-variant-graph/cmdline.c
 inspect-variant-graph/cmdline.h
 inspect-variant-graph/config.h
-inspect-variant-graph/read_variant_graph
+inspect-variant-graph/inspect_variant_graph
 preprocess-vcf/cmdline.c
 preprocess-vcf/cmdline.h
 preprocess-vcf/config.h
