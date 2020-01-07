@@ -49,9 +49,12 @@ int main(int argc, char **argv)
 	v2m::vcf_record_generator gen;
 	v2m::msa_combiner combiner(args_info.output_chr_arg, args_info.ploidy_arg);
 	
-	gen.open_variants_file(args_info.variants_arg);
-	gen.prepare();
-	gen.vcf_reader().set_parsed_fields(lb::vcf_field::ALL);
+	if (args_info.variants_arg)
+	{
+		gen.open_variants_file(args_info.variants_arg);
+		gen.prepare();
+		gen.vcf_reader().set_parsed_fields(lb::vcf_field::ALL);
+	}
 	
 	combiner.handle_msa(ref_seq, alt_seq, gen);
 	

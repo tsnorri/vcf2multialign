@@ -27,10 +27,10 @@ namespace vcf2multialign {
 	
 	variant_record vcf_record_generator::next_variant()
 	{
-		libbio_assert(m_end_field);
 		variant_record retval;
 		bool const st(this->m_vcf_reader.parse_one([this, &retval](lb::transient_variant const &var) {
 			// Not reached on EOF.
+			libbio_assert(m_end_field);
 			retval.variant = var;
 			retval.aligned_position = var.pos();
 			retval.size = lb::variant_end_pos(var, *m_end_field) - var.zero_based_pos(); // FIXME: what do we store?
