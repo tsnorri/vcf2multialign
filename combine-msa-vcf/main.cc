@@ -19,6 +19,14 @@ int main(int argc, char **argv)
 	if (0 != cmdline_parser(argc, argv, &args_info))
 		std::exit(EXIT_FAILURE);
 	
+	if (args_info.show_invocation_given)
+	{
+		std::cerr << "Invocation:";
+		for (int i(0); i < argc; ++i)
+			std::cerr << ' ' << argv[i];
+		std::cerr << '\n';
+	}
+	
 	if (args_info.ploidy_arg <= 0)
 	{
 		std::cerr << "Ploidy needs to be positive." << std::endl;
