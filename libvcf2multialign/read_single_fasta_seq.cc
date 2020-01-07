@@ -69,8 +69,8 @@ namespace vcf2multialign {
 		delegate cb(reference, ref_seq_name);
 		
 		lb::log_time(std::cerr);
-		std::cerr << "Reading reference FASTA into memory…";
+		std::cerr << "Reading FASTA into memory…";
 		reader.parse(ref_fasta_handle, cb);
-		std::cerr << " Done. Reference length was " << reference.size() << '.' << std::endl;
+		std::cerr << " Done. Sequence length was " << reference.size() << '.' << std::endl;
 	}
 }
