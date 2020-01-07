@@ -19,6 +19,9 @@ int main(int argc, char **argv)
 	if (0 != cmdline_parser(argc, argv, &args_info))
 		std::exit(EXIT_FAILURE);
 	
+	std::ios_base::sync_with_stdio(false);	// Don't use C style IO after calling cmdline_parser.
+	std::cin.tie(nullptr);					// We don't require any input from the user.
+	
 	if (args_info.show_invocation_given)
 	{
 		std::cerr << "Invocation:";
