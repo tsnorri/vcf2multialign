@@ -13,8 +13,8 @@ option		"chunk-size"			-	"Number of output files to be opened simultaneously"			
 option		"overwrite"				-	"Allow overwriting existing files"															flag	off
 option		"omit-reference-output"	-	"Do not output the aligned reference sequence"												flag	off
 
-defmode	"Output haplotypes"	modedesc = "Output a reference-guided multiple alignment of the samples."
-modeoption	"output-haplotypes"		H	"Output haplotypes"																					mode = "Output haplotypes"				required
+defmode	"Output samples"	modedesc = "Output a reference-guided multiple alignment of the samples."
+modeoption	"output-samples"		S	"Output samples"																					mode = "Output samples"					required
 
 defmode	"Output founders"	modedesc = "Output a reference-guided multiple alignment of the founder sequences generated from the samples."
 modeoption	"output-founders"		F	"Output founders"																					mode = "Output founders"				required

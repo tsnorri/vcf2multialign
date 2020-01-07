@@ -91,7 +91,7 @@ namespace {
 	};
 	
 	
-	class haplotype_sequence_generator final : public v2m::sequence_generator_base
+	class sample_sequence_generator final : public v2m::sequence_generator_base
 	{
 	public:
 		typedef v2m::sequence_generator_base::output_stream_vector	output_stream_vector;
@@ -182,7 +182,7 @@ int main(int argc, char **argv)
 	}
 	
 	{
-		auto const mode_count(args_info.output_founders_given + args_info.output_haplotypes_given);
+		auto const mode_count(args_info.output_founders_given + args_info.output_samples_given);
 		if (0 == mode_count)
 		{
 			std::cerr << "No mode given." << std::endl;
@@ -198,9 +198,9 @@ int main(int argc, char **argv)
 			prepare(*gen_ptr, args_info);
 			output_sequences(std::move(gen_ptr));
 		}
-		else if (args_info.output_haplotypes_given)
+		else if (args_info.output_samples_given)
 		{
-			auto gen_ptr(instantiate_generator <haplotype_sequence_generator>(args_info));
+			auto gen_ptr(instantiate_generator <sample_sequence_generator>(args_info));
 			prepare(*gen_ptr, args_info);
 			output_sequences(std::move(gen_ptr));
 		}
