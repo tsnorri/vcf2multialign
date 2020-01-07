@@ -23,7 +23,8 @@ all:	libvcf2multialign/libvcf2multialign.a \
 		inspect-variant-graph/inspect_variant_graph \
 		variant-graph-to-sequences/variant_graph_to_sequences \
 		variant-graph-to-gv/variant_graph_to_gv \
-		vcf-to-unaligned/vcf_to_unaligned
+		vcf-to-unaligned/vcf_to_unaligned \
+		combine-msa-vcf/combine_msa_vcf
 
 clean-all: clean clean-dependencies clean-dist
 
@@ -36,6 +37,7 @@ clean:
 	$(MAKE) -C variant-graph-to-sequences clean
 	$(MAKE) -C variant-graph-to-gv clean
 	$(MAKE) -C vcf-to-unaligned clean
+	$(MAKE) -C combine-msa-vcf clean
 
 clean-dependencies: lib/libbio/local.mk
 	$(MAKE) -C lib/libbio clean-all
@@ -50,6 +52,9 @@ dist: $(DIST_TAR_GZ)
 
 libvcf2multialign/libvcf2multialign.a: $(DEPENDENCIES)
 	$(MAKE) -C libvcf2multialign
+
+combine-msa-vcf/combine_msa_vcf: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
+	$(MAKE) -C combine-msa-vcf
 
 create-variant-graph/create_variant_graph: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
 	$(MAKE) -C create-variant-graph

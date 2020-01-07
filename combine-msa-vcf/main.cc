@@ -19,6 +19,12 @@ int main(int argc, char **argv)
 	if (0 != cmdline_parser(argc, argv, &args_info))
 		std::exit(EXIT_FAILURE);
 	
+	if (args_info.ploidy_arg <= 0)
+	{
+		std::cerr << "Ploidy needs to be positive." << std::endl;
+		std::exit(EXIT_FAILURE);
+	}
+	
 	// Read the input FASTAs.
 	v2m::vector_type ref_seq, alt_seq;
 	{
@@ -30,7 +36,7 @@ int main(int argc, char **argv)
 	}
 	
 	v2m::vcf_record_generator gen;
-	v2m::msa_combiner combiner(args_info.output_chr_arg);
+	v2m::msa_combiner combiner(args_info.output_chr_arg, args_info.ploidy_arg);
 	
 	gen.open_variants_file(args_info.variants_arg);
 	gen.prepare();

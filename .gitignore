@@ -30,6 +30,12 @@
 *.out
 *.app
 
+combine-msa-vcf/cmdline.c
+combine-msa-vcf/cmdline.h
+combine-msa-vcf/combine_msa_vcf
+combine-msa-vcf/config.h
+combine-msa-vcf/msa_combiner_parse_msa.cc
+combine-msa-vcf/msa_combiner_parse_msa.pdf
 create-variant-graph/cmdline.c
 create-variant-graph/cmdline.h
 create-variant-graph/config.h

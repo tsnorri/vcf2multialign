@@ -248,12 +248,12 @@ namespace vcf2multialign {
 							seg.ref.position + begin_idx,
 							ref_sv.substr(begin_idx, end_idx - begin_idx),
 							alt_sv.substr(begin_idx, end_idx - begin_idx),
-							{(0 == overlap_count ? true : false), true}, // FIXME: other ploidies
+							m_ploidy,
 							overlap_count,
 							variant_origin::MSA
 						)
-					);	// FIXME: other ploidies
-
+					);
+					
 					begin_idx = end_idx;
 					overlap_count = oc.running_sum;
 				}
@@ -265,11 +265,11 @@ namespace vcf2multialign {
 							seg.ref.position + begin_idx,
 							ref_sv.substr(begin_idx),
 							alt_sv.substr(begin_idx),
-							{(0 == overlap_count ? true : false), true}, // FIXME: other ploidies
+							m_ploidy,
 							overlap_count,
 							variant_origin::MSA
 						)
-					);	// FIXME: other ploidies
+					);
 				}
 				break;
 			}
@@ -282,7 +282,7 @@ namespace vcf2multialign {
 						seg.ref.position,
 						seg.ref.string,
 						"",
-						{(0 == overlap_count ? true : false), true}, // FIXME: other ploidies
+						m_ploidy,
 						overlap_count,
 						variant_origin::MSA
 					)
@@ -306,7 +306,7 @@ namespace vcf2multialign {
 						seg.ref.position,
 						seg.ref.string,
 						seg.alt.string,
-						{(0 == overlap_count ? true : false), true}, // FIXME: other ploidies
+						m_ploidy,
 						max_overlaps,
 						variant_origin::MSA
 					)
@@ -485,7 +485,7 @@ namespace vcf2multialign {
 				std::size_t var_ref_characters_remaining(var.size); // Number of remaining variant reference characters, i.e. in seg.alt.
 				std::size_t var_alt_characters_remaining(var_alt.alt.size());
 				std::size_t total_alt_characters_consumed{};
-				auto &desc(m_output_variants.emplace_back(2, variant_origin::VC)); // FIXME: other ploidies
+				auto &desc(m_output_variants.emplace_back(m_ploidy, variant_origin::VC));
 				desc.overlap_count = max_overlaps - 1;
 				std::string_view const var_alt_sv(var_alt.alt);
 				
@@ -659,9 +659,22 @@ namespace vcf2multialign {
 					
 					auto const var_pos(var.variant.zero_based_pos());
 					auto const var_end(var_pos + var.size);
+					
+					// Calculate the overlap count.
+					auto const &samples(var.variant.samples());
+					libbio_assert(!samples.empty());
+					auto const *gt_field(get_variant_format(var.variant).gt);
+					libbio_assert(gt_field);
+					auto const &first_sample(samples.front());
+					auto const &gt((*gt_field)(first_sample)); // vector of sample_genotype
+					libbio_always_assert_eq_msg(gt.size(), m_ploidy, "Line ", var.variant.lineno(), ": expected the sample ploidy to match the passed value, got ", gt.size(), '.');
+					auto const var_overlap_count(std::accumulate(gt.begin(), gt.end(), std::int32_t(0), [](auto const sum, auto const &sample_gt) -> std::int32_t {
+						return (0 == sample_gt.alt ? 0 : 1);
+					}));
+					
 					// Mark variant start with one, end with zero.
-					m_overlap_counts.emplace_back(var_pos, 1);
-					m_overlap_counts.emplace_back(var_end, -1);
+					m_overlap_counts.emplace_back(var_pos, var_overlap_count);
+					m_overlap_counts.emplace_back(var_end, -1 * var_overlap_count);
 				}
 				
 				// Sort.
@@ -698,7 +711,7 @@ namespace vcf2multialign {
 					// Removing the items in the end of this loop will cause iterators to be invalidated.
 					// Hence, calculate the range start position for later reference.
 					auto const range_start_idx(std::distance(m_overlap_counts.begin(), res.first));
-					auto const overlap_count(std::accumulate(res.first, res.second, std::int32_t(0), [](std::int32_t const sum, auto const &oc) -> std::int32_t {
+					auto const overlap_count(std::accumulate(res.first, res.second, std::int32_t(0), [](auto const sum, auto const &oc) -> std::int32_t {
 						return sum + oc.count;
 					}));
 					

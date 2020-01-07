@@ -76,6 +76,11 @@ namespace vcf2multialign {
 		
 		struct variant_description
 		{
+			// The genotype is stored in a std::vector <bool> here.
+			// A pair of integers could be used instead, though, since
+			// at the moment we only handle unphased VCF files and thus
+			// the order of the values does not matter.
+			
 			std::string			ref;
 			std::string			alt;
 			std::vector <bool>	genotype;
@@ -86,7 +91,7 @@ namespace vcf2multialign {
 			variant_description() = default;
 			
 			variant_description(std::size_t const ploidy, variant_origin const origin_):
-				genotype(ploidy, false),
+				genotype(ploidy, true),
 				origin(origin_)
 			{
 			}
@@ -97,32 +102,20 @@ namespace vcf2multialign {
 				t_string_1 &&ref_,
 				t_string_2 &&alt_,
 				std::size_t const ploidy,
+				std::int32_t const overlap_count_,
 				variant_origin const origin_
 			):
 				ref(std::forward <t_string_1>(ref_)),
 				alt(std::forward <t_string_2>(alt_)),
 				genotype(ploidy, false),
 				position(position_),
-				origin(origin_)
-			{
-			}
-			
-			template <typename t_string_1, typename t_string_2>
-			variant_description(
-				std::size_t const position_,
-				t_string_1 &&ref_,
-				t_string_2 &&alt_,
-				std::initializer_list <bool> const &genotype_,
-				std::int32_t const overlap_count_,
-				variant_origin const origin_
-			):
-				ref(std::forward <t_string_1>(ref_)),
-				alt(std::forward <t_string_2>(alt_)),
-				genotype(genotype_),
-				position(position_),
 				overlap_count(overlap_count_),
 				origin(origin_)
 			{
+				libbio_assert_lte(overlap_count, ploidy);
+				// Assign the GT values.
+				genotype.resize(overlap_count);
+				genotype.resize(ploidy, true);
 			}
 		};
 		
@@ -153,13 +146,15 @@ namespace vcf2multialign {
 		std::size_t							m_max_rec_end{}; // Max. end co-ordinate of a variant encountered relative to the ad-hoc reference.
 		std::size_t							m_handled_variants{};
 		std::size_t							m_handled_characters{};
+		std::size_t							m_ploidy{1};
 		bool								m_need_alt_pos{true};
 	
 	public:
 		msa_combiner() = default;
 		
-		msa_combiner(std::string output_chr_id):
-			m_output_chr_id(std::move(output_chr_id))
+		msa_combiner(std::string output_chr_id, std::size_t const ploidy):
+			m_output_chr_id(std::move(output_chr_id)),
+			m_ploidy(ploidy)
 		{
 		}
 		
