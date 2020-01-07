@@ -90,10 +90,14 @@ namespace vcf2multialign {
 			
 			variant_description() = default;
 			
-			variant_description(std::size_t const ploidy, variant_origin const origin_):
+			variant_description(std::size_t const ploidy, std::int32_t const gt_count, variant_origin const origin_):
 				genotype(ploidy, true),
 				origin(origin_)
 			{
+				libbio_assert_lte(gt_count, ploidy);
+				// Assign the GT values.
+				genotype.resize(gt_count);
+				genotype.resize(ploidy, false);
 			}
 			
 			template <typename t_string_1, typename t_string_2>
@@ -170,6 +174,7 @@ namespace vcf2multialign {
 	protected:
 		void output_vcf_header() const;
 		gap_start_position check_gaps_at_start(vector_type const &ref, vector_type const &alt) const;
+		std::int32_t count_set_genotype_values(libbio::variant const &var, std::uint16_t const alt_idx) const;
 		void push_current_segment();
 		inline aligned_segment const &find_segment_for_alt_position(std::size_t const pos) const;
 		void handle_overlaps(std::size_t const max_alt_pos);

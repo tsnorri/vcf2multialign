@@ -70,6 +70,34 @@ namespace {
 
 namespace vcf2multialign {
 	
+	std::int32_t msa_combiner::count_set_genotype_values(lb::variant const &var, std::uint16_t const alt_idx) const
+	{
+		auto const &samples(var.samples());
+		libbio_assert(!samples.empty());
+		auto const *gt_field(get_variant_format(var).gt);
+		libbio_assert(gt_field);
+		auto const &first_sample(samples.front());
+		auto const &gt((*gt_field)(first_sample)); // vector of sample_genotype
+		libbio_always_assert_eq_msg(gt.size(), m_ploidy, "Line ", var.lineno(), ": expected the sample ploidy to match the passed value, got ", gt.size(), '.');
+		
+		// If 0 == alt_idx, count all non-zero values. Otherwise, count the instances of the given value.
+		if (0 == alt_idx)
+		{
+			auto const count(std::accumulate(gt.begin(), gt.end(), std::int32_t(0), [](auto const sum, auto const &sample_gt) -> std::int32_t {
+				return (0 == sample_gt.alt ? sum : 1 + sum);
+			}));
+			return count;
+		}
+		else
+		{
+			auto const count(std::accumulate(gt.begin(), gt.end(), std::int32_t(0), [alt_idx](auto const sum, auto const &sample_gt) -> std::int32_t {
+				return (alt_idx == sample_gt.alt ? 1 + sum : sum);
+			}));
+			return count;
+		}
+	}
+	
+	
 	void msa_combiner::push_current_segment()
 	{
 		handle_overlaps(SIZE_MAX);
@@ -485,7 +513,8 @@ namespace vcf2multialign {
 				std::size_t var_ref_characters_remaining(var.size); // Number of remaining variant reference characters, i.e. in seg.alt.
 				std::size_t var_alt_characters_remaining(var_alt.alt.size());
 				std::size_t total_alt_characters_consumed{};
-				auto &desc(m_output_variants.emplace_back(m_ploidy, variant_origin::VC));
+				auto const gt_count(count_set_genotype_values(var.variant, alt_idx));
+				auto &desc(m_output_variants.emplace_back(m_ploidy, gt_count, variant_origin::VC));
 				desc.overlap_count = max_overlaps - 1;
 				std::string_view const var_alt_sv(var_alt.alt);
 				
@@ -504,17 +533,6 @@ namespace vcf2multialign {
 					case segment_type::MIXED:
 					case segment_type::DELETION:
 						throw std::runtime_error("Unexpected segment type");
-				}
-				
-				{
-					// Set the genotype.
-					auto const *gt_field(get_variant_format(var.variant).gt);
-					for (auto &&tup : rsv::zip((*gt_field)(var.variant.samples().front()), desc.genotype))
-					{
-						auto &[gt, dst] = tup;
-						if (alt_idx == gt.alt)
-							dst = 1;
-					}
 				}
 				
 				for (auto const &seg : range)
@@ -661,16 +679,7 @@ namespace vcf2multialign {
 					auto const var_end(var_pos + var.size);
 					
 					// Calculate the overlap count.
-					auto const &samples(var.variant.samples());
-					libbio_assert(!samples.empty());
-					auto const *gt_field(get_variant_format(var.variant).gt);
-					libbio_assert(gt_field);
-					auto const &first_sample(samples.front());
-					auto const &gt((*gt_field)(first_sample)); // vector of sample_genotype
-					libbio_always_assert_eq_msg(gt.size(), m_ploidy, "Line ", var.variant.lineno(), ": expected the sample ploidy to match the passed value, got ", gt.size(), '.');
-					auto const var_overlap_count(std::accumulate(gt.begin(), gt.end(), std::int32_t(0), [](auto const sum, auto const &sample_gt) -> std::int32_t {
-						return (0 == sample_gt.alt ? 0 : 1);
-					}));
+					auto const var_overlap_count(count_set_genotype_values(var.variant, 0));
 					
 					// Mark variant start with one, end with zero.
 					m_overlap_counts.emplace_back(var_pos, var_overlap_count);
@@ -845,6 +854,7 @@ namespace vcf2multialign {
 		std::cout << "##fileformat=VCFv4.3\n";
 		std::cout << "##ALT=<ID=DEL,Description=\"Deletion relative to the reference\">\n";
 		std::cout << "##FILTER=<ID=ALT_EQ_TO_REF,Description=\"Variant called by the VC is equivalent to the reference\">\n";
+		std::cout << "##FILTER=<ID=GT_NOT_SET,Description=\"All GT values are equal to zero.\">\n";
 		std::cout << "##INFO=<ID=OC,Number=1,Type=Integer,Description=\"Number of overlapping VC variants\">\n";
 		std::cout << "##INFO=<ID=ORIGIN,Number=1,Type=String,Description=\"Variant source (MSA for multiple sequence alignment, VC for variant caller)\">\n";
 		std::cout << "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n";
@@ -866,6 +876,9 @@ namespace vcf2multialign {
 			filters.clear();
 			if (desc.ref == desc.alt)
 				filters.emplace_back("ALT_EQ_TO_REF");
+			
+			if (0 == std::accumulate(desc.genotype.begin(), desc.genotype.end(), std::uint16_t(0)))
+				filters.emplace_back("GT_NOT_SET");
 			
 			// CHROM
 			std::cout << m_output_chr_id << '\t';
