@@ -2,7 +2,7 @@
 # This code is licensed under MIT license (see LICENSE for details).
 
 package		"combine_msa_vcf"
-purpose		"Combine two aligned FASTA sequences and optionally a variant file into one variant file."
+purpose		"Combine two aligned FASTA sequences and optionally a variant file (relative to “alt”) into one variant file."
 usage		"combine_msa_vcf --ref=ref.fa --alt=alt.fa [--variants=filename.vcf] --ploidy=..."
 description	"Currently the sequences need to be in separate files. The combined variants will be written to stdout."
 
