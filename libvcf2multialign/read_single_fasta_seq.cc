@@ -50,7 +50,7 @@ namespace {
 		
 		virtual bool handle_sequence_line(lb::fasta_reader &reader, std::string_view const &sv) override
 		{
-			if (!m_found_seq)
+			if (m_identifier && !m_found_seq)
 				return false;
 			
 			std::copy(sv.begin(), sv.end(), std::back_inserter(*m_reference));
