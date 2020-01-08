@@ -75,3 +75,11 @@ When generating sample sequences, one sequence is generated per each sample and 
 ### Inspecting the variant graph
 
 Two additional tools are provided for variant graph inspection. `variant-graph-to-gv/variant_graph_to_gv` produces [Graphviz](https://www.graphviz.org) output from a variant graph. For anything except very small graphs, `inspect-variant-graph/inspect_variant_graph` may be more suitable as it outputs only one node at a time.
+
+## Creating unaligned sample sequences
+
+Instead of generating a reference-guided multiple alignment, unaligned sequences may be generated with `vcf-to-unaligned/vcf_to_unaligned` . The sample and chromosome copy numbers need to be specified as command line parameters.
+
+## Creating a variant call file from a pair of aligned sequences
+
+`combine-msa-vcf/combine_msa_vcf` may be used to generate a variant call file from two aligned sequences. Optionally, variants relative to the second sequence may be included in the resulting file.
