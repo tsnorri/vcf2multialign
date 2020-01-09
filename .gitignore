@@ -56,6 +56,7 @@ preprocess-vcf/cmdline.c
 preprocess-vcf/cmdline.h
 preprocess-vcf/config.h
 preprocess-vcf/preprocess_vcf
+tests/tests
 variant-graph-to-gv/cmdline.c
 variant-graph-to-gv/cmdline.h
 variant-graph-to-gv/config.h
