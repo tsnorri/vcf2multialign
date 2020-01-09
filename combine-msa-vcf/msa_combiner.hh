@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Tuukka Norri
+ * Copyright (c) 2019–2020 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -147,17 +147,19 @@ namespace vcf2multialign {
 		overlap_count_vector				m_overlap_counts;
 		aligned_segment						m_current_segment;
 		std::string							m_output_chr_id;
+		std::ostream						*m_os{};
 		std::size_t							m_max_rec_end{}; // Max. end co-ordinate of a variant encountered relative to the ad-hoc reference.
 		std::size_t							m_handled_variants{};
 		std::size_t							m_handled_characters{};
-		std::size_t							m_ploidy{1};
+		std::uint16_t						m_ploidy{1};
 		bool								m_need_alt_pos{true};
 	
 	public:
 		msa_combiner() = default;
 		
-		msa_combiner(std::string output_chr_id, std::size_t const ploidy):
+		msa_combiner(std::string output_chr_id, std::uint16_t const ploidy, std::ostream &os):
 			m_output_chr_id(std::move(output_chr_id)),
+			m_os(&os),
 			m_ploidy(ploidy)
 		{
 		}

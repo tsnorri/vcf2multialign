@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Tuukka Norri
+ * Copyright (c) 2019–2020 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -851,14 +851,15 @@ namespace vcf2multialign {
 	
 	void msa_combiner::output_vcf_header() const
 	{
-		std::cout << "##fileformat=VCFv4.3\n";
-		std::cout << "##ALT=<ID=DEL,Description=\"Deletion relative to the reference\">\n";
-		std::cout << "##FILTER=<ID=ALT_EQ_TO_REF,Description=\"Variant called by the VC is equivalent to the reference\">\n";
-		std::cout << "##FILTER=<ID=GT_NOT_SET,Description=\"All GT values are equal to zero.\">\n";
-		std::cout << "##INFO=<ID=OC,Number=1,Type=Integer,Description=\"Number of overlapping VC variants\">\n";
-		std::cout << "##INFO=<ID=ORIGIN,Number=1,Type=String,Description=\"Variant source (MSA for multiple sequence alignment, VC for variant caller)\">\n";
-		std::cout << "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n";
-		std::cout << "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMPLE\n";
+		auto &os(*m_os);
+		os << "##fileformat=VCFv4.3\n";
+		os << "##ALT=<ID=DEL,Description=\"Deletion relative to the reference\">\n";
+		os << "##FILTER=<ID=ALT_EQ_TO_REF,Description=\"Variant called by the VC is equivalent to the reference\">\n";
+		os << "##FILTER=<ID=GT_NOT_SET,Description=\"All GT values are equal to zero.\">\n";
+		os << "##INFO=<ID=OC,Number=1,Type=Integer,Description=\"Number of overlapping VC variants\">\n";
+		os << "##INFO=<ID=ORIGIN,Number=1,Type=String,Description=\"Variant source (MSA for multiple sequence alignment, VC for variant caller)\">\n";
+		os << "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n";
+		os << "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMPLE\n";
 	}
 	
 	
@@ -870,6 +871,7 @@ namespace vcf2multialign {
 				return lhs.position < rhs.position;
 			})
 		);
+		auto &os(*m_os);
 		std::vector <std::string> filters;
 		for (auto const &desc : m_output_variants)
 		{
@@ -881,51 +883,51 @@ namespace vcf2multialign {
 				filters.emplace_back("GT_NOT_SET");
 			
 			// CHROM
-			std::cout << m_output_chr_id << '\t';
+			os << m_output_chr_id << '\t';
 			
 			// POS, ID, REF
-			std::cout << desc.position << "\t.\t" << desc.ref << '\t';
+			os << (1 + desc.position) << "\t.\t" << desc.ref << '\t';
 			
 			// ALT
 			if (desc.alt.empty())
-				std::cout << "<DEL>";
+				os << "<DEL>";
 			else
-				std::cout << desc.alt;
+				os << desc.alt;
 			
 			// QUAL
-			std::cout << "\t.\t";
+			os << "\t.\t";
 			
 			// FILTER
 			if (filters.empty())
-				std::cout << "PASS";
+				os << "PASS";
 			else
-				ranges::copy(filters, ranges::make_ostream_joiner(std::cout, ";"));
+				ranges::copy(filters, ranges::make_ostream_joiner(os, ";"));
 			
 			// INFO
-			std::cout << "\tOC=" << desc.overlap_count;
-			std::cout << ";ORIGIN=";
+			os << "\tOC=" << desc.overlap_count;
+			os << ";ORIGIN=";
 			switch (desc.origin)
 			{
 				case variant_origin::MSA:
 				{
-					std::cout << "MSA";
+					os << "MSA";
 					break;
 				}
 					
 				case variant_origin::VC:
 				{
-					std::cout << "VC";
+					os << "VC";
 					break;
 				}
 			}
 			
 			// FORMAT
-			std::cout << "\tGT\t";
+			os << "\tGT\t";
 			
 			// Sample.
-			ranges::copy(desc.genotype | rsv::transform([](auto const gt) -> std::size_t { return gt; }), ranges::make_ostream_joiner(std::cout, "/"));
+			ranges::copy(desc.genotype | rsv::transform([](auto const gt) -> std::size_t { return gt; }), ranges::make_ostream_joiner(os, "/"));
 			
-			std::cout << '\n';
+			os << '\n';
 		}
 		
 		m_output_variants.clear();
@@ -1010,7 +1012,7 @@ namespace vcf2multialign {
 		// Merge and pass to this->handle(). Sort the items s.t. lrsv comes first, except if the alt character is a gap.
 		// This causes the variant’s position to always be in m_current_segment.
 		output_vcf_header();
-		lb::log_time(std::cerr) << " Creating segments and merging…\n";
+		lb::log_time(std::cerr) << "Creating segments and merging…\n";
 		forwarder fwd(*this);
 		typedef std::tuple <std::size_t, std::uint8_t> proj_return_type;
 		ranges::merge(

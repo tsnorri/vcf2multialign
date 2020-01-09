@@ -2,6 +2,7 @@ include ../local.mk
 include ../common.mk
 
 OBJECTS		=	cmdline.o \
+				combine_msa.o \
 				main.o \
 				msa_combiner.o \
 				msa_combiner_parse_msa.o \
