@@ -30,6 +30,10 @@
 *.out
 *.app
 
+# Coverage
+*.gcda
+*.gcno
+
 combine-msa-vcf/cmdline.c
 combine-msa-vcf/cmdline.h
 combine-msa-vcf/combine_msa_vcf
