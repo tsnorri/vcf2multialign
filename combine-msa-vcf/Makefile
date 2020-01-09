@@ -15,6 +15,8 @@ GCNO				=	$(LIBRARY_OBJECTS_COV:.o=.gcno)
 
 
 all: combine_msa_vcf
+	
+.PHONY: clean
 
 clean:
 	$(RM)	$(OBJECTS) \
