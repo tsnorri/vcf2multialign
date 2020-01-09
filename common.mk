@@ -41,11 +41,18 @@ ifeq ($(shell uname -s),Linux)
 endif
 
 
-%.o: %.cc
-	$(CXX) -c $(CXXFLAGS) $(CPPFLAGS) -o $@ $<
+# FIXME: the first two likely only work with Clang; I think GCC uses something else thant -coverage.
+%.cov.o: %.c
+	$(CC) -c -coverage $(CFLAGS) $(CPPFLAGS) -o $@ $<
+
+%.cov.o: %.cc
+	$(CXX) -c -coverage $(CXXFLAGS) $(CPPFLAGS) -o $@ $<
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
+
+%.o: %.cc
+	$(CXX) -c $(CXXFLAGS) $(CPPFLAGS) -o $@ $<
 
 %.c: %.ggo
 	$(GENGETOPT) --input="$<"
