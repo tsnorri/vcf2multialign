@@ -130,6 +130,15 @@ SCENARIO("MSA combiner can merge sequences with gaps at start")
 }
 
 
+SCENARIO("MSA combiner can merge sequenes with mixed-type segments")
+{
+	GIVEN("A MSA with a mixed segment that reduces to a matching segment")
+	{
+		test_msa_merge("msa-mixed-1", "the resulting VCF will have no variants");
+	}
+}
+
+
 SCENARIO("MSA combiner can merge sequences and variants")
 {
 	GIVEN("A MSA with insertions and deletions and a VCF with insertions and SNPs")
