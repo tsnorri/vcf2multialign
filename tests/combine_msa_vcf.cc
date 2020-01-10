@@ -50,7 +50,7 @@ namespace {
 	}
 	
 	
-	void test_msa_merge(char const *test_data_dir, char const *expected_outcome, char const *ref_fa_name = "ref.fa", char const *alt_fa_name = "alt.fa")
+	void test_msa_merge(char const *test_data_dir, char const *expected_outcome, char const *ref_fa_name = "ref.fa", char const *alt_fa_name = "alt.fa", char const *expected_vcf_name = "expected.vcf")
 	{
 		auto fmt(boost::format("test-files/combine-msa-vcf/%s/%s"));
 		auto const ref_path((fmt % test_data_dir % ref_fa_name).str());
@@ -65,10 +65,19 @@ namespace {
 			
 			THEN(expected_outcome)
 			{
-				auto const expected_path((fmt % test_data_dir % "expected.vcf").str());
+				auto const expected_path((fmt % test_data_dir % expected_vcf_name).str());
 				compare_against_expected_path(dst, expected_path.c_str());
 			}
 		}
+	}
+}
+
+
+SCENARIO("MSA combiner can handle empty sequences")
+{
+	GIVEN("An empty MSA")
+	{
+		test_msa_merge("empty", "the resulting VCF will have no variants", "empty.txt", "empty.txt", "empty.txt");
 	}
 }
 
