@@ -39,7 +39,8 @@ clean: clean-tests
 
 
 clean-tests:
-	$(RM) $(GCNO) test-coverage test-coverage.covdata
+	$(RM) $(GCNO) test-coverage.covdata
+	$(RM) -r test-coverage
 
 
 $(CATCH2_PREFIX)/single_include/catch2/catch.hpp: $(CATCH2_HEADERS)
