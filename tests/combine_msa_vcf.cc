@@ -113,7 +113,11 @@ SCENARIO("MSA combiner can merge sequences")
 	{
 		test_msa_merge("msa-indels-vcf-insertions-snps", "the resulting VCF will have the variants", "ref-bare.fa", "alt-bare.fa");
 	}
-	
+}
+
+
+SCENARIO("MSA combiner can merge sequences with gaps at start")
+{
 	GIVEN("A MSA with gaps at start (deletion)")
 	{
 		test_msa_merge("msa-gaps-at-start-del", "the resulting VCF will have the deletion in the first co-ordinate");
