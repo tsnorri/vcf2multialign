@@ -254,7 +254,7 @@ namespace vcf2multialign {
 				(same_next_ref_nt	@(match_continue_b))		|
 				(diff_next_ref_nt	@(start_new_mismatch_b))	|
 				
-				(both_g				@(match_continue_g))		|
+				(both_g				@(handle_unexpected_state))	|
 				(ref_g				@(handle_unexpected_state))
 			) $err(handle_error);
 			
