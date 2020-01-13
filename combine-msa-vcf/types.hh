@@ -54,7 +54,7 @@ namespace vcf2multialign {
 		
 		sequence_character(char const character_, std::size_t const position_):
 			position(position_),
-			character(character_)
+			character(std::toupper(character_))
 		{
 		}
 	};

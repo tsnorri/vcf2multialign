@@ -27,21 +27,21 @@ namespace vcf2multialign {
 			variable pe		m_fsm.pe;
 			variable eof	m_fsm.pe;
 			
-			nt			= [ACGTNacgtn];
+			nt			= [ACGTN];	# Add [acgtn] to allow lowecase.
 			ntg			= nt | '-';
 			
-			a_			= [Aa];
-			c_			= [Cc];
-			g_			= [Gg];
-			t_			= [Tt];
-			n_			= [Nn];
+			a_			= [A];		# Add [a] etc. to allow lowercase.
+			c_			= [C];
+			g_			= [G];
+			t_			= [T];
+			n_			= [N];
 			not_a		= nt - a_;
 			not_c		= nt - c_;
 			not_g		= nt - g_;
 			not_t		= nt - t_;
 			not_n		= nt - n_;
 			
-			same		= /AA/i | /CC/i | /GG/i | /TT/i | /NN/i;
+			same		= /AA/ | /CC/ | /GG/ | /TT/ | /NN/;	# Add /i to allow lowercase.
 			diff		= (a_ . not_a) | (c_ . not_c) | (g_ . not_g) | (t_ . not_t) | (n_ . not_n);
 			both_nt		= nt{2};				# Any two non-gap.
 			
