@@ -18,13 +18,14 @@ namespace vcf2multialign {
 		
 		auto current_id(proj_fn(range.front()));
 		start_fn(range.front(), current_id);
+		handle_fn(range.front(), current_id);
 		for (auto const &item : range | ranges::view::tail)
 		{
 			auto const next_id(proj_fn(item));
 			if (current_id != next_id)
 			{
 				end_fn(current_id);
-				start_fn(item, current_id);
+				start_fn(item, next_id);
 			}
 			handle_fn(item, next_id);
 			current_id = next_id;
