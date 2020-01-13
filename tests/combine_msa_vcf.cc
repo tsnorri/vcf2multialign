@@ -9,6 +9,7 @@
 #include <catch2/catch.hpp>
 #include <iterator>
 #include <libbio/mmap_handle.hh>
+#include <vcf2multialign/utility/read_single_fasta_seq.hh>
 #include "../combine-msa-vcf/combine_msa.hh"
 
 namespace gen	= Catch::Generators;
@@ -50,24 +51,52 @@ namespace {
 	}
 	
 	
+	void combine_msa_and_compare_against_expected_path(
+		v2m::vector_type const &ref_seq,
+		v2m::vector_type const &alt_seq,
+		char const *expected_outcome,
+		std::string const &expected_path
+	)
+	{
+		std::string dst;
+		io::filtering_ostream out(std::back_inserter(dst));
+		v2m::combine_msa(ref_seq, alt_seq, nullptr, "chr1", 2, out);
+		out.flush();
+			
+		THEN(expected_outcome)
+		{
+			compare_against_expected_path(dst, expected_path.c_str());
+		}
+	}
+	
+	
 	void test_msa_merge(char const *test_data_dir, char const *expected_outcome, char const *ref_fa_name = "ref.fa", char const *alt_fa_name = "alt.fa", char const *expected_vcf_name = "expected.vcf")
 	{
+		// Read the input FASTAs.
+		v2m::vector_type ref_seq, alt_seq;
 		auto fmt(boost::format("test-files/combine-msa-vcf/%s/%s"));
 		auto const ref_path((fmt % test_data_dir % ref_fa_name).str());
 		auto const alt_path((fmt % test_data_dir % alt_fa_name).str());
+		auto const expected_path((fmt % test_data_dir % expected_vcf_name).str());
+		v2m::read_single_fasta_seq(ref_path.c_str(), ref_seq, nullptr);
+		v2m::read_single_fasta_seq(alt_path.c_str(), alt_seq, nullptr);
 		
 		WHEN("the files are merged")
 		{
-			std::string dst;
-			io::filtering_ostream out(std::back_inserter(dst));
-			v2m::combine_msa(ref_path.c_str(), alt_path.c_str(), nullptr, "chr1", 2, out);
-			out.flush();
-			
-			THEN(expected_outcome)
-			{
-				auto const expected_path((fmt % test_data_dir % expected_vcf_name).str());
-				compare_against_expected_path(dst, expected_path.c_str());
-			}
+			combine_msa_and_compare_against_expected_path(ref_seq, alt_seq, expected_outcome, expected_path);
+		}
+		
+		// Repeat the test with the sequences converted to lowercase.
+		std::transform(ref_seq.begin(), ref_seq.end(), ref_seq.begin(), [](auto const c){
+			return std::tolower(c);
+		});
+		std::transform(alt_seq.begin(), alt_seq.end(), alt_seq.begin(), [](auto const c){
+			return std::tolower(c);
+		});
+
+		WHEN("the files are merged with lowercase FASTA inputs")
+		{
+			combine_msa_and_compare_against_expected_path(ref_seq, alt_seq, expected_outcome, expected_path);
 		}
 	}
 }
@@ -177,15 +206,19 @@ SCENARIO("MSA combiner can merge sequences and variants")
 {
 	GIVEN("A MSA with insertions and deletions and a VCF with insertions and SNPs")
 	{
+		// Read the input FASTAs.
+		v2m::vector_type ref_seq, alt_seq;
 		char const *ref_path("test-files/combine-msa-vcf/msa-indels-vcf-insertions-snps/ref.fa");
 		char const *alt_path("test-files/combine-msa-vcf/msa-indels-vcf-insertions-snps/alt.fa");
 		char const *vcf_path("test-files/combine-msa-vcf/msa-indels-vcf-insertions-snps/vars.vcf");
-		
+		v2m::read_single_fasta_seq(ref_path, ref_seq, nullptr);
+		v2m::read_single_fasta_seq(alt_path, alt_seq, nullptr);
+
 		WHEN("the files are merged")
 		{
 			std::string dst;
 			io::filtering_ostream out(std::back_inserter(dst));
-			v2m::combine_msa(ref_path, alt_path, vcf_path, "chr1", 2, out);
+			v2m::combine_msa(ref_seq, alt_seq, vcf_path, "chr1", 2, out);
 			out.flush();
 			
 			THEN("the generated VCF matches the expected")
