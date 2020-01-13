@@ -269,8 +269,8 @@ namespace vcf2multialign {
 			) $err(handle_error);
 			
 			handle_mixed := common | (
-				(alt_g_next_ref_c	@(mixed_continue_r))		|	# Adding only to the reference does not change same to diff.
-																	# Correct b.c. the machine exits in the following two states.
+				(alt_g_next_ref_c	@(start_new_del_r))			|	# Deletion in alt w.r.t. ref.
+
 				(same_next_ref_nt	@(start_new_match_b))		|
 				(diff_next_ref_nt	@(start_new_mismatch_b))	|
 				
