@@ -301,7 +301,7 @@ namespace vcf2multialign {
 			main_unexpected = ntg{4} - (same_next_both_g | same_next_ref_g | diff_next_ref_g | alt_g_next_ref_g | alt_g_next_ref_c | same_next_ref_nt | diff_next_ref_nt);
 			
 			main := (
-				(same_next_both_g	@(main_new_match_b))		|
+				(same_next_both_g	@(main_new_mixed_b))		|
 				(same_next_ref_g	@(main_new_mixed_b))		|
 				(diff_next_ref_g	@(main_new_mismatch_b))		|
 				(alt_g_next_ref_g	@(main_new_mixed_r))		|
