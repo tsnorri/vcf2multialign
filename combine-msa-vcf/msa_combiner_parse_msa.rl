@@ -242,7 +242,7 @@ namespace vcf2multialign {
 			
 			common = (
 				# Since the next ref character is a gap, a new segment needs to be created since we don’t know the subsequent characters.
-				(same_next_both_g	@(start_new_match_b))		|
+				(same_next_both_g	@(start_new_mixed_b))		|	# We currently don’t change a matching segment to mixed, so mark the segment for post-processing here.
 				(same_next_ref_g	@(start_new_mixed_b))		|
 				(diff_next_ref_g	@(start_new_mismatch_b))	|
 				(alt_g_next_ref_g	@(start_new_mixed_r))
