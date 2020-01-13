@@ -141,6 +141,21 @@ SCENARIO("MSA combiner can merge sequenes with mixed-type segments")
 	{
 		test_msa_merge("msa-mixed-2", "the resulting VCF will have MNPs");
 	}
+	
+	GIVEN("A MSA with a mixed segment that reduces to different types of segments (insertion without a SNP)")
+	{
+		test_msa_merge("msa-mixed-3", "the resulting VCF will have the expected variants");
+	}
+	
+	GIVEN("A MSA with a mixed segment that reduces to different types of segments (insertion with a SNP)")
+	{
+		test_msa_merge("msa-mixed-4", "the resulting VCF will have the expected variants");
+	}
+	
+	GIVEN("A MSA with a mixed segment that reduces to different types of segments (deletion)")
+	{
+		test_msa_merge("msa-mixed-5", "the resulting VCF will have the expected variants");
+	}
 }
 
 

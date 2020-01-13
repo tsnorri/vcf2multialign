@@ -1,0 +1,13 @@
+##fileformat=VCFv4.3
+##ALT=<ID=DEL,Description="Deletion relative to the reference">
+##FILTER=<ID=ALT_EQ_TO_REF,Description="Variant called by the VC is equivalent to the reference">
+##FILTER=<ID=GT_NOT_SET,Description="All GT values are equal to zero.">
+##INFO=<ID=OC,Number=1,Type=Integer,Description="Number of overlapping VC variants">
+##INFO=<ID=ORIGIN,Number=1,Type=String,Description="Variant source (MSA for multiple sequence alignment, VC for variant caller)">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SAMPLE
+chr1	4	.	G	C	.	PASS	OC=0;ORIGIN=MSA	GT	1/1
+chr1	5	.	A	T	.	PASS	OC=0;ORIGIN=MSA	GT	1/1
+chr1	6	.	T	A	.	PASS	OC=0;ORIGIN=MSA	GT	1/1
+chr1	7	.	C	G	.	PASS	OC=0;ORIGIN=MSA	GT	1/1
+chr1	10	.	G	GTTT	.	PASS	OC=0;ORIGIN=MSA	GT	1/1
