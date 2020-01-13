@@ -12,7 +12,8 @@
 
 
 namespace vcf2multialign {
-	void read_single_fasta_seq(libbio::mmap_handle <char> &ref_handle, vector_type &reference, char const *ref_seq_name);
+	void read_single_fasta_seq(char const *fasta_path, vector_type &seq, char const *seq_name = nullptr);
+	void read_single_fasta_seq(libbio::mmap_handle <char> &fasta_handle, vector_type &seq, char const *seq_name = nullptr);
 }
 
 #endif

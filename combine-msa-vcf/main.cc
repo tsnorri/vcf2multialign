@@ -3,6 +3,7 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
+#include <vcf2multialign/utility/read_single_fasta_seq.hh>
 #include "cmdline.h"
 #include "combine_msa.hh"
 
@@ -33,9 +34,15 @@ int main(int argc, char **argv)
 		std::exit(EXIT_FAILURE);
 	}
 	
+	// Read the input FASTAs.
+	v2m::vector_type ref_seq, alt_seq;
+	v2m::read_single_fasta_seq(args_info.ref_arg, ref_seq, nullptr);
+	v2m::read_single_fasta_seq(args_info.alt_arg, alt_seq, nullptr);
+	
+	// Combine.
 	v2m::combine_msa(
-		args_info.ref_arg,
-		args_info.alt_arg,
+		ref_seq,
+		alt_seq,
 		args_info.variants_arg,
 		args_info.output_chr_arg,
 		args_info.ploidy_arg,

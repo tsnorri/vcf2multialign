@@ -12,8 +12,8 @@
 namespace vcf2multialign {
 	
 	void combine_msa(
-		char const *ref_path,
-		char const *alt_path,
+		vector_type const &ref_seq,
+		vector_type const &alt_seq,
 		char const *variants_path,
 		char const *output_chr,
 		std::uint16_t const ploidy,
