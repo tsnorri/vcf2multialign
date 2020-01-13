@@ -130,7 +130,7 @@ SCENARIO("MSA combiner can merge sequences with gaps at start")
 }
 
 
-SCENARIO("MSA combiner can merge sequenes with mixed-type segments")
+SCENARIO("MSA combiner can merge sequenes with mixed-type segments (ref precedes)")
 {
 	GIVEN("A MSA with a mixed segment that reduces to a matching segment")
 	{
@@ -155,6 +155,20 @@ SCENARIO("MSA combiner can merge sequenes with mixed-type segments")
 	GIVEN("A MSA with a mixed segment that reduces to different types of segments (deletion)")
 	{
 		test_msa_merge("msa-mixed-1-5", "the resulting VCF will have the expected variants");
+	}
+}
+
+
+SCENARIO("MSA combiner can merge sequenes with mixed-type segments (alt precedes)")
+{
+	GIVEN("A MSA with a mixed segment that reduces to a matching segment in the middle")
+	{
+		test_msa_merge("msa-mixed-2-1", "the resulting VCF will have a MNP and a deletion");
+	}
+	
+	GIVEN("A MSA with a mixed segment that reduces to non-matching segments")
+	{
+		test_msa_merge("msa-mixed-2-2", "the resulting VCF will have MNPs and a deletion");
 	}
 }
 
