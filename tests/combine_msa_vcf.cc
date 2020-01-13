@@ -142,6 +142,26 @@ SCENARIO("MSA combiner can merge sequences")
 	{
 		test_msa_merge("msa-indels-vcf-insertions-snps", "the resulting VCF will have the variants", "ref-bare.fa", "alt-bare.fa");
 	}
+	
+	GIVEN("A MSA with different types of segments (to test the remaining transitions)")
+	{
+		test_msa_merge("msa-different-segments", "the resulting VCF will have the variants");
+	}
+	
+	GIVEN("A MSA with a mixed segment in the beginning (gap in both)")
+	{
+		test_msa_merge("msa-mixed-beginning-1", "the resulting VCF will have the variants");
+	}
+	
+	GIVEN("A MSA with a mixed segment in the beginning (gap in ref)")
+	{
+		test_msa_merge("msa-mixed-beginning-2", "the resulting VCF will have the variants");
+	}
+	
+	GIVEN("A MSA with a mixed segment in the beginning (gap in both)")
+	{
+		test_msa_merge("msa-mixed-beginning-3", "the resulting VCF will have the variants");
+	}
 }
 
 
