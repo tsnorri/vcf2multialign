@@ -58,6 +58,7 @@ namespace vcf2multialign {
 			if (candidate_id == current_id)
 			{
 				found = true;
+				++it;
 				continue;
 			}
 			
