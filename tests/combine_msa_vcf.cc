@@ -217,7 +217,7 @@ SCENARIO("MSA combiner can merge sequenes with mixed-type segments (ref precedes
 }
 
 
-SCENARIO("MSA combiner can merge sequenes with mixed-type segments (ref precedes, less gaps)")
+SCENARIO("MSA combiner can merge sequences with mixed-type segments (ref precedes, less gaps)")
 {
 	GIVEN("A MSA with a mixed segment that reduces to a matching segment")
 	{
