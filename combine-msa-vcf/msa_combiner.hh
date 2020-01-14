@@ -153,14 +153,16 @@ namespace vcf2multialign {
 		std::size_t							m_handled_characters{};
 		std::uint16_t						m_ploidy{1};
 		bool								m_need_alt_pos{true};
+		bool								m_logs_status{};
 	
 	public:
 		msa_combiner() = default;
 		
-		msa_combiner(std::string output_chr_id, std::uint16_t const ploidy, std::ostream &os):
+		msa_combiner(std::string output_chr_id, std::uint16_t const ploidy, std::ostream &os, bool const logs_status):
 			m_output_chr_id(std::move(output_chr_id)),
 			m_os(&os),
-			m_ploidy(ploidy)
+			m_ploidy(ploidy),
+			m_logs_status(logs_status)
 		{
 		}
 		

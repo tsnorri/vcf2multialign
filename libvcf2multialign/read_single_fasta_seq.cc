@@ -21,11 +21,13 @@ namespace {
 		v2m::vector_type *m_reference{};
 		char const *m_identifier{};
 		bool m_found_seq{};
+		bool m_logs_status{};
 		
 	public:
-		delegate(v2m::vector_type &reference, char const *identifier):
+		delegate(v2m::vector_type &reference, char const *identifier, bool const logs_status):
 			m_reference(&reference),
-			m_identifier(identifier)
+			m_identifier(identifier),
+			m_logs_status(logs_status)
 		{
 		}
 		
@@ -42,7 +44,8 @@ namespace {
 			if ((!m_identifier) || sv == m_identifier)
 			{
 				m_found_seq = true;
-				std::cerr << " reading sequence with identifier " << sv << "…" << std::flush;
+				if (m_logs_status)
+					std::cerr << " reading sequence with identifier " << sv << "…" << std::flush;
 			}
 			
 			return true;
@@ -63,23 +66,24 @@ namespace {
 namespace vcf2multialign {
 	
 	// Read the contents of a FASTA file into a single sequence.
-	void read_single_fasta_seq(char const *fasta_path, vector_type &seq, char const *seq_name)
+	void read_single_fasta_seq(char const *fasta_path, vector_type &seq, char const *seq_name, bool const logs_status)
 	{
 		lb::mmap_handle <char> handle;
 		handle.open(fasta_path);
-		read_single_fasta_seq(handle, seq, seq_name);
+		read_single_fasta_seq(handle, seq, seq_name, logs_status);
 	}
 	
 	
 	// FIXME: log conditionally, add a flag to parameters (before seq_name).
-	void read_single_fasta_seq(libbio::mmap_handle <char> &fasta_handle, vector_type &seq, char const *seq_name)
+	void read_single_fasta_seq(libbio::mmap_handle <char> &fasta_handle, vector_type &seq, char const *seq_name, bool const logs_status)
 	{
 		lb::fasta_reader reader;
-		delegate cb(seq, seq_name);
+		delegate cb(seq, seq_name, logs_status);
 		
-		lb::log_time(std::cerr);
-		std::cerr << "Reading FASTA into memory…";
+		if (logs_status)
+			lb::log_time(std::cerr) << "Reading FASTA into memory…";
 		reader.parse(fasta_handle, cb);
-		std::cerr << " Done. Sequence length was " << seq.size() << '.' << std::endl;
+		if (logs_status)
+			std::cerr << " Done. Sequence length was " << seq.size() << '.' << std::endl;
 	}
 }

@@ -217,7 +217,7 @@ namespace vcf2multialign {
 		m_fsm.update_characters(pack);
 		parse_msa(pack);
 		
-		if (0 == m_handled_characters % 1000)
+		if (m_logs_status && 0 == m_handled_characters % 1000)
 			lb::log_time(std::cerr) << " Handled " << m_handled_characters << " characters…\n";
 	}
 	
@@ -243,7 +243,7 @@ namespace vcf2multialign {
 		m_max_rec_end = std::max(m_max_rec_end, rec.variant.zero_based_pos() + rec.size);
 		m_overlapping_variants.emplace_back(std::move(rec));
 		
-		if (0 == m_handled_variants % 1000)
+		if (m_logs_status && 0 == m_handled_variants % 1000)
 			lb::log_time(std::cerr) << " Handled " << m_handled_variants << " variants…\n";
 	}
 	
@@ -1016,7 +1016,8 @@ namespace vcf2multialign {
 		// Merge and pass to this->handle(). Sort the items s.t. lrsv comes first, except if the alt character is a gap.
 		// This causes the variant’s position to always be in m_current_segment.
 		output_vcf_header();
-		lb::log_time(std::cerr) << "Creating segments and merging…\n";
+		if (m_logs_status)
+			lb::log_time(std::cerr) << "Creating segments and merging…\n";
 		forwarder fwd(*this);
 		typedef std::tuple <std::size_t, std::uint8_t> proj_return_type;
 		ranges::merge(

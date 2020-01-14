@@ -17,7 +17,8 @@ namespace vcf2multialign {
 		char const *variants_path,
 		char const *output_chr,
 		std::uint16_t const ploidy,
-		std::ostream &os
+		std::ostream &os,
+		bool const log_status = true
 	);
 }
 

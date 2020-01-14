@@ -61,7 +61,7 @@ namespace {
 	{
 		std::string dst;
 		io::filtering_ostream out(std::back_inserter(dst));
-		v2m::combine_msa(ref_seq, alt_seq, vcf_path, "chr1", 2, out);
+		v2m::combine_msa(ref_seq, alt_seq, vcf_path, "chr1", 2, out, false);
 		out.flush();
 			
 		THEN(expected_outcome)
@@ -81,8 +81,8 @@ namespace {
 		auto const vcf_path(vcf_name ? (fmt % test_data_dir % vcf_name).str() : "");
 		auto const vcf_path_c(vcf_name ? vcf_path.c_str() : nullptr);
 		auto const expected_path((fmt % test_data_dir % expected_vcf_name).str());
-		v2m::read_single_fasta_seq(ref_path.c_str(), ref_seq, nullptr);
-		v2m::read_single_fasta_seq(alt_path.c_str(), alt_seq, nullptr);
+		v2m::read_single_fasta_seq(ref_path.c_str(), ref_seq, nullptr, false);
+		v2m::read_single_fasta_seq(alt_path.c_str(), alt_seq, nullptr, false);
 		
 		WHEN("the files are merged")
 		{
