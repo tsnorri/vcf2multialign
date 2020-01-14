@@ -201,7 +201,6 @@ namespace vcf2multialign {
 			aligned_segment_vector::const_iterator const end,
 			std::int32_t const max_overlaps
 		);
-		void report_chosen_variant(variant_record const &chosen_var) const;
 		void filter_processed_variants_and_output();
 		
 		void prepare_msa_parser();

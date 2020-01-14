@@ -832,26 +832,6 @@ namespace vcf2multialign {
 	}
 	
 	
-	void msa_combiner::report_chosen_variant(variant_record const &chosen_var) const
-	{
-		// Not currently used.
-		if (1 < m_overlapping_variants.size())
-		{
-			std::cerr << "===== Found overlapping variants =====\n";
-			for (auto const &var : m_overlapping_variants)
-			{
-				// Address comparison is sufficient b.c. chosen_var will be in m_overlapping_variants.
-				if (&var == &chosen_var)
-					std::cerr << "Chosen:    ";
-				else
-					std::cerr << "Discarded: ";
-				lb::output_vcf(std::cerr, var.variant);
-			}
-			std::cerr << "======================================\n";
-		}
-	}
-	
-	
 	void msa_combiner::output_vcf_header() const
 	{
 		auto &os(*m_os);
