@@ -94,6 +94,7 @@ namespace vcf2multialign {
 		segment_type		type{};
 		
 		inline void reset(aligned_character_pack const &pack, segment_type const st);
+		inline std::size_t alt_size() const;
 	};
 	
 	
@@ -159,6 +160,14 @@ namespace vcf2multialign {
 	}
 		
 		
+	std::size_t aligned_segment::alt_size() const
+	{
+		if (segment_type::MATCH == type)
+			return ref.string.size();
+		return alt.string.size();
+	}
+	
+	
 	inline std::ostream &operator<<(std::ostream &os, segment_type const st)
 	{
 		switch (st)
