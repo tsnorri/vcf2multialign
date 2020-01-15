@@ -137,6 +137,7 @@ namespace vcf2multialign {
 			}
 		};
 		
+		friend std::ostream &operator<<(std::ostream &, overlap_count const &);
 		typedef std::vector <overlap_count> overlap_count_vector;
 		
 	protected:
@@ -234,6 +235,13 @@ namespace vcf2multialign {
 	auto msa_combiner::fsm::operator=(fsm &&other) & -> msa_combiner::fsm &
 	{
 		return this->operator=(other);
+	}
+	
+	
+	inline std::ostream &operator<<(std::ostream &os, msa_combiner::overlap_count const &oc)
+	{
+		os << "pos: " << oc.position << " rs: " << +oc.running_sum << " count: " << +oc.count;
+		return os;
 	}
 	
 	

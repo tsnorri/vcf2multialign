@@ -227,6 +227,8 @@ namespace vcf2multialign {
 	{
 		++m_handled_variants;
 		
+		// handle(aligned_character_pack const &&) was called before this. Hence, handle_overlaps() needs to be called with
+		// the current variant’s position.
 		auto const rec_alt_pos(rec.aligned_position - 1); // The position relative to alt; rec.aligned_position is not aligned yet.
 		handle_overlaps(rec_alt_pos);
 		
@@ -433,6 +435,7 @@ namespace vcf2multialign {
 			if (overlap_begin != overlap_it)
 				move_left_and_resize(m_overlap_counts, overlap_it - 1, overlap_end);
 		}
+		libbio_assert(!m_overlap_counts.empty());
 		
 		return handled_count;
 	}
@@ -690,7 +693,10 @@ namespace vcf2multialign {
 				
 				// Sort.
 				// Make sure that no counts were added past the front element that is supposed to store the previously calculated running sum.
-				libbio_assert(m_overlap_counts.size() == overlap_count_size || m_overlap_counts.front().position < m_overlap_counts[overlap_count_size].position);
+				libbio_assert(
+					m_overlap_counts.size() == overlap_count_size ||
+					m_overlap_counts.front().position <= m_overlap_counts[overlap_count_size].position
+				);
 				std::inplace_merge(
 					m_overlap_counts.begin(),
 					m_overlap_counts.begin() + overlap_count_size,
@@ -709,7 +715,9 @@ namespace vcf2multialign {
 				
 				// Find ranges of equivalent positions.
 				{
-					auto it(m_overlap_counts.begin());
+					// Don’t join the first overlap_count b.c. the first one was already handled in the previous call.
+					libbio_assert_neq(m_overlap_counts.begin(), m_overlap_counts.end());
+					auto it(m_overlap_counts.begin() + 1);
 					while (true)
 					{
 						auto const res(multiple_adjacent_find(it, m_overlap_counts.end(), [](auto const &oc){
@@ -739,6 +747,7 @@ namespace vcf2multialign {
 				}
 				
 				// Update the sums.
+				libbio_assert(!m_overlap_counts.empty());
 				std::int32_t current_sum(m_overlap_counts.front().running_sum);
 				for (auto &oc : m_overlap_counts | rsv::tail)
 				{
@@ -750,16 +759,19 @@ namespace vcf2multialign {
 			
 			// Handle the variants.
 			{
-				// Partition the variants s.t. the ones that can be handled are in the front. Requires O(n m log m) time.
-				// push_current_segment() requires that m_overlapping_segments is sorted by aligned_segment.alt.position and the segments do not overlap.
+				// Partition the variants s.t. the variants the end positions of which are located in the aligned_segments
+				// that are currently on the stack are placed in the beginning of m_overlapping_variants.
+				// push_current_segment() requires that m_overlapping_segments is sorted by aligned_segment.alt.position
+				// and the segments do not overlap.
 				auto const var_handled_end(partition_overlapping_variants_by_pos(max_alt_pos));
 				
-				// Determine the minimum variant position that could not be handled.
+				// Determine the minimum variant position that could not be handled by taking the position of
+				// the first variant that could not be handled and finding the segment in which it is located.
 				auto const var_end(m_overlapping_variants.end());
 				std::size_t const min_unhandled_var_pos(var_handled_end == var_end ? SIZE_MAX : var_handled_end->variant.zero_based_pos());
 				auto const min_unhandled_pos(std::min(min_unhandled_var_pos, max_alt_pos));
 				
-				// Determine the last segment that can be handled.
+				// Find the segment in question.
 				// max_alt_pos was already taken into account when determining var_handled_end.
 				auto const seg_end(m_overlapping_segments.end());
 				auto const seg_handled_end(std::partition_point(m_overlapping_segments.begin(), seg_end, [min_unhandled_pos](auto const &seg){
