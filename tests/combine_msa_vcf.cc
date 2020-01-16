@@ -84,6 +84,11 @@ namespace {
 		v2m::read_single_fasta_seq(ref_path.c_str(), ref_seq, nullptr, false);
 		v2m::read_single_fasta_seq(alt_path.c_str(), alt_seq, nullptr, false);
 		
+		INFO("Ref path:          " << ref_path);
+		INFO("Alt path:          " << alt_path);
+		INFO("VCF path:          " << vcf_path);
+		INFO("Expected VCF path: " << expected_path);
+
 		WHEN("the files are merged")
 		{
 			combine_msa_and_compare_against_expected_path(ref_seq, alt_seq, vcf_path_c, expected_outcome, expected_path);
@@ -107,6 +112,104 @@ namespace {
 	void test_msa_merge(char const *test_data_dir, char const *expected_outcome, char const *ref_fa_name = "ref.fa", char const *alt_fa_name = "alt.fa", char const *expected_vcf_name = "expected.vcf")
 	{
 		test_msa_vcf_merge(test_data_dir, expected_outcome, ref_fa_name, alt_fa_name, nullptr, expected_vcf_name);
+	}
+	
+	
+	template <typename t_item>
+	inline std::size_t distance_to_begin(std::vector <t_item> const &vec, typename std::vector <t_item>::const_iterator it)
+	{
+		return std::distance(vec.begin(), it);
+	}
+}
+
+
+SCENARIO("MSA combiner can locate the range of overlapping segments")
+{
+	struct variant_mock
+	{
+		std::size_t	position{};
+		
+		variant_mock() = default;
+		variant_mock(std::size_t position_): position(position_) {}
+		std::size_t zero_based_pos() const { return position; }
+	};
+	
+	struct variant_record_mock
+	{
+		variant_mock	variant;
+		std::size_t		size{};
+		
+		variant_record_mock() = default;
+		variant_record_mock(std::size_t const position, std::size_t const size_):
+			variant(position),
+			size(size_)
+		{
+		}
+	};
+	
+	GIVEN("A vector of segments with two deletions")
+	{
+		// Corresponds to:
+		// GATTACAGATTACA
+		// GA---CA------A
+		
+		std::vector <v2m::aligned_segment> const vec({
+			{"GA",		"",	0,	0,	0,	v2m::segment_type::MATCH},
+			{"TTA",		"",	2,	1,	2,	v2m::segment_type::DELETION},
+			{"CA",		"", 5,	2,	5,	v2m::segment_type::MATCH},
+			{"GATTAC",	"", 7,	3,	7,	v2m::segment_type::DELETION},
+			{"A",		"", 13,	4,	13,	v2m::segment_type::MATCH}
+		});
+		
+		WHEN("a variant that overlaps with the third segment at the boundary of a preceding deletion is tested")
+		{
+			variant_record_mock const var(2, 1);
+			
+			THEN("a range with the third segment is returned")
+			{
+				auto const it_pair(find_overlapping_segment_range(vec.begin(), vec.end(), var));
+				CHECK(2 == distance_to_begin(vec, it_pair.first));
+				CHECK(3 == distance_to_begin(vec, it_pair.second));
+			}
+		}
+		
+		WHEN("a variant that overlaps with the third segment at the boundary of a succeeding deletion is tested")
+		{
+			variant_record_mock const var(3, 1);
+			
+			THEN("a range with the third and the fourth segment is returned")
+			{
+				auto const it_pair(find_overlapping_segment_range(vec.begin(), vec.end(), var));
+				CHECK(2 == distance_to_begin(vec, it_pair.first));
+				// Since the deletion occurs right after the overlapping segment, the variant “overlaps” with the
+				// gap characters of the deletion.
+				CHECK(4 == distance_to_begin(vec, it_pair.second));
+			}
+		}
+		
+		WHEN("a variant that overlaps with the first three segments is tested")
+		{
+			variant_record_mock var(1, 2);
+			
+			THEN("a range with the first three segments is returned")
+			{
+				auto const it_pair(find_overlapping_segment_range(vec.begin(), vec.end(), var));
+				CHECK(0 == distance_to_begin(vec, it_pair.first));
+				CHECK(3 == distance_to_begin(vec, it_pair.second));
+			}
+		}
+		
+		WHEN("a variant that overlaps with all of the segments (except the first character of the first segement) is tested")
+		{
+			variant_record_mock var(1, 4);
+			
+			THEN("a range with all of the segments is returned")
+			{
+				auto const it_pair(find_overlapping_segment_range(vec.begin(), vec.end(), var));
+				CHECK(0 == distance_to_begin(vec, it_pair.first));
+				CHECK(5 == distance_to_begin(vec, it_pair.second));
+			}
+		}
 	}
 }
 
@@ -135,6 +238,11 @@ SCENARIO("MSA combiner can merge sequences")
 	GIVEN("A MSA with a deletion")
 	{
 		test_msa_merge("msa-del", "the resulting VCF will have the deletion");
+	}
+	
+	GIVEN("A MSA with two deletions")
+	{
+		test_msa_merge("msa-del-vcf-overlaps", "the resulting VCF will have the deletions");
 	}
 	
 	GIVEN("A MSA with an insertion and a SNP")
@@ -167,7 +275,7 @@ SCENARIO("MSA combiner can merge sequences")
 		test_msa_merge("msa-mixed-beginning-2", "the resulting VCF will have the variants");
 	}
 	
-	GIVEN("A MSA with a mixed segment in the beginning (gap in both)")
+	GIVEN("A MSA with a mixed segment in the beginning (gap in alt)")
 	{
 		test_msa_merge("msa-mixed-beginning-3", "the resulting VCF will have the variants");
 	}
@@ -319,5 +427,10 @@ SCENARIO("MSA combiner can merge sequences and variants")
 	GIVEN("A MSA with SNPs and a VCF with overlapping variants")
 	{
 		test_msa_vcf_merge("msa-snps-vcf-overlaps", "the resulting VCF will have the expected variants", "ref.fa", "alt.fa", "vars-2.vcf", "expected-2.vcf");
+	}
+	
+	GIVEN("A MSA with two deletions and two variants that overlap with the deletions")
+	{
+		test_msa_vcf_merge("msa-del-vcf-overlaps", "the resulting VCF will have the deletions", "ref.fa", "alt.fa", "vars.vcf", "expected-2.vcf");
 	}
 }
