@@ -31,6 +31,6 @@ namespace vcf2multialign {
 			gen.vcf_reader().set_parsed_fields(lb::vcf_field::ALL);
 		}
 
-		combiner.handle_msa(ref_seq, alt_seq, gen);
+		combiner.process_msa(ref_seq, alt_seq, gen);
 	}
 }

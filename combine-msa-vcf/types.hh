@@ -41,7 +41,7 @@ namespace vcf2multialign {
 		libbio::variant	variant;
 		std::size_t		aligned_position{};				// 1-based, 0 indicates invalid record.
 		std::size_t		size{};
-		bool			is_accounted_for_overlaps{};	// Bookkeeping.
+		bool			is_skipped{};
 	};
 	
 	
@@ -83,6 +83,14 @@ namespace vcf2multialign {
 	{
 		std::string			string;
 		std::size_t			position{};
+		
+		aligned_string() = default;
+		
+		aligned_string(std::string string_, std::size_t const position_):
+			string(std::move(string_)),
+			position(position_)
+		{
+		}
 	};
 	
 	
@@ -93,8 +101,25 @@ namespace vcf2multialign {
 		std::size_t			aligned_position{};
 		segment_type		type{};
 		
+		aligned_segment() = default;
+		
+		aligned_segment(
+			std::string ref_,
+			std::string alt_,
+			std::size_t const ref_pos,
+			std::size_t const alt_pos,
+			std::size_t const aln_pos,
+			segment_type const type_
+		):
+			ref(std::move(ref_), ref_pos),
+			alt(std::move(alt_), alt_pos),
+			aligned_position(aln_pos),
+			type(type_)
+		{
+		}
+		
 		inline void reset(aligned_character_pack const &pack, segment_type const st);
-		inline std::size_t alt_size() const;
+		inline std::size_t alt_end() const;
 	};
 	
 	
@@ -160,11 +185,22 @@ namespace vcf2multialign {
 	}
 		
 		
-	std::size_t aligned_segment::alt_size() const
+	std::size_t aligned_segment::alt_end() const
 	{
-		if (segment_type::MATCH == type)
-			return ref.string.size();
-		return alt.string.size();
+		switch (type)
+		{
+			case segment_type::MATCH:
+				return alt.position + ref.string.size();
+
+			case segment_type::DELETION:
+				return alt.position + 1;
+
+			case segment_type::MISMATCH:
+			case segment_type::INSERTION:
+			case segment_type::INSERTION_WITH_SNP:
+			case segment_type::MIXED:
+				return alt.position + alt.string.size();
+		}
 	}
 	
 	

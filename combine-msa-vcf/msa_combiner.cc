@@ -31,17 +31,6 @@ namespace {
 	}
 	
 	
-	// Move items left in a vector (or similar) and set its size to match the number of remaining items.
-	template <typename t_collection>
-	void move_left_and_resize(t_collection &collection, typename t_collection::iterator it, typename t_collection::iterator const end)
-	{
-		auto const new_size(std::distance(it, end));
-		if (collection.begin() != it)
-			std::move(it, end, collection.begin());
-		collection.resize(new_size);
-	}
-	
-	
 	inline void check_segment(v2m::aligned_segment const &seg)
 	{
 		// Check that for MISMATCH, every (aligned) character does not match.
@@ -57,6 +46,95 @@ namespace {
 	}
 	
 	
+	void split_mixed_segment(v2m::aligned_segment &src, v2m::msa_combiner::aligned_segment_vector &dst)
+	{
+		v2m::aligned_segment seg;
+		auto const ref_size(src.ref.string.size());
+		auto const alt_size(src.alt.string.size()); // OK b.c. segment_type is MIXED.
+		auto const head_size(alt_size <= ref_size ? alt_size : ref_size - 1);
+		libbio_assert_gt(ref_size, 0);
+		
+		// Split the strings into head and tail parts like so:
+		// Ref	GATTACA				GCTT
+		// Alt	GCTT				GATTACA
+		//		    ^tail begins	   ^tail begins
+		// Then create smaller segments.
+		
+		// Handle the head part.
+		{
+			auto const head_range(
+				rsv::zip(rsv::iota(std::size_t(0)), src.ref.string, src.alt.string)
+				| rsv::take_exactly(head_size)
+			);
+			v2m::segment(
+				head_range,
+				[](auto const &tup) -> bool {								// Project
+					auto const [i, refc, altc] = tup;
+					return (refc == altc);
+				},
+				[&src, &seg](auto const &tup, auto const is_match){			// Start a segment
+					auto const [i, refc, altc] = tup;
+					setup_segment(src, seg, i, is_match);
+				},
+				[&src, &seg](auto const &tup, auto const is_match){			// Handle an item
+					auto const [i, refc, altc] = tup;
+					seg.ref.string += refc;
+					if (!is_match)
+						seg.alt.string += altc;
+				},
+				[&dst, &seg](auto const is_match){							// Finish a segment
+					auto &new_seg(dst.emplace_back());
+					check_segment(seg);
+					// Move the strings.
+					using std::swap;
+					swap(new_seg, seg);
+				}
+			);
+		}
+		
+		// Handle the tail part.
+		{
+			auto &ref_str(src.ref.string);
+			auto &alt_str(src.alt.string);
+			
+			if (alt_size < ref_size)
+			{
+				ref_str.erase(ref_str.begin(), ref_str.begin() + alt_size);
+				alt_str.clear();
+			
+				src.type = v2m::segment_type::DELETION;
+				src.aligned_position += alt_size;
+				src.ref.position += alt_size;
+				src.alt.position += alt_size;
+				check_segment(src);
+			
+				auto &new_seg(dst.emplace_back());
+				using std::swap;
+				swap(new_seg, src);
+			}
+			else if (ref_size < alt_size)
+			{
+				ref_str.erase(ref_str.begin(), ref_str.begin() + ref_size - 1);
+				alt_str.erase(alt_str.begin(), alt_str.begin() + ref_size - 1);
+			
+				if (ref_str[0] == alt_str[0])
+					src.type = v2m::segment_type::INSERTION;
+				else
+					src.type = v2m::segment_type::INSERTION_WITH_SNP;
+			
+				src.aligned_position += ref_size - 1;
+				src.ref.position += ref_size - 1;
+				src.alt.position += ref_size - 1;
+				check_segment(src);
+			
+				auto &new_seg(dst.emplace_back());
+				using std::swap;
+				swap(new_seg, src);
+			}
+		}
+	}
+	
+	
 	// Determine the variant position relative to segment start.
 	std::size_t segment_relative_variant_position(v2m::aligned_segment const &seg, v2m::variant_record const &var)
 	{
@@ -65,20 +143,18 @@ namespace {
 		libbio_assert_lte(alt_pos, var_pos);
 		return var_pos - alt_pos;
 	}
-}
-
-
-namespace vcf2multialign {
 	
-	std::int32_t msa_combiner::count_set_genotype_values(lb::variant const &var, std::uint16_t const alt_idx) const
+	
+	std::pair <std::uint16_t, std::uint16_t> count_set_genotype_values(lb::variant const &var, std::uint16_t const alt_idx)
 	{
+		typedef std::pair <std::uint16_t, std::uint16_t> return_type;
+		
 		auto const &samples(var.samples());
 		libbio_assert(!samples.empty());
-		auto const *gt_field(get_variant_format(var).gt);
+		auto const *gt_field(v2m::get_variant_format(var).gt);
 		libbio_assert(gt_field);
 		auto const &first_sample(samples.front());
 		auto const &gt((*gt_field)(first_sample)); // vector of sample_genotype
-		libbio_always_assert_eq_msg(gt.size(), m_ploidy, "Line ", var.lineno(), ": expected the sample ploidy to match the passed value, got ", gt.size(), '.');
 		
 		// If 0 == alt_idx, count all non-zero values. Otherwise, count the instances of the given value.
 		if (0 == alt_idx)
@@ -86,110 +162,26 @@ namespace vcf2multialign {
 			auto const count(std::accumulate(gt.begin(), gt.end(), std::int32_t(0), [](auto const sum, auto const &sample_gt) -> std::int32_t {
 				return (0 == sample_gt.alt ? sum : 1 + sum);
 			}));
-			return count;
+			return return_type(count, gt.size());
 		}
 		else
 		{
 			auto const count(std::accumulate(gt.begin(), gt.end(), std::int32_t(0), [alt_idx](auto const sum, auto const &sample_gt) -> std::int32_t {
 				return (alt_idx == sample_gt.alt ? 1 + sum : sum);
 			}));
-			return count;
+			return return_type(count, gt.size());
 		}
 	}
-	
-	
+}
+
+
+namespace vcf2multialign {
+
 	void msa_combiner::push_current_segment()
 	{
-		handle_overlaps(SIZE_MAX);
-		
 		// If a segment is mixed, partition it.
 		if (segment_type::MIXED == m_current_segment.type)
-		{
-			aligned_segment seg;
-			auto const ref_size(m_current_segment.ref.string.size());
-			auto const alt_size(m_current_segment.alt.string.size()); // OK b.c. segment_type is MIXED.
-			auto const head_size(alt_size <= ref_size ? alt_size : ref_size - 1);
-			libbio_assert_gt(ref_size, 0);
-			
-			// Split the strings into head and tail parts like so:
-			// Ref	GATTACA				GCTT
-			// Alt	GCTT				GATTACA
-			//		    ^tail begins	   ^tail begins
-			// Then create smaller segments.
-			
-			// Handle the head part.
-			{
-				auto const head_range(
-					rsv::zip(rsv::iota(std::size_t(0)), m_current_segment.ref.string, m_current_segment.alt.string)
-					| rsv::take_exactly(head_size)
-				);
-				segment(
-					head_range,
-					[](auto const &tup) -> bool {								// Project
-						auto const [i, refc, altc] = tup;
-						return (refc == altc);
-					},
-					[this, &seg](auto const &tup, auto const is_match){			// Start a segment
-						auto const [i, refc, altc] = tup;
-						setup_segment(m_current_segment, seg, i, is_match);
-					},
-					[this, &seg](auto const &tup, auto const is_match){			// Handle an item
-						auto const [i, refc, altc] = tup;
-						seg.ref.string += refc;
-						if (!is_match)
-							seg.alt.string += altc;
-					},
-					[this, &seg](auto const is_match){							// Finish a segment
-						auto &new_seg(m_overlapping_segments.emplace_back());
-						check_segment(seg);
-						// Move the strings.
-						using std::swap;
-						swap(new_seg, seg);
-					}
-				);
-			}
-			
-			// Handle the tail part.
-			{
-				auto &ref_str(m_current_segment.ref.string);
-				auto &alt_str(m_current_segment.alt.string);
-				
-				if (alt_size < ref_size)
-				{
-					ref_str.erase(ref_str.begin(), ref_str.begin() + alt_size);
-					alt_str.clear();
-				
-					m_current_segment.type = segment_type::DELETION;
-					m_current_segment.aligned_position += alt_size;
-					m_current_segment.ref.position += alt_size;
-					m_current_segment.alt.position += alt_size;
-					check_segment(m_current_segment);
-				
-					auto &new_seg(m_overlapping_segments.emplace_back());
-					using std::swap;
-					swap(new_seg, m_current_segment);
-				}
-				else if (ref_size < alt_size)
-				{
-					ref_str.erase(ref_str.begin(), ref_str.begin() + ref_size - 1);
-					alt_str.erase(alt_str.begin(), alt_str.begin() + ref_size - 1);
-				
-					if (ref_str[0] == alt_str[0])
-						m_current_segment.type = segment_type::INSERTION;
-					else
-						m_current_segment.type = segment_type::INSERTION_WITH_SNP;
-				
-					m_current_segment.aligned_position += ref_size - 1;
-					m_current_segment.ref.position += ref_size - 1;
-					m_current_segment.alt.position += ref_size - 1;
-					check_segment(m_current_segment);
-				
-					auto &new_seg(m_overlapping_segments.emplace_back());
-					using std::swap;
-					swap(new_seg, m_current_segment);
-				}
-			}
-		}
+			split_mixed_segment(m_current_segment, m_overlapping_segments);
 		else
 		{
 			check_segment(m_current_segment);
@@ -199,11 +191,144 @@ namespace vcf2multialign {
 			swap(m_current_segment, seg);
 		}
 		
+		// seg.alt.position may be SIZE_MAX in case the alt sequence starts with “-”.
+		static_assert(std::is_unsigned_v <decltype(m_overlapping_segments.front().alt.position)>);
 		libbio_assert(
 			ranges::is_sorted(
 				m_overlapping_segments,
-				ranges::less_equal(),
-				[](auto const &seg){ return seg.alt.position; }
+				ranges::less(),
+				[](auto const &seg){ return 1 + seg.alt.position; }
+			)
+		);
+		
+		process_variants();
+	}
+	
+	
+	// Update the overlap count list.
+	void msa_combiner::add_to_overlap_counts(variant_record const &var)
+	{
+		// By adding the starting and ending position of the new variant,
+		// we will end up with two sorted lists the second one having two elements.
+		// These can then be merged.
+
+		auto const overlap_count_size(m_overlap_counts.size());
+		libbio_assert_lt(0, overlap_count_size);
+		
+		auto const var_pos(var.variant.zero_based_pos());
+		auto const var_end(var_pos + var.size);
+
+		// Calculate the overlap count.
+		auto const [var_overlap_count, ploidy] = (count_set_genotype_values(var.variant, 0));
+		libbio_always_assert_eq_msg(ploidy, m_ploidy, "Line ", var.variant.lineno(), ": expected the sample ploidy to match the passed value, got ", ploidy, '.');
+		
+		m_overlap_counts.emplace_back(var_pos, var_overlap_count);
+		m_overlap_counts.emplace_back(var_end, -1 * var_overlap_count);
+
+		// Sort.
+		// Make sure that no counts were added before the front element that is supposed to store the previously calculated running sum.
+		libbio_assert_lte(m_overlap_counts.front().position, m_overlap_counts[overlap_count_size].position);
+		std::inplace_merge(
+			m_overlap_counts.begin(),
+			m_overlap_counts.begin() + overlap_count_size,
+			m_overlap_counts.end(),
+			[](auto const &lhs, auto const &rhs){
+				return lhs.position < rhs.position;
+			}
+		);
+		libbio_assert(
+			std::is_sorted(
+				m_overlap_counts.begin(),
+				m_overlap_counts.end(),
+				[](auto const &lhs, auto const &rhs){ return lhs.position < rhs.position; }
+			)
+		);
+	}
+	
+	
+	void msa_combiner::update_overlap_running_sums()
+	{
+		// Find the ranges of equivalent positions.
+		{
+			// Don’t join the first overlap_count b.c. the first one was already handled in the previous call to update_overlap_running_sums().
+			libbio_assert_neq(m_overlap_counts.begin(), m_overlap_counts.end());
+			auto it(m_overlap_counts.begin() + 1);
+			while (true)
+			{
+				auto const res(multiple_adjacent_find(it, m_overlap_counts.end(), [](auto const &oc){
+					return oc.position;
+				}));
+				
+				// Check for an empty range.
+				if (res.first == res.second)
+					break;
+				it = res.first;
+				auto const end(res.second);
+				
+				// Removing the items in the end of this loop will cause iterators to be invalidated.
+				// Hence, calculate the range start position for later reference.
+				auto const range_start_idx(std::distance(m_overlap_counts.begin(), it));
+				auto const overlap_count(std::accumulate(it, end, std::int32_t(0), [](auto const sum, auto const &oc) -> std::int32_t {
+					return sum + oc.count;
+				}));
+				
+				// Update the count.
+				it->count = overlap_count;
+				
+				// Remove unneeded items and update the range start iterator.
+				m_overlap_counts.erase(++it, end);
+				it = m_overlap_counts.begin() + range_start_idx + 1;
+			}
+		}
+		
+		// Update the sums.
+		libbio_assert(!m_overlap_counts.empty());
+		std::int32_t current_sum(m_overlap_counts.front().running_sum);
+		for (auto &oc : m_overlap_counts | rsv::tail)
+		{
+			current_sum += oc.count;
+			oc.running_sum = current_sum;
+			libbio_assert_lte(0, current_sum);
+		}
+	}
+	
+	
+	void msa_combiner::clean_up_overlap_counts()
+	{
+		libbio_assert(!m_overlap_counts.empty());
+		auto const begin(m_overlap_counts.begin());
+		auto const end(m_overlap_counts.end());
+		if (m_overlapping_variants.empty())
+			m_overlap_counts.erase(begin, end - 1);
+		else
+		{
+			auto const first_unhandled_pos(m_overlapping_segments.front().alt.position);
+			auto const it(std::partition_point(begin, end, [first_unhandled_pos](auto const &oc){
+				return oc.position < first_unhandled_pos;
+			}));
+			if (begin != it)
+				m_overlap_counts.erase(begin, it - 1);
+		}
+		libbio_assert(!m_overlap_counts.empty());
+	}
+	
+	
+	void msa_combiner::merge_output_variants(std::size_t const partition_point)
+	{
+		// Merge the partitions of sorted variants.
+		std::inplace_merge(
+			m_output_variants.begin(),
+			m_output_variants.begin() + partition_point,
+			m_output_variants.end(),
+			[](auto const &lhs, auto const &rhs){
+				return lhs.position < rhs.position;
+			}
+		);
+		libbio_assert(
+			std::is_sorted(
+				m_output_variants.begin(),
+				m_output_variants.end(),
+				[](auto const &lhs, auto const &rhs){ return lhs.position < rhs.position; }
 			)
 		);
 	}
@@ -227,22 +352,18 @@ namespace vcf2multialign {
 	{
 		++m_handled_variants;
 		
-		// handle(aligned_character_pack const &&) was called before this. Hence, handle_overlaps() needs to be called with
-		// the current variant’s position.
-		auto const rec_alt_pos(rec.aligned_position - 1); // The position relative to alt; rec.aligned_position is not aligned yet.
-		handle_overlaps(rec_alt_pos);
-		
 		// Transform the co-ordinate value in rec.
+		auto const rec_alt_pos(rec.aligned_position - 1); // The position relative to alt; rec.aligned_position is not aligned yet.
 		auto const rec_len(rec.variant.ref().size());
 		// The current or previous segment needs to be updated before this can be done,
 		// so handle() for variant_record cannot be called first.
-		auto const &seg(find_segment_for_alt_position(rec_alt_pos));
-		libbio_assert(segment_type::MATCH == seg.type || !seg.alt.string.empty());	// The variant may not be aligned to a deleted position.
-		libbio_assert_lte(seg.alt.position, rec_alt_pos);
-		auto const rec_pos_in_seg(rec_alt_pos - seg.alt.position);
-		rec.aligned_position = seg.aligned_position + rec_pos_in_seg;
-		
-		m_max_rec_end = std::max(m_max_rec_end, rec.variant.zero_based_pos() + rec.size);
+		libbio_always_assert(m_current_segment.alt.position <= rec_alt_pos);
+		libbio_assert(segment_type::MATCH == m_current_segment.type || !m_current_segment.alt.string.empty());	// The variant may not be aligned to a deleted position.
+		libbio_assert_lte(m_current_segment.alt.position, rec_alt_pos);
+		auto const rec_pos_in_seg(rec_alt_pos - m_current_segment.alt.position);
+		rec.aligned_position = m_current_segment.aligned_position + rec_pos_in_seg;
+
+		add_to_overlap_counts(rec);
 		m_overlapping_variants.emplace_back(std::move(rec));
 		
 		if (m_logs_status && 0 == m_handled_variants % 1000)
@@ -350,7 +471,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	std::size_t msa_combiner::handle_overlaps_msa(
+	std::size_t msa_combiner::process_variants_msa(
 		std::size_t const max_alt_pos,
 		aligned_segment_vector::const_iterator seg_it,
 		aligned_segment_vector::const_iterator const seg_end
@@ -361,7 +482,7 @@ namespace vcf2multialign {
 		// Determine the overlap count range for the first segment.
 		auto const &first_seg(*seg_it);
 		auto const first_seg_alt_pos(first_seg.alt.position);
-		auto const first_seg_alt_end_pos(first_seg_alt_pos + first_seg.alt_size());
+		auto const first_seg_alt_end_pos(first_seg.alt_end());
 		auto overlap_it(
 			std::partition_point(
 				m_overlap_counts.begin(),
@@ -379,7 +500,7 @@ namespace vcf2multialign {
 			// Check that max_alt_pos does not overlap with the current segment.
 			auto const &seg(*seg_it);
 			auto const seg_alt_pos(seg.alt.position);
-			auto const seg_alt_end_pos(seg_alt_pos + seg.alt_size());
+			auto const seg_alt_end_pos(seg.alt_end());
 			if (max_alt_pos < seg_alt_end_pos)
 				break;
 			
@@ -400,42 +521,6 @@ namespace vcf2multialign {
 			++handled_count;
 			++seg_it;
 		}
-		
-		// Merge the partitions of sorted variants.
-		std::inplace_merge(
-			m_output_variants.begin(),
-			m_output_variants.begin() + output_variant_count,
-			m_output_variants.end(),
-			[](auto const &lhs, auto const &rhs){
-				return lhs.position < rhs.position;
-			}
-		);
-		libbio_assert(
-			std::is_sorted(
-				m_output_variants.begin(),
-				m_output_variants.end(),
-				[](auto const &lhs, auto const &rhs){ return lhs.position < rhs.position; }
-			)
-		);
-		
-		// Make sure that there is at least one overlap_count remaining.
-		auto const overlap_begin(m_overlap_counts.begin());
-		auto const overlap_end(m_overlap_counts.end());
-		if (m_overlapping_segments.end() == seg_it)
-		{
-			if (!m_overlap_counts.empty())
-				m_overlap_counts.erase(overlap_begin, overlap_end - 1);
-		}
-		else
-		{
-			auto const first_unhandled_pos(seg_it->alt.position);
-			overlap_it = std::partition_point(overlap_begin, overlap_end, [first_unhandled_pos](auto const &oc){
-				return oc.position < first_unhandled_pos;
-			});
-			if (overlap_begin != overlap_it)
-				move_left_and_resize(m_overlap_counts, overlap_it - 1, overlap_end);
-		}
-		libbio_assert(!m_overlap_counts.empty());
 		
 		return handled_count;
 	}
@@ -516,7 +601,8 @@ namespace vcf2multialign {
 				std::size_t var_ref_characters_remaining(var.size); // Number of remaining variant reference characters, i.e. in seg.alt.
 				std::size_t var_alt_characters_remaining(var_alt.alt.size());
 				std::size_t total_alt_characters_consumed{};
-				auto const gt_count(count_set_genotype_values(var.variant, alt_idx));
+				auto const [gt_count, ploidy] = (count_set_genotype_values(var.variant, alt_idx));
+				libbio_always_assert_eq_msg(ploidy, m_ploidy, "Line ", var.variant.lineno(), ": expected the sample ploidy to match the passed value, got ", ploidy, '.');
 				auto &desc(m_output_variants.emplace_back(m_ploidy, gt_count, variant_origin::VC));
 				desc.overlap_count = max_overlaps - 1;
 				std::string_view const var_alt_sv(var_alt.alt);
@@ -540,17 +626,17 @@ namespace vcf2multialign {
 				
 				for (auto const &seg : range)
 				{
-					libbio_assert_lt(0, var_ref_characters_remaining);
 					switch (seg.type)
 					{
 						case segment_type::MISMATCH:
 						case segment_type::MATCH:
 						{
-							std::string_view const ref_sv(seg.ref.string);
-							std::string_view const alt_sv(seg.alt.string);
-							libbio_assert(segment_type::MATCH == seg.type || ref_sv.size() == alt_sv.size());
+							libbio_assert_lt(0, var_ref_characters_remaining);
 							
-							// Append the characters ignoring left_pad.
+							std::string_view const ref_sv(seg.ref.string);
+							std::string_view const alt_sv(segment_type::MATCH == seg.type ? seg.ref.string : seg.alt.string);
+							libbio_assert_eq(ref_sv.size(), alt_sv.size());
+							
 							auto const tail_length(alt_sv.size() - left_pad);
 							auto const ref_characters_available(std::min(var_ref_characters_remaining, tail_length));
 							auto const alt_characters_available(std::min(var_alt_characters_remaining, tail_length));
@@ -567,14 +653,22 @@ namespace vcf2multialign {
 						{
 							libbio_assert_eq(0, left_pad);
 							
-							// Append the ref characters to the currently handled variant.
-							desc.ref += seg.ref.string;
+							// If we are at the end of the range, don’t append any characters as it would cause
+							// an unnecessary overlap with the variant created from the deletion segment.
+							// Continue the loop, though, in case assertions have been enabled.
+							if (0 < var_ref_characters_remaining)
+							{
+								// Append the ref characters to the currently handled variant.
+								desc.ref += seg.ref.string;
+							}
 							break;
 						}
 						
 						case segment_type::INSERTION:
 						case segment_type::INSERTION_WITH_SNP:
 						{
+							libbio_assert_lt(0, var_ref_characters_remaining);
+
 							std::string_view const alt_sv(seg.alt.string);
 							
 							// Add the pad characters if needed.
@@ -600,44 +694,16 @@ namespace vcf2multialign {
 					left_pad = 0;
 				}
 				
-				// In case the last segment was an insertion, append the remaining alt characters.
-				if (segment_type::INSERTION == last_seg.type || segment_type::INSERTION_WITH_SNP == last_seg.type)
-					desc.alt += var_alt_sv.substr(var_alt_sv.size() - var_alt_characters_remaining);
+				// Append the remaining characters if needed.
+				libbio_assert_eq(0, var_ref_characters_remaining);
+				desc.alt += var_alt_sv.substr(var_alt_sv.size() - var_alt_characters_remaining);
 			}
 		}
 	}
 	
 	
-	// Partition the variants s.t. the variants the end positions of which are located in the aligned_segments that are currently on the stack
-	// are placed in the beginning of m_overlapping_variants.
-	auto msa_combiner::partition_overlapping_variants_by_pos(std::size_t const max_alt_pos) -> std::vector <variant_record>::iterator
-	{
-		struct {
-			bool operator()(std::size_t const var_end_pos, aligned_segment const &seg) const { return var_end_pos <= seg.alt.position; } // lt. if the variant is located before this segment.
-			bool operator()(aligned_segment const &seg, std::size_t const var_end_pos) const { return seg.alt.position + seg.alt_size() < var_end_pos; } // lt. if the variant end is located after this segment.
-		} seg_cmp;
-		return std::stable_partition(m_overlapping_variants.begin(), m_overlapping_variants.end(), [this, &seg_cmp, max_alt_pos](auto const &var) -> bool {
-			// Find the segment in which the variant end is located.
-			auto const var_pos(var.variant.zero_based_pos());
-			auto const var_end_pos(var_pos + var.size);
-			auto const seg_end(m_overlapping_segments.end());
-			auto const it_pair(std::equal_range(m_overlapping_segments.begin(), seg_end, var_end_pos, seg_cmp));
-			if (seg_end == it_pair.first || it_pair.first == it_pair.second)
-				return false;
-			
-			auto const &last_seg(*it_pair.first);
-			auto const last_seg_alt_pos(last_seg.alt.position);
-			auto const last_seg_alt_end(last_seg_alt_pos + last_seg.alt_size());
-			if (max_alt_pos < last_seg_alt_end)
-				return false;
-			
-			return true;
-		});
-	}
-	
-	
 	// Handle an overlapping part.
-	void msa_combiner::handle_overlaps(std::size_t const max_alt_pos)
+	void msa_combiner::process_variants()
 	{
 		// Consider a situation like this:
 		//
@@ -657,190 +723,105 @@ namespace vcf2multialign {
 		// reported by the VC. Even though this should only be called with a group of overlapping variants,
 		// the fact that two VC-provided variants do or do not overlap does not affect anything.
 		
+		update_overlap_running_sums();
+		auto const initial_variant_count(m_output_variants.size());
 		if (m_overlapping_variants.empty())
 		{
 			// Handle MSA only.
 			auto const end(m_overlapping_segments.end());
-			auto const handled_count(handle_overlaps_msa(max_alt_pos, m_overlapping_segments.cbegin(), end));
-			move_left_and_resize(m_overlapping_segments, m_overlapping_segments.begin() + handled_count, end);
-			filter_processed_variants_and_output();
+			auto const handled_count(process_variants_msa(SIZE_MAX, m_overlapping_segments.cbegin(), end));
+			m_overlapping_segments.erase(m_overlapping_segments.begin(), m_overlapping_segments.begin() + handled_count);
+			
+			merge_output_variants(initial_variant_count);
+			filter_processed_variants_and_output(SIZE_MAX);
 		}
 		else
 		{
-			// Determine the number of overlapping variants.
-			// Since the ends of pre-existing variants may extend over the start positions of the new variants,
-			// everything needs to be updated.
+			libbio_assert(!m_overlapping_segments.empty());
+			libbio_assert_neq(SIZE_MAX, m_overlapping_segments.front().alt.position);
+			
+			std::size_t min_unhandled_alt_pos(SIZE_MAX);
+			std::size_t min_unhandled_ref_pos(SIZE_MAX);
+			
+			auto var_it(m_overlapping_variants.begin());
+			auto seg_it(m_overlapping_segments.begin());
+			auto overlap_it(m_overlap_counts.cbegin());
+			auto const var_end(m_overlapping_variants.end());
+			auto const seg_end(m_overlapping_segments.end());
+			auto const overlap_begin(m_overlap_counts.cbegin());
+			auto const overlap_end(m_overlap_counts.cend());
+			
+			while (var_it != var_end)
 			{
-				libbio_assert(!m_overlap_counts.empty());
-				std::size_t const overlap_count_size(m_overlap_counts.size());
-				for (auto &var : m_overlapping_variants)
+				auto const &var(*var_it);
+				auto const var_pos(var.variant.zero_based_pos());
+				auto const var_end_pos(var_pos + var.size);
+				
+				auto const seg_range(find_overlapping_segment_range(seg_it, seg_end, var));
+				libbio_assert_neq_msg(seg_range.first, seg_end, "There should be at least one element not less than (overlapping with) the variant.");
+				seg_it = seg_range.first;
+				auto const seg_current_end(seg_range.second);
+				
+				// If the last segment satisfies the condition, the variant may extend over the end of the segment.
+				if (seg_end == seg_current_end && (seg_current_end - 1)->alt_end() < var.variant.zero_based_pos() + var.size)
 				{
-					if (var.is_accounted_for_overlaps)
-						continue;
-					
-					var.is_accounted_for_overlaps = true;
-					
-					auto const var_pos(var.variant.zero_based_pos());
-					auto const var_end(var_pos + var.size);
-					
-					// Calculate the overlap count.
-					auto const var_overlap_count(count_set_genotype_values(var.variant, 0));
-					
-					// Mark variant start with one, end with zero.
-					m_overlap_counts.emplace_back(var_pos, var_overlap_count);
-					m_overlap_counts.emplace_back(var_end, -1 * var_overlap_count);
+					min_unhandled_ref_pos = std::min(min_unhandled_ref_pos, seg_it->ref.position); // Use the segment start b.c. converting the variant co-ordinate is difficult.
+					min_unhandled_alt_pos = std::min(min_unhandled_alt_pos, var_pos);
+					var_it->is_skipped = true;
+					++var_it;
+					continue;
 				}
 				
-				// Sort.
-				// Make sure that no counts were added past the front element that is supposed to store the previously calculated running sum.
-				libbio_assert(
-					m_overlap_counts.size() == overlap_count_size ||
-					m_overlap_counts.front().position <= m_overlap_counts[overlap_count_size].position
-				);
-				std::inplace_merge(
-					m_overlap_counts.begin(),
-					m_overlap_counts.begin() + overlap_count_size,
-					m_overlap_counts.end(),
-					[](auto const &lhs, auto const &rhs){
-						return lhs.position < rhs.position;
-					}
-				);
-				libbio_assert(
-					std::is_sorted(
-						m_overlap_counts.begin(),
-						m_overlap_counts.end(),
-						[](auto const &lhs, auto const &rhs){ return lhs.position < rhs.position; }
+				// Determine the max. overlap count.
+				struct {
+					typedef std::pair <std::size_t, std::size_t> interval;
+					// We would like to skip the oc that is exactly at the segment start.
+					bool operator()(overlap_count const &oc, interval const &ival) const { return oc.position < ival.first; }
+					bool operator()(interval const &ival, overlap_count const &oc) const { return ival.second <= oc.position; }
+				} overlap_cmp;
+				auto const overlap_it_pair(
+					std::equal_range(
+						overlap_it,
+						overlap_end,
+						std::make_pair(var_pos, var_end_pos),
+						overlap_cmp
 					)
 				);
-				
-				// Find ranges of equivalent positions.
-				{
-					// Don’t join the first overlap_count b.c. the first one was already handled in the previous call.
-					libbio_assert_neq(m_overlap_counts.begin(), m_overlap_counts.end());
-					auto it(m_overlap_counts.begin() + 1);
-					while (true)
-					{
-						auto const res(multiple_adjacent_find(it, m_overlap_counts.end(), [](auto const &oc){
-							return oc.position;
-						}));
-						
-						// Check for an empty range.
-						if (res.first == res.second)
-							break;
-						it = res.first;
-						auto const end(res.second);
-						
-						// Removing the items in the end of this loop will cause iterators to be invalidated.
-						// Hence, calculate the range start position for later reference.
-						auto const range_start_idx(std::distance(m_overlap_counts.begin(), it));
-						auto const overlap_count(std::accumulate(it, end, std::int32_t(0), [](auto const sum, auto const &oc) -> std::int32_t {
-							return sum + oc.count;
-						}));
-						
-						// Update the count.
-						it->count = overlap_count;
-						
-						// Remove unneeded items and update the range start iterator.
-						m_overlap_counts.erase(++it, end);
-						it = m_overlap_counts.begin() + range_start_idx + 1;
-					}
-				}
-				
-				// Update the sums.
-				libbio_assert(!m_overlap_counts.empty());
-				std::int32_t current_sum(m_overlap_counts.front().running_sum);
-				for (auto &oc : m_overlap_counts | rsv::tail)
-				{
-					current_sum += oc.count;
-					oc.running_sum = current_sum;
-					libbio_assert_lte(0, current_sum);
-				}
+				auto const max_overlaps_in_range(
+					(overlap_end == overlap_it_pair.first || overlap_it_pair.first == overlap_it_pair.second)
+					? std::int32_t(0)
+					: ranges::max(ranges::subrange(overlap_it_pair.first, overlap_it_pair.second) | rsv::transform([](auto const &oc){ return oc.running_sum; }))
+				);
+				auto const max_overlaps(std::max(overlap_it == overlap_begin ? 0 : (overlap_it - 1)->running_sum, max_overlaps_in_range));
+
+				process_variant_in_range(var, seg_it, seg_current_end, max_overlaps);
+				++var_it;
 			}
 			
-			// Handle the variants.
-			{
-				// Partition the variants s.t. the variants the end positions of which are located in the aligned_segments
-				// that are currently on the stack are placed in the beginning of m_overlapping_variants.
-				// push_current_segment() requires that m_overlapping_segments is sorted by aligned_segment.alt.position
-				// and the segments do not overlap.
-				auto const var_handled_end(partition_overlapping_variants_by_pos(max_alt_pos));
-				
-				// Determine the minimum variant position that could not be handled by taking the position of
-				// the first variant that could not be handled and finding the segment in which it is located.
-				auto const var_end(m_overlapping_variants.end());
-				std::size_t const min_unhandled_var_pos(var_handled_end == var_end ? SIZE_MAX : var_handled_end->variant.zero_based_pos());
-				auto const min_unhandled_pos(std::min(min_unhandled_var_pos, max_alt_pos));
-				
-				// Find the segment in question.
-				// max_alt_pos was already taken into account when determining var_handled_end.
-				auto const seg_end(m_overlapping_segments.end());
-				auto const seg_handled_end(std::partition_point(m_overlapping_segments.begin(), seg_end, [min_unhandled_pos](auto const &seg){
-					auto const seg_alt_pos(seg.alt.position);
-					auto const seg_alt_end(seg_alt_pos + seg.alt_size());
-					return !(min_unhandled_pos < seg_alt_end);
-				}));
-
-				auto var_it(m_overlapping_variants.begin());
-				auto seg_it(m_overlapping_segments.begin());
-				auto overlap_it(m_overlap_counts.cbegin());
-				auto const overlap_begin(m_overlap_counts.cbegin());
-				auto const overlap_end(m_overlap_counts.cend());
-				
-				if (seg_handled_end == seg_it)
-					return;
-				
-				// Stop if there are no more variants to be processed.
-				while (var_it != var_handled_end)
-				{
-					auto const &var(*var_it);
-					auto const var_pos(var.variant.zero_based_pos());
-					auto const var_end_pos(var_pos + var.size);
-					
-					// Find the first segment that overlaps with var.
-					seg_it = std::partition_point(seg_it, seg_handled_end, [var_pos](auto const &seg){
-						// std::partition_point returns an iterator to the first element that does not satisfy this.
-						return seg.alt.position + seg.alt_size() <= var_pos;
-					});
-					libbio_assert_lt(seg_it, seg_handled_end);
-					
-					// Find the end of the overlap.
-					auto const seg_current_end(std::partition_point(seg_it, seg_handled_end, [var_end_pos](auto const &seg){
-						return seg.alt.position < var_end_pos;
-					}));
-					// No need to assert like above since we searched in the range [seg_it, seg_handled_end).
-					
-					// Determine the max. overlap count.
-					struct {
-						typedef std::pair <std::size_t, std::size_t> interval;
-						// We would like to skip the oc that is exactly at the segment start.
-						bool operator()(overlap_count const &oc, interval const &ival) const { return oc.position < ival.first; }
-						bool operator()(interval const &ival, overlap_count const &oc) const { return ival.second <= oc.position; }
-					} overlap_cmp;
-					auto const overlap_it_pair(
-						std::equal_range(
-							overlap_it,
-							overlap_end,
-							std::make_pair(var_pos, var_end_pos),
-							overlap_cmp
-						)
-					);
-					auto const max_overlaps_in_range(
-						(overlap_end == overlap_it_pair.first || overlap_it_pair.first == overlap_it_pair.second)
-						? std::int32_t(0)
-						: ranges::max(ranges::subrange(overlap_it_pair.first, overlap_it_pair.second) | rsv::transform([](auto const &oc){ return oc.running_sum; }))
-					);
-					auto const max_overlaps(std::max(overlap_it == overlap_begin ? 0 : (overlap_it - 1)->running_sum, max_overlaps_in_range));
-					
-					process_variant_in_range(var, seg_it, seg_current_end, max_overlaps);
-					++var_it;
-				}
-				
-				move_left_and_resize(m_overlapping_variants, var_handled_end, var_end);
-				handle_overlaps_msa(max_alt_pos, m_overlapping_segments.cbegin(), seg_handled_end);
-				move_left_and_resize(m_overlapping_segments, seg_handled_end, seg_end);
-				filter_processed_variants_and_output();
-			}
+			m_overlapping_variants.erase(
+				std::remove_if(
+					m_overlapping_variants.begin(),
+					m_overlapping_variants.end(),
+					[](auto const &var){
+						return !var.is_skipped;
+					}
+				),
+				m_overlapping_variants.end()
+			);
+			for (auto &var : m_overlapping_variants)
+				var.is_skipped = false;
+			
+			merge_output_variants(initial_variant_count);
+			
+			auto const updated_variant_count(m_output_variants.size());
+			auto const handled_count(process_variants_msa(min_unhandled_alt_pos, m_overlapping_segments.begin(), m_overlapping_segments.end()));
+			m_overlapping_segments.erase(m_overlapping_segments.begin(), m_overlapping_segments.begin() + handled_count);
+			libbio_assert(m_overlapping_variants.empty() || !m_overlapping_segments.empty());
+			
+			merge_output_variants(updated_variant_count);
+			filter_processed_variants_and_output(min_unhandled_ref_pos);
 		}
+		clean_up_overlap_counts();
 	}
 	
 	
@@ -858,7 +839,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void msa_combiner::filter_processed_variants_and_output()
+	void msa_combiner::filter_processed_variants_and_output(std::size_t const min_unhandled_ref_pos)
 	{
 		// Omit filtering for now, except for checking REF against ALT.
 		libbio_assert(
@@ -868,8 +849,14 @@ namespace vcf2multialign {
 		);
 		auto &os(*m_os);
 		std::vector <std::string> filters;
-		for (auto const &desc : m_output_variants)
+		auto var_it(m_output_variants.begin());
+		auto const var_end(m_output_variants.end());
+		while (var_it != var_end)
 		{
+			auto const &desc(*var_it);
+			if (min_unhandled_ref_pos <= desc.position)
+				break;
+			
 			filters.clear();
 			if (desc.ref == desc.alt)
 				filters.emplace_back("ALT_EQ_TO_REF");
@@ -923,9 +910,10 @@ namespace vcf2multialign {
 			ranges::copy(desc.genotype | rsv::transform([](auto const gt) -> std::size_t { return gt; }), ranges::make_ostream_joiner(os, "/"));
 			
 			os << '\n';
+			++var_it;
 		}
 		
-		m_output_variants.clear();
+		m_output_variants.erase(m_output_variants.begin(), var_it);
 	}
 	
 	
@@ -948,7 +936,7 @@ namespace vcf2multialign {
 	
 	
 	// Entry point.
-	void msa_combiner::handle_msa(vector_type const &ref, vector_type const &alt, vcf_record_generator &var_rec_gen)
+	void msa_combiner::process_msa(vector_type const &ref, vector_type const &alt, vcf_record_generator &var_rec_gen)
 	{
 		libbio_assert_eq(ref.size(), alt.size());
 		
@@ -1021,6 +1009,5 @@ namespace vcf2multialign {
 			[](auto const &var){ return proj_return_type(var.aligned_position - 1, 1); }	// Not yet aligned.
 		);
 		push_current_segment();
-		handle_overlaps(SIZE_MAX);
 	}
 }

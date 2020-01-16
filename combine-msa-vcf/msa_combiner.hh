@@ -87,6 +87,7 @@ namespace vcf2multialign {
 			std::size_t			position{};
 			std::int32_t		overlap_count{};
 			variant_origin		origin{};
+			bool				is_skipped{};
 			
 			variant_description() = default;
 			
@@ -174,35 +175,39 @@ namespace vcf2multialign {
 		void handle(variant_record &&rec);
 		
 		// Entry point.
-		void handle_msa(vector_type const &ref, vector_type const &alt, vcf_record_generator &var_rec_gen);
+		void process_msa(vector_type const &ref, vector_type const &alt, vcf_record_generator &var_rec_gen);
 		
 	protected:
-		void output_vcf_header() const;
-		gap_start_position check_gaps_at_start(vector_type const &ref, vector_type const &alt) const;
-		std::int32_t count_set_genotype_values(libbio::variant const &var, std::uint16_t const alt_idx) const;
 		void push_current_segment();
-		inline aligned_segment const &find_segment_for_alt_position(std::size_t const pos) const;
-		void handle_overlaps(std::size_t const max_alt_pos);
-		std::vector <variant_record>::iterator partition_overlapping_variants_by_pos(std::size_t const max_alt_pos);
-		std::size_t handle_overlaps_msa(
-			std::size_t const max_alt_pos,
-			aligned_segment_vector::const_iterator begin,
-			aligned_segment_vector::const_iterator const end
-		);
+		void add_to_overlap_counts(variant_record const &var);
+		void update_overlap_running_sums();
+		void clean_up_overlap_counts();
+		void merge_output_variants(std::size_t const partition_point);
+		
 		void handle_one_segment_msa(
 			aligned_segment const &seg,
-			std::int32_t const overlap_count,
+			std::int32_t overlap_count,
 			overlap_count_vector::iterator overlap_it,
 			overlap_count_vector::iterator const overlap_end
 		);
-
+		
+		std::size_t process_variants_msa(
+			std::size_t const max_alt_pos,
+			aligned_segment_vector::const_iterator seg_it,
+			aligned_segment_vector::const_iterator const seg_end
+		);
+		
 		void process_variant_in_range(
 			variant_record const &var,
-			aligned_segment_vector::const_iterator begin,
-			aligned_segment_vector::const_iterator const end,
+			aligned_segment_vector::const_iterator aligned_segment_begin,
+			aligned_segment_vector::const_iterator const aligned_segment_end,
 			std::int32_t const max_overlaps
 		);
-		void filter_processed_variants_and_output();
+
+		void process_variants();
+		void output_vcf_header() const;
+		void filter_processed_variants_and_output(std::size_t const min_unhandled_ref_pos);
+		gap_start_position check_gaps_at_start(vector_type const &ref, vector_type const &alt) const;
 		
 		void prepare_msa_parser();
 		void parse_msa(aligned_character_pack const &pack);
@@ -245,10 +250,34 @@ namespace vcf2multialign {
 	}
 	
 	
-	auto msa_combiner::find_segment_for_alt_position(std::size_t const pos) const -> aligned_segment const &
+	// Find the segments that overlap with the given variant.
+	// The range from seg_it to seg_end needs to consist of consequtive segments sorted by their position.
+	template <typename t_iterator, typename t_variant>
+	inline auto find_overlapping_segment_range(
+		t_iterator const seg_it,
+		t_iterator const seg_end,
+		t_variant const &var
+	) -> std::pair <t_iterator, t_iterator>
 	{
-		libbio_always_assert(m_current_segment.alt.position <= pos);
-		return m_current_segment;
+		struct {
+			bool operator()(t_variant const &var, aligned_segment const &seg) const
+			{
+				// lt. if the variant is located before this segment.
+				auto const var_pos(var.variant.zero_based_pos());
+				auto const var_end_pos(var_pos + var.size);
+				return var_end_pos <= seg.alt.position;
+			}
+			
+			bool operator()(aligned_segment const &seg, t_variant const &var) const
+			{
+				// lt. if the variant start is located after this segment.
+				auto const var_pos(var.variant.zero_based_pos());
+				auto const seg_end_pos(seg.alt_end());
+				return seg_end_pos <= var_pos;
+			}
+		} seg_cmp;
+		
+		return std::equal_range(seg_it, seg_end, var, seg_cmp);
 	}
 }
 
