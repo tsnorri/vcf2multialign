@@ -188,6 +188,7 @@ namespace vcf2multialign {
 			# The following machine definitions should handle all combinations of four characters.
 			# “Same” or “matching” segment refers to the property that for every alt non-gap character there is a matching ref character.
 			# Otherwise the segment is considered non-matching. In some cases, this property cannot be determined by looking ahead just one character.
+			# “-” indicates gap, “+” any non-gap, “*” any character, “X” and “Y” specific non-gap characters.
 			
 			# Ref	X-	X-	X-	X-
 			# Alt	X-	X+	Y*	-*
@@ -213,7 +214,7 @@ namespace vcf2multialign {
 			ref_g					= ('-' . nt);
 			
 			# Make a static assertion fail if there are any character combinations that were not listed above.
-			action report_unhandled {
+			action assert_no_unhandled_characters {
 				static_assert(false, "Found a character combination that was not handled.");
 			}
 			unhandled = ((ntg{4}) - (
@@ -230,7 +231,7 @@ namespace vcf2multialign {
 				(both_g . ntg{2})		|	# Corresponds to both_g in the machines below but would match more without the ntg{2}.
 				(ref_g . ntg{2})			# Corresponds to ref_g in the machines below but would match more without the ntg{2}.
 			));
-			fail_on_unhandled_combinations := unhandled $(report_unhandled);
+			fail_on_unhandled_combinations := unhandled $(assert_no_unhandled_characters);
 		
 			# In the following cases start a new segment at the marked position b.c.
 			# the following characters cannot be known and this reduces the number
