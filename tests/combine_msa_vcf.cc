@@ -235,6 +235,11 @@ SCENARIO("MSA combiner can merge sequences")
 		test_msa_merge("msa-ins", "the resulting VCF will have the insertion");
 	}
 	
+	GIVEN("A MSA with an insertion")
+	{
+		test_msa_merge("msa-ins-vcf-multiple-overlaps", "the resulting VCF will have the insertions");
+	}
+	
 	GIVEN("A MSA with a deletion")
 	{
 		test_msa_merge("msa-del", "the resulting VCF will have the deletion");
@@ -432,5 +437,10 @@ SCENARIO("MSA combiner can merge sequences and variants")
 	GIVEN("A MSA with two deletions and two variants that overlap with the deletions")
 	{
 		test_msa_vcf_merge("msa-del-vcf-overlaps", "the resulting VCF will have the deletions", "ref.fa", "alt.fa", "vars.vcf", "expected-2.vcf");
+	}
+	
+	GIVEN("A MSA with an insertion and overlapping variants")
+	{
+		test_msa_vcf_merge("msa-ins-vcf-multiple-overlaps", "the resulting VCF will have the insertions", "ref.fa", "alt.fa", "vars.vcf", "expected-2.vcf");
 	}
 }
