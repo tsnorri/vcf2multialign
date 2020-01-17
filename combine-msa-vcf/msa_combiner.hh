@@ -9,6 +9,7 @@
 #include <array>
 #include <vcf2multialign/types.hh>
 #include <vector>
+#include "overlap_counter.hh"
 #include "vcf_record_generator.hh"
 #include "types.hh"
 
@@ -124,29 +125,12 @@ namespace vcf2multialign {
 			}
 		};
 		
-		struct overlap_count
-		{
-			std::size_t		position{};
-			std::int32_t	running_sum{};
-			std::int8_t		count{};
-			
-			overlap_count() = default;
-			overlap_count(std::size_t const position_, std::int8_t const count_):
-				position(position_),
-				count(count_)
-			{
-			}
-		};
-		
-		friend std::ostream &operator<<(std::ostream &, overlap_count const &);
-		typedef std::vector <overlap_count> overlap_count_vector;
-		
 	protected:
 		fsm									m_fsm;
 		aligned_segment_vector				m_overlapping_segments;
 		std::vector <variant_record>		m_overlapping_variants;
 		std::vector <variant_description>	m_output_variants;
-		overlap_count_vector				m_overlap_counts;
+		overlap_counter						m_overlap_counter;
 		aligned_segment						m_current_segment;
 		std::string							m_output_chr_id;
 		std::ostream						*m_os{};
@@ -179,16 +163,13 @@ namespace vcf2multialign {
 		
 	protected:
 		void push_current_segment();
-		void add_to_overlap_counts(variant_record const &var);
-		void update_overlap_running_sums();
-		void clean_up_overlap_counts();
 		void merge_output_variants(std::size_t const partition_point);
 		
 		void handle_one_segment_msa(
 			aligned_segment const &seg,
 			std::int32_t overlap_count,
-			overlap_count_vector::iterator overlap_it,
-			overlap_count_vector::iterator const overlap_end
+			overlap_counter::const_iterator overlap_it,
+			overlap_counter::const_iterator const overlap_end
 		);
 		
 		std::size_t process_variants_msa(
@@ -240,13 +221,6 @@ namespace vcf2multialign {
 	auto msa_combiner::fsm::operator=(fsm &&other) & -> msa_combiner::fsm &
 	{
 		return this->operator=(other);
-	}
-	
-	
-	inline std::ostream &operator<<(std::ostream &os, msa_combiner::overlap_count const &oc)
-	{
-		os << "pos: " << oc.position << " rs: " << +oc.running_sum << " count: " << +oc.count;
-		return os;
 	}
 	
 	

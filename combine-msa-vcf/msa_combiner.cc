@@ -143,35 +143,6 @@ namespace {
 		libbio_assert_lte(alt_pos, var_pos);
 		return var_pos - alt_pos;
 	}
-	
-	
-	std::pair <std::uint16_t, std::uint16_t> count_set_genotype_values(lb::variant const &var, std::uint16_t const alt_idx)
-	{
-		typedef std::pair <std::uint16_t, std::uint16_t> return_type;
-		
-		auto const &samples(var.samples());
-		libbio_assert(!samples.empty());
-		auto const *gt_field(v2m::get_variant_format(var).gt);
-		libbio_assert(gt_field);
-		auto const &first_sample(samples.front());
-		auto const &gt((*gt_field)(first_sample)); // vector of sample_genotype
-		
-		// If 0 == alt_idx, count all non-zero values. Otherwise, count the instances of the given value.
-		if (0 == alt_idx)
-		{
-			auto const count(std::accumulate(gt.begin(), gt.end(), std::int32_t(0), [](auto const sum, auto const &sample_gt) -> std::int32_t {
-				return (0 == sample_gt.alt ? sum : 1 + sum);
-			}));
-			return return_type(count, gt.size());
-		}
-		else
-		{
-			auto const count(std::accumulate(gt.begin(), gt.end(), std::int32_t(0), [alt_idx](auto const sum, auto const &sample_gt) -> std::int32_t {
-				return (alt_idx == sample_gt.alt ? 1 + sum : sum);
-			}));
-			return return_type(count, gt.size());
-		}
-	}
 }
 
 
@@ -202,114 +173,6 @@ namespace vcf2multialign {
 		);
 		
 		process_variants();
-	}
-	
-	
-	// Update the overlap count list.
-	void msa_combiner::add_to_overlap_counts(variant_record const &var)
-	{
-		// By adding the starting and ending position of the new variant,
-		// we will end up with two sorted lists the second one having two elements.
-		// These can then be merged.
-
-		auto const overlap_count_size(m_overlap_counts.size());
-		libbio_assert_lt(0, overlap_count_size);
-		
-		auto const var_pos(var.variant.zero_based_pos());
-		auto const var_end(var_pos + var.size);
-
-		// Calculate the overlap count.
-		auto const [var_overlap_count, ploidy] = (count_set_genotype_values(var.variant, 0));
-		libbio_always_assert_eq_msg(ploidy, m_ploidy, "Line ", var.variant.lineno(), ": expected the sample ploidy to match the passed value, got ", ploidy, '.');
-		
-		m_overlap_counts.emplace_back(var_pos, var_overlap_count);
-		m_overlap_counts.emplace_back(var_end, -1 * var_overlap_count);
-
-		// Sort.
-		// Make sure that no counts were added before the front element that is supposed to store the previously calculated running sum.
-		libbio_assert_lte(m_overlap_counts.front().position, m_overlap_counts[overlap_count_size].position);
-		std::inplace_merge(
-			m_overlap_counts.begin(),
-			m_overlap_counts.begin() + overlap_count_size,
-			m_overlap_counts.end(),
-			[](auto const &lhs, auto const &rhs){
-				return lhs.position < rhs.position;
-			}
-		);
-		libbio_assert(
-			std::is_sorted(
-				m_overlap_counts.begin(),
-				m_overlap_counts.end(),
-				[](auto const &lhs, auto const &rhs){ return lhs.position < rhs.position; }
-			)
-		);
-	}
-	
-	
-	void msa_combiner::update_overlap_running_sums()
-	{
-		// Find the ranges of equivalent positions.
-		{
-			// Don’t join the first overlap_count b.c. the first one was already handled in the previous call to update_overlap_running_sums().
-			libbio_assert_neq(m_overlap_counts.begin(), m_overlap_counts.end());
-			auto it(m_overlap_counts.begin() + 1);
-			while (true)
-			{
-				auto const res(multiple_adjacent_find(it, m_overlap_counts.end(), [](auto const &oc){
-					return oc.position;
-				}));
-				
-				// Check for an empty range.
-				if (res.first == res.second)
-					break;
-				it = res.first;
-				auto const end(res.second);
-				
-				// Removing the items in the end of this loop will cause iterators to be invalidated.
-				// Hence, calculate the range start position for later reference.
-				auto const range_start_idx(std::distance(m_overlap_counts.begin(), it));
-				auto const overlap_count(std::accumulate(it, end, std::int32_t(0), [](auto const sum, auto const &oc) -> std::int32_t {
-					return sum + oc.count;
-				}));
-				
-				// Update the count.
-				it->count = overlap_count;
-				
-				// Remove unneeded items and update the range start iterator.
-				m_overlap_counts.erase(++it, end);
-				it = m_overlap_counts.begin() + range_start_idx + 1;
-			}
-		}
-		
-		// Update the sums.
-		libbio_assert(!m_overlap_counts.empty());
-		std::int32_t current_sum(m_overlap_counts.front().running_sum);
-		for (auto &oc : m_overlap_counts | rsv::tail)
-		{
-			current_sum += oc.count;
-			oc.running_sum = current_sum;
-			libbio_assert_lte(0, current_sum);
-		}
-	}
-	
-	
-	void msa_combiner::clean_up_overlap_counts()
-	{
-		libbio_assert(!m_overlap_counts.empty());
-		auto const begin(m_overlap_counts.begin());
-		auto const end(m_overlap_counts.end());
-		if (m_overlapping_variants.empty())
-			m_overlap_counts.erase(begin, end - 1);
-		else
-		{
-			auto const first_unhandled_pos(m_overlapping_segments.front().alt.position);
-			auto const it(std::partition_point(begin, end, [first_unhandled_pos](auto const &oc){
-				return oc.position < first_unhandled_pos;
-			}));
-			if (begin != it)
-				m_overlap_counts.erase(begin, it - 1);
-		}
-		libbio_assert(!m_overlap_counts.empty());
 	}
 	
 	
@@ -363,7 +226,7 @@ namespace vcf2multialign {
 		auto const rec_pos_in_seg(rec_alt_pos - m_current_segment.alt.position);
 		rec.aligned_position = m_current_segment.aligned_position + rec_pos_in_seg;
 
-		add_to_overlap_counts(rec);
+		m_overlap_counter.push_count(rec, m_ploidy);
 		m_overlapping_variants.emplace_back(std::move(rec));
 		
 		if (m_logs_status && 0 == m_handled_variants % 1000)
@@ -374,8 +237,8 @@ namespace vcf2multialign {
 	void msa_combiner::handle_one_segment_msa(
 		aligned_segment const &seg,
 		std::int32_t overlap_count,
-		overlap_count_vector::iterator overlap_it,
-		overlap_count_vector::iterator const overlap_end
+		overlap_counter::const_iterator overlap_it,
+		overlap_counter::const_iterator const overlap_end
 	)
 	{
 		// Output S/MNPs.
@@ -483,13 +346,7 @@ namespace vcf2multialign {
 		auto const &first_seg(*seg_it);
 		auto const first_seg_alt_pos(first_seg.alt.position);
 		auto const first_seg_alt_end_pos(first_seg.alt_end());
-		auto overlap_it(
-			std::partition_point(
-				m_overlap_counts.begin(),
-				m_overlap_counts.end(),
-				[first_seg_alt_pos](auto const &oc){ return oc.position < first_seg_alt_pos; }
-			)
-		);
+		auto overlap_it(m_overlap_counter.find_initial(first_seg_alt_pos));
 		
 		// Add the variants from the MSA to m_output_variants.
 		// This will result in two partitions of sorted variants.
@@ -504,17 +361,9 @@ namespace vcf2multialign {
 			if (max_alt_pos < seg_alt_end_pos)
 				break;
 			
-			// Make the overlap range not point to the first position of the segment.
-			if (m_overlap_counts.end() != overlap_it && seg_alt_pos == overlap_it->position)
-				++overlap_it;
-			auto const initial_overlap_count(m_overlap_counts.begin() == overlap_it ? 0 : (overlap_it - 1)->running_sum);
-			auto const overlap_end(
-				std::partition_point(
-					overlap_it,
-					m_overlap_counts.end(),
-					[seg_alt_end_pos](auto const &oc){ return oc.position < seg_alt_end_pos; }
-				)
-			);
+			m_overlap_counter.update_overlap_iterator_if_needed(overlap_it, seg_alt_pos);
+			auto const initial_overlap_count(m_overlap_counter.initial_count(overlap_it));
+			auto const overlap_end(m_overlap_counter.find_end(overlap_it, seg_alt_end_pos));
 			handle_one_segment_msa(seg, initial_overlap_count, overlap_it, overlap_end);
 			
 			overlap_it = overlap_end;
@@ -723,7 +572,7 @@ namespace vcf2multialign {
 		// reported by the VC. Even though this should only be called with a group of overlapping variants,
 		// the fact that two VC-provided variants do or do not overlap does not affect anything.
 		
-		update_overlap_running_sums();
+		m_overlap_counter.update_running_sums();
 		auto const initial_variant_count(m_output_variants.size());
 		if (m_overlapping_variants.empty())
 		{
@@ -745,11 +594,10 @@ namespace vcf2multialign {
 			
 			auto var_it(m_overlapping_variants.begin());
 			auto seg_it(m_overlapping_segments.begin());
-			auto overlap_it(m_overlap_counts.cbegin());
+			auto overlap_it(m_overlap_counter.begin());
 			auto const var_end(m_overlapping_variants.end());
 			auto const seg_end(m_overlapping_segments.end());
-			auto const overlap_begin(m_overlap_counts.cbegin());
-			auto const overlap_end(m_overlap_counts.cend());
+			auto const overlap_end(m_overlap_counter.end());
 			
 			while (var_it != var_end)
 			{
@@ -773,27 +621,9 @@ namespace vcf2multialign {
 				}
 				
 				// Determine the max. overlap count.
-				struct {
-					typedef std::pair <std::size_t, std::size_t> interval;
-					// We would like to skip the oc that is exactly at the segment start.
-					bool operator()(overlap_count const &oc, interval const &ival) const { return oc.position < ival.first; }
-					bool operator()(interval const &ival, overlap_count const &oc) const { return ival.second <= oc.position; }
-				} overlap_cmp;
-				auto const overlap_it_pair(
-					std::equal_range(
-						overlap_it,
-						overlap_end,
-						std::make_pair(var_pos, var_end_pos),
-						overlap_cmp
-					)
-				);
-				auto const max_overlaps_in_range(
-					(overlap_end == overlap_it_pair.first || overlap_it_pair.first == overlap_it_pair.second)
-					? std::int32_t(0)
-					: ranges::max(ranges::subrange(overlap_it_pair.first, overlap_it_pair.second) | rsv::transform([](auto const &oc){ return oc.running_sum; }))
-				);
-				auto const max_overlaps(std::max(overlap_it == overlap_begin ? 0 : (overlap_it - 1)->running_sum, max_overlaps_in_range));
-
+				auto const res(m_overlap_counter.max_overlaps_in_range(overlap_it, overlap_end, var_pos, var_end_pos));
+				auto const max_overlaps(res.first);
+				overlap_it = res.second;
 				process_variant_in_range(var, seg_it, seg_current_end, max_overlaps);
 				++var_it;
 			}
@@ -821,7 +651,11 @@ namespace vcf2multialign {
 			merge_output_variants(updated_variant_count);
 			filter_processed_variants_and_output(min_unhandled_ref_pos);
 		}
-		clean_up_overlap_counts();
+		m_overlap_counter.clean_up_counts(
+			m_overlapping_variants.empty()
+			? SIZE_MAX
+			: m_overlapping_segments.front().alt.position
+		);
 	}
 	
 	
@@ -950,8 +784,8 @@ namespace vcf2multialign {
 		
 		prepare_msa_parser();
 		
-		libbio_assert(m_overlap_counts.empty());
-		m_overlap_counts.emplace_back(0, 0);
+		libbio_assert(m_overlap_counter.empty());
+		m_overlap_counter.prepare();
 		
 		// First, check if ref starts with a sequence of gap characters and handle it.
 		auto const sp_info(check_gaps_at_start(ref, alt));

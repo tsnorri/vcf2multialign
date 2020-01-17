@@ -7,6 +7,8 @@ OBJECTS				=	cmdline.o \
 LIBRARY_OBJECTS		=	combine_msa.o \
 						msa_combiner.o \
 						msa_combiner_parse_msa.o \
+						overlap_counter.o \
+						utility.o \
 						vcf_record_generator.o
 
 LIBRARY_OBJECTS_COV	=	$(LIBRARY_OBJECTS:.o=.cov.o)
