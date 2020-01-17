@@ -176,27 +176,6 @@ namespace vcf2multialign {
 	}
 	
 	
-	void msa_combiner::merge_output_variants(std::size_t const partition_point)
-	{
-		// Merge the partitions of sorted variants.
-		std::inplace_merge(
-			m_output_variants.begin(),
-			m_output_variants.begin() + partition_point,
-			m_output_variants.end(),
-			[](auto const &lhs, auto const &rhs){
-				return lhs.position < rhs.position;
-			}
-		);
-		libbio_assert(
-			std::is_sorted(
-				m_output_variants.begin(),
-				m_output_variants.end(),
-				[](auto const &lhs, auto const &rhs){ return lhs.position < rhs.position; }
-			)
-		);
-	}
-	
-	
 	// Handle aligned_character_packs.
 	void msa_combiner::handle(aligned_character_pack const &&pack)
 	{
@@ -257,7 +236,7 @@ namespace vcf2multialign {
 				for (auto const &oc : overlap_range)
 				{
 					auto const end_idx(std::min(alt_sv.size(), std::size_t(oc.position - seg.alt.position)));
-					m_output_variants.emplace_back(
+					m_variant_writer.emplace_back(
 						variant_description(
 							seg.ref.position + begin_idx,
 							ref_sv.substr(begin_idx, end_idx - begin_idx),
@@ -274,7 +253,7 @@ namespace vcf2multialign {
 				
 				if (begin_idx < alt_sv.size())
 				{
-					m_output_variants.emplace_back(
+					m_variant_writer.emplace_back(
 						variant_description(
 							seg.ref.position + begin_idx,
 							ref_sv.substr(begin_idx),
@@ -291,7 +270,7 @@ namespace vcf2multialign {
 			case segment_type::DELETION:
 			{
 				libbio_assert_eq(overlap_it, overlap_end);
-				m_output_variants.emplace_back(
+				m_variant_writer.emplace_back(
 					variant_description(
 						seg.ref.position,
 						seg.ref.string,
@@ -315,7 +294,7 @@ namespace vcf2multialign {
 					: ranges::max(overlap_range | rsv::transform([](auto const &oc){ return oc.running_sum; }))
 				);
 				auto const max_overlaps(std::max(overlap_count, max_overlaps_in_range));
-				m_output_variants.emplace_back(
+				m_variant_writer.emplace_back(
 					variant_description(
 						seg.ref.position,
 						seg.ref.string,
@@ -348,9 +327,8 @@ namespace vcf2multialign {
 		auto const first_seg_alt_end_pos(first_seg.alt_end());
 		auto overlap_it(m_overlap_counter.find_initial(first_seg_alt_pos));
 		
-		// Add the variants from the MSA to m_output_variants.
+		// Add the variants from the MSA to m_variant_writer.
 		// This will result in two partitions of sorted variants.
-		auto const output_variant_count(m_output_variants.size());
 		std::size_t handled_count(0);
 		while (seg_it != seg_end)
 		{
@@ -452,7 +430,7 @@ namespace vcf2multialign {
 				std::size_t total_alt_characters_consumed{};
 				auto const [gt_count, ploidy] = (count_set_genotype_values(var.variant, alt_idx));
 				libbio_always_assert_eq_msg(ploidy, m_ploidy, "Line ", var.variant.lineno(), ": expected the sample ploidy to match the passed value, got ", ploidy, '.');
-				auto &desc(m_output_variants.emplace_back(m_ploidy, gt_count, variant_origin::VC));
+				auto &desc(m_variant_writer.emplace_back(variant_description(m_ploidy, gt_count, variant_origin::VC)));
 				desc.overlap_count = max_overlaps - 1;
 				std::string_view const var_alt_sv(var_alt.alt);
 				
@@ -573,7 +551,7 @@ namespace vcf2multialign {
 		// the fact that two VC-provided variants do or do not overlap does not affect anything.
 		
 		m_overlap_counter.update_running_sums();
-		auto const initial_variant_count(m_output_variants.size());
+		auto const initial_variant_count(m_variant_writer.size());
 		if (m_overlapping_variants.empty())
 		{
 			// Handle MSA only.
@@ -581,8 +559,8 @@ namespace vcf2multialign {
 			auto const handled_count(process_variants_msa(SIZE_MAX, m_overlapping_segments.cbegin(), end));
 			m_overlapping_segments.erase(m_overlapping_segments.begin(), m_overlapping_segments.begin() + handled_count);
 			
-			merge_output_variants(initial_variant_count);
-			filter_processed_variants_and_output(SIZE_MAX);
+			m_variant_writer.merge_output_variants(initial_variant_count);
+			m_variant_writer.filter_processed_variants_and_output(SIZE_MAX);
 		}
 		else
 		{
@@ -641,113 +619,21 @@ namespace vcf2multialign {
 			for (auto &var : m_overlapping_variants)
 				var.is_skipped = false;
 			
-			merge_output_variants(initial_variant_count);
+			m_variant_writer.merge_output_variants(initial_variant_count);
 			
-			auto const updated_variant_count(m_output_variants.size());
+			auto const updated_variant_count(m_variant_writer.size());
 			auto const handled_count(process_variants_msa(min_unhandled_alt_pos, m_overlapping_segments.begin(), m_overlapping_segments.end()));
 			m_overlapping_segments.erase(m_overlapping_segments.begin(), m_overlapping_segments.begin() + handled_count);
 			libbio_assert(m_overlapping_variants.empty() || !m_overlapping_segments.empty());
 			
-			merge_output_variants(updated_variant_count);
-			filter_processed_variants_and_output(min_unhandled_ref_pos);
+			m_variant_writer.merge_output_variants(updated_variant_count);
+			m_variant_writer.filter_processed_variants_and_output(min_unhandled_ref_pos);
 		}
 		m_overlap_counter.clean_up_counts(
 			m_overlapping_variants.empty()
 			? SIZE_MAX
 			: m_overlapping_segments.front().alt.position
 		);
-	}
-	
-	
-	void msa_combiner::output_vcf_header() const
-	{
-		auto &os(*m_os);
-		os << "##fileformat=VCFv4.3\n";
-		os << "##ALT=<ID=DEL,Description=\"Deletion relative to the reference\">\n";
-		os << "##FILTER=<ID=ALT_EQ_TO_REF,Description=\"Variant called by the VC is equivalent to the reference\">\n";
-		os << "##FILTER=<ID=GT_NOT_SET,Description=\"All GT values are equal to zero.\">\n";
-		os << "##INFO=<ID=OC,Number=1,Type=Integer,Description=\"Number of overlapping VC variants\">\n";
-		os << "##INFO=<ID=ORIGIN,Number=1,Type=String,Description=\"Variant source (MSA for multiple sequence alignment, VC for variant caller)\">\n";
-		os << "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n";
-		os << "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMPLE\n";
-	}
-	
-	
-	void msa_combiner::filter_processed_variants_and_output(std::size_t const min_unhandled_ref_pos)
-	{
-		// Omit filtering for now, except for checking REF against ALT.
-		libbio_assert(
-			std::is_sorted(m_output_variants.begin(), m_output_variants.end(), [](auto const &lhs, auto const &rhs){
-				return lhs.position < rhs.position;
-			})
-		);
-		auto &os(*m_os);
-		std::vector <std::string> filters;
-		auto var_it(m_output_variants.begin());
-		auto const var_end(m_output_variants.end());
-		while (var_it != var_end)
-		{
-			auto const &desc(*var_it);
-			if (min_unhandled_ref_pos <= desc.position)
-				break;
-			
-			filters.clear();
-			if (desc.ref == desc.alt)
-				filters.emplace_back("ALT_EQ_TO_REF");
-			
-			if (0 == std::accumulate(desc.genotype.begin(), desc.genotype.end(), std::uint16_t(0)))
-				filters.emplace_back("GT_NOT_SET");
-			
-			// CHROM
-			os << m_output_chr_id << '\t';
-			
-			// POS, ID, REF
-			os << (1 + desc.position) << "\t.\t" << desc.ref << '\t';
-			
-			// ALT
-			if (desc.alt.empty())
-				os << "<DEL>";
-			else
-				os << desc.alt;
-			
-			// QUAL
-			os << "\t.\t";
-			
-			// FILTER
-			if (filters.empty())
-				os << "PASS";
-			else
-				ranges::copy(filters, ranges::make_ostream_joiner(os, ";"));
-			
-			// INFO
-			os << "\tOC=" << desc.overlap_count;
-			os << ";ORIGIN=";
-			switch (desc.origin)
-			{
-				case variant_origin::MSA:
-				{
-					os << "MSA";
-					break;
-				}
-					
-				case variant_origin::VC:
-				{
-					os << "VC";
-					break;
-				}
-			}
-			
-			// FORMAT
-			os << "\tGT\t";
-			
-			// Sample.
-			ranges::copy(desc.genotype | rsv::transform([](auto const gt) -> std::size_t { return gt; }), ranges::make_ostream_joiner(os, "/"));
-			
-			os << '\n';
-			++var_it;
-		}
-		
-		m_output_variants.erase(m_output_variants.begin(), var_it);
 	}
 	
 	
@@ -829,7 +715,7 @@ namespace vcf2multialign {
 		
 		// Merge and pass to this->handle(). Sort the items s.t. lrsv comes first, except if the alt character is a gap.
 		// This causes the variant’s position to always be in m_current_segment.
-		output_vcf_header();
+		m_variant_writer.output_vcf_header();
 		if (m_logs_status)
 			lb::log_time(std::cerr) << "Creating segments and merging…\n";
 		forwarder fwd(*this);

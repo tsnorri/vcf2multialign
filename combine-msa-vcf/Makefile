@@ -9,6 +9,7 @@ LIBRARY_OBJECTS		=	combine_msa.o \
 						msa_combiner_parse_msa.o \
 						overlap_counter.o \
 						utility.o \
+						variant_writer.o \
 						vcf_record_generator.o
 
 LIBRARY_OBJECTS_COV	=	$(LIBRARY_OBJECTS:.o=.cov.o)

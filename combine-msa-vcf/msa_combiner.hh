@@ -10,6 +10,7 @@
 #include <vcf2multialign/types.hh>
 #include <vector>
 #include "overlap_counter.hh"
+#include "variant_writer.hh"
 #include "vcf_record_generator.hh"
 #include "types.hh"
 
@@ -22,12 +23,6 @@ namespace vcf2multialign {
 		typedef std::vector <aligned_segment> aligned_segment_vector;
 		
 	protected:
-		enum class variant_origin : std::uint8_t
-		{
-			MSA,
-			VC
-		};
-		
 		struct gap_start_position
 		{
 			std::size_t	aligned_start{};				// 0-based index of the first non-gap character in either sequence.
@@ -75,65 +70,13 @@ namespace vcf2multialign {
 			inline void update_characters(aligned_character_pack const &pack);
 		};
 		
-		struct variant_description
-		{
-			// The genotype is stored in a std::vector <bool> here.
-			// A pair of integers could be used instead, though, since
-			// at the moment we only handle unphased VCF files and thus
-			// the order of the values does not matter.
-			
-			std::string			ref;
-			std::string			alt;
-			std::vector <bool>	genotype;
-			std::size_t			position{};
-			std::int32_t		overlap_count{};
-			variant_origin		origin{};
-			bool				is_skipped{};
-			
-			variant_description() = default;
-			
-			variant_description(std::size_t const ploidy, std::int32_t const gt_count, variant_origin const origin_):
-				genotype(ploidy, true),
-				origin(origin_)
-			{
-				libbio_assert_lte(gt_count, ploidy);
-				// Assign the GT values.
-				genotype.resize(gt_count);
-				genotype.resize(ploidy, false);
-			}
-			
-			template <typename t_string_1, typename t_string_2>
-			variant_description(
-				std::size_t const position_,
-				t_string_1 &&ref_,
-				t_string_2 &&alt_,
-				std::size_t const ploidy,
-				std::int32_t const overlap_count_,
-				variant_origin const origin_
-			):
-				ref(std::forward <t_string_1>(ref_)),
-				alt(std::forward <t_string_2>(alt_)),
-				genotype(ploidy, false),
-				position(position_),
-				overlap_count(overlap_count_),
-				origin(origin_)
-			{
-				libbio_assert_lte(overlap_count, ploidy);
-				// Assign the GT values.
-				genotype.resize(overlap_count);
-				genotype.resize(ploidy, true);
-			}
-		};
-		
 	protected:
 		fsm									m_fsm;
+		variant_writer						m_variant_writer;
 		aligned_segment_vector				m_overlapping_segments;
 		std::vector <variant_record>		m_overlapping_variants;
-		std::vector <variant_description>	m_output_variants;
 		overlap_counter						m_overlap_counter;
 		aligned_segment						m_current_segment;
-		std::string							m_output_chr_id;
-		std::ostream						*m_os{};
 		std::size_t							m_max_rec_end{}; // Max. end co-ordinate of a variant encountered relative to the ad-hoc reference.
 		std::size_t							m_handled_variants{};
 		std::size_t							m_handled_characters{};
@@ -145,8 +88,7 @@ namespace vcf2multialign {
 		msa_combiner() = default;
 		
 		msa_combiner(std::string output_chr_id, std::uint16_t const ploidy, std::ostream &os, bool const logs_status):
-			m_output_chr_id(std::move(output_chr_id)),
-			m_os(&os),
+			m_variant_writer(os, std::move(output_chr_id)),
 			m_ploidy(ploidy),
 			m_logs_status(logs_status)
 		{
@@ -163,7 +105,6 @@ namespace vcf2multialign {
 		
 	protected:
 		void push_current_segment();
-		void merge_output_variants(std::size_t const partition_point);
 		
 		void handle_one_segment_msa(
 			aligned_segment const &seg,
@@ -186,8 +127,6 @@ namespace vcf2multialign {
 		);
 
 		void process_variants();
-		void output_vcf_header() const;
-		void filter_processed_variants_and_output(std::size_t const min_unhandled_ref_pos);
 		gap_start_position check_gaps_at_start(vector_type const &ref, vector_type const &alt) const;
 		
 		void prepare_msa_parser();
