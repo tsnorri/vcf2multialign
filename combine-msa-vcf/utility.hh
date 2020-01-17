@@ -15,6 +15,17 @@
 
 namespace vcf2multialign {
 	
+	// From C++20.
+	template <typename t_type>
+	struct remove_cvref
+	{
+		typedef std::remove_cv_t <std::remove_reference_t <t_type>> type;
+	};
+	
+	template <typename t_type>
+	using remove_cvref_t = typename remove_cvref <t_type>::type;
+	
+	
 	std::pair <std::uint16_t, std::uint16_t> count_set_genotype_values(libbio::variant const &var, std::uint16_t const alt_idx);
 	void split_mixed_segment(aligned_segment &src, aligned_segment_vector &dst);
 	
@@ -65,6 +76,39 @@ namespace vcf2multialign {
 		
 		return std::equal_range(seg_it, seg_end, var, seg_cmp);
 	}
+	
+	
+	// May be used in place of an output iterator to forward arguments of operator=.
+	template <typename t_dst>
+	class forwarder
+	{
+	public:
+		typedef std::ptrdiff_t difference_type; // Needed for range-v3 only.
+		
+	protected:
+		t_dst	*m_dst{};
+	
+	public:
+		// ranges::semiregular<T> (in range-v3/include/concepts/concepts.hpp) requires copyable and default_constructible.
+		// m_dst is required, though, so throw in case the default constructor is somehow called.
+		forwarder()
+		{
+			throw std::runtime_error("forwarder’s default constructor should not be called.");
+		}
+		
+		forwarder(t_dst &dst):
+			m_dst(&dst)
+		{
+		}
+	
+		forwarder &operator++() { return *this; }				// Return *this.
+		forwarder &operator++(int) { return *this; }			// Return *this.
+		forwarder &operator*() { return *this; }				// Return *this.
+		forwarder const &operator*() const { return *this; }	// Return *this.
+	
+		template <typename t_arg>
+		forwarder &operator=(t_arg &&arg) { m_dst->handle(std::forward <t_arg>(arg)); return *this; }
+	};
 }
 
 #endif
