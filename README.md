@@ -80,6 +80,6 @@ Two additional tools are provided for variant graph inspection. `variant-graph-t
 
 Instead of generating a reference-guided multiple alignment, unaligned sequences may be generated with `vcf-to-unaligned/vcf_to_unaligned` . The sample and chromosome copy numbers need to be specified as command line parameters.
 
-## Creating a variant call file from a pair of aligned sequences
+## Creating a variant call file from a pair of aligned sequences and a variant file
 
 `combine-msa-vcf/combine_msa_vcf` may be used to generate a variant call file from two aligned sequences. Optionally, variants relative to the second sequence may be included in the resulting file.
