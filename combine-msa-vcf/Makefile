@@ -39,7 +39,7 @@ clean:
 			version.h
 
 combine_msa_vcf: $(OBJECTS) libcombinemsa.a
-	$(CXX) -o $@ $(OBJECTS) ../libvcf2multialign/libvcf2multialign.a libcombinemsa.a $(LDFLAGS)
+	$(CXX) -o $@ $(OBJECTS) libcombinemsa.a ../libvcf2multialign/libvcf2multialign.a $(LDFLAGS)
 
 libcombinemsa.a: $(LIBRARY_OBJECTS)
 	$(AR) rcs $@ $^
