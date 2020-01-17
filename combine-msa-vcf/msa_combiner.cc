@@ -233,9 +233,7 @@ namespace vcf2multialign {
 		libbio_assert_lt(0, max_overlaps);
 		
 		auto const &first_seg(*aligned_segment_begin);
-		auto const &last_seg(*(aligned_segment_end - 1));
 		libbio_assert_neq(first_seg.type, segment_type::DELETION);
-		libbio_assert_neq(last_seg.type, segment_type::DELETION);
 		auto const var_pos_seg_relative(segment_relative_variant_position(first_seg, var));
 		
 		// Handle the variant.
