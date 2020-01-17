@@ -31,7 +31,7 @@ namespace {
 
 namespace vcf2multialign {
 
-	void msa_combiner::handle_one_segment_msa(
+	void msa_combiner::process_one_segment_msa(
 		aligned_segment const &seg,
 		std::int32_t overlap_count,
 		overlap_counter::const_iterator overlap_it,
@@ -131,6 +131,7 @@ namespace vcf2multialign {
 	}
 	
 	
+	// Generate variants from MSA only.
 	std::size_t msa_combiner::process_variants_msa(
 		std::size_t const max_alt_pos,
 		aligned_segment_vector::const_iterator seg_it,
@@ -161,7 +162,7 @@ namespace vcf2multialign {
 			overlap_counter.update_overlap_iterator_if_needed(overlap_it, seg_alt_pos);
 			auto const initial_overlap_count(overlap_counter.initial_count(overlap_it));
 			auto const overlap_end(overlap_counter.find_end(overlap_it, seg_alt_end_pos));
-			handle_one_segment_msa(seg, initial_overlap_count, overlap_it, overlap_end);
+			process_one_segment_msa(seg, initial_overlap_count, overlap_it, overlap_end);
 			
 			overlap_it = overlap_end;
 			++handled_count;
@@ -172,6 +173,7 @@ namespace vcf2multialign {
 	}
 	
 	
+	// Generate variants from the given variant_record associated with overlapping aligned_segments.
 	void msa_combiner::process_variant_in_range(
 		variant_record const &var,
 		aligned_segment_vector::const_iterator aligned_segment_begin,
@@ -188,7 +190,7 @@ namespace vcf2multialign {
 		// ===========
 		// 				Seg_1 …	Seg_n
 		// Ref / Alt	XXXXX	XXXXX
-		//				   YY   YY
+		// Var			   YY   YY
 		//				^^^		  ^^^
 		// These positions may be handled by considering the MSA only.
 		//
@@ -210,7 +212,7 @@ namespace vcf2multialign {
 		// Ref	GAA			GAT
 		// Alt	GATTACA		GATTACA
 		// Var	    C		   CC
-		// Var2	  TTC		  TCC	<- Variants need to be rewritten like this.
+		// Var2	  TTC		  TCC	<- Variants need to be rewritten like this s.t. they overlap with REF.
 		//
 		// Variant overlaps with deletion
 		// ==============================
@@ -348,7 +350,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	// Handle an overlapping part.
+	// Handle a number of segments with variants that overlap with them.
 	void msa_combiner::process_variants(msa_segmentation &segmentation)
 	{
 		// Consider a situation like this:
@@ -366,8 +368,7 @@ namespace vcf2multialign {
 		//
 		// The current implementation converts all the variants reported by the VC to the reference co-ordinates
 		// and creates variant records from the MSA while taking into account the boundaries of the variants
-		// reported by the VC. Even though this should only be called with a group of overlapping variants,
-		// the fact that two VC-provided variants do or do not overlap does not affect anything.
+		// reported by the VC. The number of overlapping variants affects the GT values that are set to them.
 		
 		segmentation.overlap_counter.update_running_sums();
 		auto const initial_variant_count(m_variant_writer.size());
@@ -412,6 +413,7 @@ namespace vcf2multialign {
 				auto const var_pos(var.variant.zero_based_pos());
 				auto const var_end_pos(var_pos + var.size);
 				
+				// Determine the segments that overlap with var.
 				auto const seg_range(find_overlapping_segment_range(seg_it, seg_end, var));
 				libbio_assert_neq_msg(seg_range.first, seg_end, "There should be at least one element not less than (overlapping with) the variant.");
 				seg_it = seg_range.first;
@@ -431,6 +433,8 @@ namespace vcf2multialign {
 				auto const res(segmentation.overlap_counter.max_overlaps_in_range(overlap_it, overlap_end, var_pos, var_end_pos));
 				auto const max_overlaps(res.first);
 				overlap_it = res.second;
+				
+				// Process the variant and the found segments.
 				process_variant_in_range(var, seg_it, seg_current_end, max_overlaps);
 				++var_it;
 			}
@@ -450,7 +454,7 @@ namespace vcf2multialign {
 			for (auto &var : segmentation.overlapping_variants)
 				var.is_skipped = false;
 			
-			// Maintain sorted order.
+			// Maintain the sorted order.
 			m_variant_writer.merge_output_variants(initial_variant_count);
 			
 			auto const new_variant_count(m_variant_writer.size());
@@ -486,6 +490,6 @@ namespace vcf2multialign {
 	void msa_combiner::process_msa(vector_type const &ref, vector_type const &alt, vcf_record_generator &var_rec_gen)
 	{
 		m_variant_writer.output_vcf_header();
-		m_data_source.process_msa(ref, alt, var_rec_gen, *this);
+		m_data_source.process_msa(ref, alt, var_rec_gen, *this); // Calls process_variants().
 	}
 }

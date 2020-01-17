@@ -41,7 +41,7 @@ namespace vcf2multialign {
 		void process_msa(vector_type const &ref, vector_type const &alt, vcf_record_generator &var_rec_gen);
 		
 	protected:
-		void handle_one_segment_msa(
+		void process_one_segment_msa(
 			aligned_segment const &seg,
 			std::int32_t overlap_count,
 			overlap_counter::const_iterator overlap_it,
