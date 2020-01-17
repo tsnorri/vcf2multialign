@@ -6,7 +6,8 @@ OBJECTS				=	cmdline.o \
 						
 LIBRARY_OBJECTS		=	combine_msa.o \
 						msa_combiner.o \
-						msa_combiner_parse_msa.o \
+						msa_data_source.o \
+						msa_data_source_parse_msa.o \
 						overlap_counter.o \
 						utility.o \
 						variant_writer.o \
@@ -21,6 +22,8 @@ all: combine_msa_vcf
 	
 .PHONY: clean
 
+.PRECIOUS: msa_data_source_parse_msa.cc
+
 clean:
 	$(RM)	$(OBJECTS) \
 			$(LIBRARY_OBJECTS) \
@@ -30,6 +33,7 @@ clean:
 			combine_msa_vcf \
 			libcombinemsa.a \
 			libcombinemsa.coverage.a \
+			msa_data_source_parse_msa.cc \
 			cmdline.c \
 			cmdline.h \
 			version.h

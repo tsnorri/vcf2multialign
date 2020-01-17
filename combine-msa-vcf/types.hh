@@ -44,6 +44,8 @@ namespace vcf2multialign {
 		bool			is_skipped{};
 	};
 	
+	typedef std::vector <variant_record> variant_record_vector;
+	
 	
 	struct sequence_character
 	{

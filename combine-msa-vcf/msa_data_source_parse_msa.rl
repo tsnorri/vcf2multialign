@@ -1,10 +1,10 @@
 /*
- * Copyright (c) 2019 Tuukka Norri
+ * Copyright (c) 2019–2020 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
 #include <stdexcept>
-#include "msa_combiner.hh"
+#include "msa_data_source.hh"
 
 
 %% machine alignment_parser;
@@ -13,13 +13,13 @@
 
 namespace vcf2multialign {
 	
-	void msa_combiner::prepare_msa_parser()
+	void msa_data_source::prepare_msa_parser()
 	{
 		%% write init;
 	}
 	
 	
-	void msa_combiner::parse_msa(aligned_character_pack const &pack)
+	void msa_data_source::parse_msa(aligned_character_pack const &pack)
 	{
 		%%{
 			variable cs		m_fsm.cs;

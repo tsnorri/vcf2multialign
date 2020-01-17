@@ -218,7 +218,7 @@ SCENARIO("MSA combiner can handle empty sequences")
 {
 	GIVEN("An empty MSA")
 	{
-		test_msa_merge("empty", "the resulting VCF will have no variants", "empty.txt", "empty.txt", "empty.txt");
+		test_msa_merge("empty", "the resulting VCF will have no variants", "empty.txt", "empty.txt", "expected.vcf");
 	}
 }
 
