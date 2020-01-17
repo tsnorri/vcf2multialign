@@ -122,6 +122,8 @@ namespace vcf2multialign {
 		inline std::size_t alt_end() const;
 	};
 	
+	typedef std::vector <aligned_segment> aligned_segment_vector;
+	
 	
 	// Wrap characters into sequence_characters, count them to determine positions.
 	struct position_counter

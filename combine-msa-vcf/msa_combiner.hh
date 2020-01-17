@@ -19,9 +19,6 @@ namespace vcf2multialign {
 	
 	class msa_combiner
 	{
-	public:
-		typedef std::vector <aligned_segment> aligned_segment_vector;
-		
 	protected:
 		struct gap_start_position
 		{
