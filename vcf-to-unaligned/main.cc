@@ -97,6 +97,8 @@ namespace vcf2multialign {
 		}
 		
 		void process_and_output(std::size_t const sample_idx, std::uint8_t const chr_idx);
+		std::vector <std::string> const &excluded_filters() const { return m_excluded_filters; }
+		std::vector <std::string> const &field_names_for_filter_if_set() const { return m_field_names_for_filter_if_set; }
 		
 	protected:
 		void output_variants(std::size_t const sample_idx, std::uint8_t const chr_idx, variant_statistics &statistics, progress_indicator_delegate &progress_delegate);
@@ -345,6 +347,28 @@ namespace vcf2multialign {
 				processor.open_log_file(log_path, should_overwrite_files);
 			
 			processor.prepare_reader();
+
+			// Check whether the given field IDs are listed in VCF headers.
+			{
+				auto const &reader(processor.vcf_reader());
+				auto const &metadata(reader.metadata());
+				auto const &filters(metadata.filter());
+				auto const &info_fields(metadata.info());
+				auto const &excluded_filters(processor.excluded_filters());
+				auto const &field_names_for_filter_if_set(processor.field_names_for_filter_if_set());
+
+				for (auto const &filter_id : excluded_filters)
+				{
+					if (filters.end() == filters.find(filter_id))
+						std::cerr << "WARNING: Filter with ID ‘" << filter_id << "’ not found in VCF headers.\n";
+				}
+
+				for (auto const &info_field_id : field_names_for_filter_if_set)
+				{
+					if (info_fields.end() == info_fields.find(info_field_id))
+						std::cerr << "WARNING: Info field with ID ‘" << info_field_id << "’ not found in VCF headers.\n";
+				}
+			}
 			
 			// Run in background in order to be able to update a progress bar.
 			lb::dispatch_async_fn(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
