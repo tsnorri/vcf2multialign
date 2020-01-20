@@ -52,7 +52,7 @@ namespace vcf2multialign {
 		m_fsm.update_characters(pack);
 		parse_msa(pack);
 		
-		if (m_logs_status && 0 == m_handled_characters % 1000)
+		if (m_logs_status && 0 == m_handled_characters % 100000)
 			lb::log_time(std::cerr) << " Handled " << m_handled_characters << " characters…\n";
 	}
 	
