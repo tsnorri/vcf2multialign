@@ -82,7 +82,7 @@ namespace vcf2multialign {
 	) const
 	{
 		// Make the overlap range not point to the first position of the segment.
-		if (m_overlap_counts.end() != overlap_it && seg_alt_pos == overlap_it->position)
+		while (m_overlap_counts.end() != overlap_it && seg_alt_pos == overlap_it->position)
 			++overlap_it;
 	}
 	
