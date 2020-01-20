@@ -15,7 +15,7 @@ GCDA = $(OBJECTS:.o=.gcda)
 GCNO = $(OBJECTS:.o=.gcno)
 
 
-LIBRARIES = ../lib/libbio/src/libbio.a ../libvcf2multialign/libvcf2multialign.a ../combine-msa-vcf/libcombinemsa.coverage.a
+LIBRARIES = ../combine-msa-vcf/libcombinemsa.coverage.a ../libvcf2multialign/libvcf2multialign.a ../lib/libbio/src/libbio.a
 
 
 all: run-tests
