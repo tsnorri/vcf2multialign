@@ -80,6 +80,7 @@ namespace vcf2multialign {
 			os << m_output_chr_id << '\t';
 			
 			// POS, ID, REF
+			libbio_assert_lt(0, desc.ref.size());
 			os << (1 + desc.position) << "\t.\t" << desc.ref << '\t';
 			
 			// ALT
