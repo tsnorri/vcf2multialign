@@ -54,7 +54,7 @@ namespace vcf2multialign {
 				for (auto const &oc : overlap_range)
 				{
 					auto const end_idx(std::min(alt_sv.size(), std::size_t(oc.position - seg.alt.position)));
-					m_variant_writer.emplace_back(
+					auto const &desc(m_variant_writer.emplace_back(
 						variant_description(
 							seg.ref.position + begin_idx,
 							ref_sv.substr(begin_idx, end_idx - begin_idx),
@@ -63,7 +63,8 @@ namespace vcf2multialign {
 							overlap_count,
 							variant_origin::MSA
 						)
-					);
+					));
+					libbio_assert_lt(0, desc.ref.size());
 					
 					begin_idx = end_idx;
 					overlap_count = oc.running_sum;
@@ -71,7 +72,7 @@ namespace vcf2multialign {
 				
 				if (begin_idx < alt_sv.size())
 				{
-					m_variant_writer.emplace_back(
+					auto const &desc(m_variant_writer.emplace_back(
 						variant_description(
 							seg.ref.position + begin_idx,
 							ref_sv.substr(begin_idx),
@@ -80,7 +81,8 @@ namespace vcf2multialign {
 							overlap_count,
 							variant_origin::MSA
 						)
-					);
+					));
+					libbio_assert_lt(0, desc.ref.size());
 				}
 				break;
 			}
@@ -88,7 +90,7 @@ namespace vcf2multialign {
 			case segment_type::DELETION:
 			{
 				libbio_assert_eq(overlap_it, overlap_end);
-				m_variant_writer.emplace_back(
+				auto const &desc(m_variant_writer.emplace_back(
 					variant_description(
 						seg.ref.position,
 						seg.ref.string,
@@ -97,7 +99,8 @@ namespace vcf2multialign {
 						overlap_count,
 						variant_origin::MSA
 					)
-				);
+				));
+				libbio_assert_lt(0, desc.ref.size());
 				break;
 			}
 				
@@ -112,7 +115,7 @@ namespace vcf2multialign {
 					: ranges::max(overlap_range | rsv::transform([](auto const &oc){ return oc.running_sum; }))
 				);
 				auto const max_overlaps(std::max(overlap_count, max_overlaps_in_range));
-				m_variant_writer.emplace_back(
+				auto const &desc(m_variant_writer.emplace_back(
 					variant_description(
 						seg.ref.position,
 						seg.ref.string,
@@ -121,7 +124,8 @@ namespace vcf2multialign {
 						max_overlaps,
 						variant_origin::MSA
 					)
-				);
+				));
+				libbio_assert_lt(0, desc.ref.size());
 				break;
 			}
 				
@@ -343,6 +347,8 @@ namespace vcf2multialign {
 				// Append the remaining characters if needed.
 				libbio_assert_eq(0, var_ref_characters_remaining);
 				desc.alt += var_alt_sv.substr(var_alt_sv.size() - var_alt_characters_remaining);
+
+				libbio_assert_lt(0, desc.ref.size());
 			}
 		}
 	}
