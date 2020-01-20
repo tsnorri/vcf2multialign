@@ -41,8 +41,9 @@ namespace vcf2multialign {
 	void progress_indicator_manager::log_exception_and_exit(std::exception const &exc)
 	{
 		end_logging_no_update();
-		lb::dispatch_async_fn(dispatch_get_main_queue(), [this, exc](){
-			std::cerr << "Caught an exception: " << exc.what() << '\n';
+		std::string const reason(exc.what());
+		lb::dispatch_async_fn(dispatch_get_main_queue(), [this, reason](){
+			std::cerr << "Caught an exception: " << reason << '\n';
 			m_progress_indicator.uninstall();
 			std::exit(EXIT_FAILURE);
 		});
