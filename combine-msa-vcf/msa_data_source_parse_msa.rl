@@ -17,8 +17,8 @@ namespace vcf2multialign {
 	{
 		%% write init;
 	}
-	
-	
+
+
 	void msa_data_source::parse_msa(aligned_character_pack const &pack)
 	{
 		%%{
@@ -27,22 +27,52 @@ namespace vcf2multialign {
 			variable pe		m_fsm.pe;
 			variable eof	m_fsm.pe;
 			
-			nt			= [ACGTN];	# Add [acgtn] to allow lowecase.
+			#nt			= [ACGTN];	# Add [acgtn] to allow lowecase.
+			# Allow the special characters:
+			nt			= [ACGTURYKMSWBDHVN];
 			ntg			= nt | '-';
 			
 			a_			= [A];		# Add [a] etc. to allow lowercase.
 			c_			= [C];
 			g_			= [G];
 			t_			= [T];
+			u_			= [U];
+
+			# Treat the compound codes as distinct characters for now.
+			r_			= [R];
+			y_			= [Y];
+			k_			= [K];
+			m_			= [M];
+			s_			= [S];
+			w_			= [W];
+			b_			= [B];
+			d_			= [D];
+			h_			= [H];
+			v_			= [V];
 			n_			= [N];
+
 			not_a		= nt - a_;
 			not_c		= nt - c_;
 			not_g		= nt - g_;
 			not_t		= nt - t_;
+			not_u		= nt - u_;
+
+			not_r		= nt - r_;
+			not_y		= nt - y_;
+			not_k		= nt - k_;
+			not_m		= nt - m_;
+			not_s		= nt - s_;
+			not_w		= nt - w_;
+			not_b		= nt - b_;
+			not_d		= nt - d_;
+			not_h		= nt - h_;
+			not_v		= nt - v_;
 			not_n		= nt - n_;
 			
-			same		= /AA/ | /CC/ | /GG/ | /TT/ | /NN/;	# Add /i to allow lowercase.
-			diff		= (a_ . not_a) | (c_ . not_c) | (g_ . not_g) | (t_ . not_t) | (n_ . not_n);
+			#same		= /AA/ | /CC/ | /GG/ | /TT/ | /NN/;
+			same		= /AA/ | /CC/ | /GG/ | /TT/ | /UU/ | /RR/ | /YY/ | /KK/ | /MM/ | /SS/ | /WW/ | /BB/ | /DD/ | /HH/ | /VV/ | /NN/;	# Add /i to allow lowercase.
+			#diff		= (a_ . not_a) | (c_ . not_c) | (g_ . not_g) | (t_ . not_t) | (n_ . not_n);
+			diff		= (a_ . not_a) | (c_ . not_c) | (g_ . not_g) | (t_ . not_t) | (u_ . not_u) | (r_ . not_r) | (y_ . not_y) | (k_ . not_k) | (m_ . not_m) | (s_ . not_s) | (w_ . not_w) | (b_ . not_b) | (d_ . not_d) | (h_ . not_h) | (v_ . not_v) | (n_ . not_n);
 			both_nt		= nt{2};				# Any two non-gap.
 			
 			action deletion_continue_r {
@@ -178,7 +208,18 @@ namespace vcf2multialign {
 			}
 			
 			action handle_error {
-				throw std::runtime_error("Unexpected character");
+				//throw std::runtime_error("Unexpected character");
+
+				std::cerr
+				<< "Unexpected character '" << *m_fsm.p
+				<< "' (" << (+(*m_fsm.p)) << "), state " << m_fsm.cs << ".\n";
+
+				std::cerr << "Current block:\n";
+				for (auto const c : m_fsm.characters)
+					std::cerr << '\t' << c << " (" << (+c) << ")\n";
+				std::cerr << std::flush;
+
+				abort();
 			}
 			
 			action handle_unexpected_state {
