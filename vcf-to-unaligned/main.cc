@@ -75,11 +75,13 @@ namespace vcf2multialign {
 										public preprocess_logger
 	{
 	protected:
+		std::vector <std::string> const	m_excluded_filters;
 		std::vector <std::string> const	m_field_names_for_filter_if_set;
 		std::string	const				m_chromosome_name;
 		
 	public:
 		unaligned_processor(
+			std::vector <std::string> &&excluded_filters,
 			std::vector <std::string> &&field_names_for_filter_if_set,
 			std::string const &chromosome_name
 		):
@@ -88,6 +90,7 @@ namespace vcf2multialign {
 			reference_controller(),
 			progress_indicator_manager(),
 			preprocess_logger(),
+			m_excluded_filters(std::move(excluded_filters)),
 			m_field_names_for_filter_if_set(std::move(field_names_for_filter_if_set)),
 			m_chromosome_name(chromosome_name)
 		{
@@ -204,6 +207,19 @@ namespace vcf2multialign {
 					}
 					
 					// Filter.
+					{
+						auto const &filters(var.filters());
+						for (auto const *filter : filters)
+						{
+							auto const &filter_id(filter->get_id());
+							if (std::binary_search(m_excluded_filters.begin(), m_excluded_filters.end(), filter_id))
+							{
+								++statistics.filtered_variant;
+								goto end;
+							}
+						}
+					}
+
 					for (auto const *field_ptr : filter_by_assigned)
 					{
 						if (field_ptr->has_value(var))
@@ -301,6 +317,7 @@ namespace vcf2multialign {
 		char const *log_path,
 		char const *reference_seq_name,
 		char const *chr_name,
+		std::vector <std::string> &&excluded_filters,
 		std::vector <std::string> &&field_names_for_filter_if_set,
 		std::size_t sample_idx,
 		std::uint16_t chr_copy_idx,
@@ -310,8 +327,14 @@ namespace vcf2multialign {
 		// main() calls dispatch_main() if this function does not throw or call std::exit or something similar.
 		try
 		{
+			std::sort(excluded_filters.begin(), excluded_filters.end());
+
 			// Since the processor has Boost’s streams, it cannot be moved. Hence the use of a pointer.
-			auto processor_ptr(std::make_unique <unaligned_processor>(std::move(field_names_for_filter_if_set), chr_name));
+			auto processor_ptr(std::make_unique <unaligned_processor>(
+				std::move(excluded_filters),
+				std::move(field_names_for_filter_if_set),
+				chr_name)
+			);
 			auto &processor(*processor_ptr);
 			
 			// These will eventually call std::exit if the file in question cannot be opened.
@@ -368,10 +391,14 @@ int main(int argc, char **argv)
 		std::cerr << "Chromosome copy index must be greater than or equal to zero.\n";
 		std::exit(EXIT_FAILURE);
 	}
+
+	std::vector <std::string> excluded_filters(args_info.exclude_filter_given);
+	for (std::size_t i(0); i < args_info.exclude_filter_given; ++i)
+		excluded_filters[i] = args_info.exclude_filter_arg[i];
 	
-	std::vector <std::string> field_names_for_filter_if_set(args_info.filter_fields_set_given);
-	for (std::size_t i(0); i < args_info.filter_fields_set_given; ++i)
-		field_names_for_filter_if_set[i] = args_info.filter_fields_set_arg[i];
+	std::vector <std::string> field_names_for_filter_if_set(args_info.filter_field_set_given);
+	for (std::size_t i(0); i < args_info.filter_field_set_given; ++i)
+		field_names_for_filter_if_set[i] = args_info.filter_field_set_arg[i];
 	
 	v2m::vcf_to_unaligned(
 		args_info.reference_arg,
@@ -380,6 +407,7 @@ int main(int argc, char **argv)
 		args_info.log_arg,
 		args_info.reference_sequence_given ? args_info.reference_sequence_arg : nullptr,
 		args_info.chromosome_given ? args_info.chromosome_arg : nullptr,
+		std::move(excluded_filters),
 		std::move(field_names_for_filter_if_set),
 		args_info.sample_index_arg,
 		args_info.chromosome_copy_index_arg,

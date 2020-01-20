@@ -14,5 +14,6 @@ option		"chromosome"				c	"Chromosome identifier"																string		typestr
 option		"sample-index"				s	"Sample index to output"															int			typestr = "index"						required
 option		"chromosome-copy-index"		p	"Chromosome copy index to output (typically 0 or 1)"								short		typestr = "index"						required
 option		"reference-sequence"		-	"Reference sequence identifier"														string		typestr = "identifier"					optional
-option		"filter-fields-set"			-	"Remove variants with any value for the given field (used with e.g. CIPOS, CIEND)"	string		typestr = "identifier"					optional	multiple
+option		"exclude-filter"			-	"Exclude variants with the given filter names"										string		typestr = "identifier"					optional	multiple
+option		"filter-field-set"			-	"Remove variants with any value for the given field (used with e.g. CIPOS, CIEND)"	string		typestr = "identifier"					optional	multiple
 option		"overwrite"					-	"Overwrite output files"															flag								off
