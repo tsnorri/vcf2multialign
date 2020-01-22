@@ -82,4 +82,4 @@ Instead of generating a reference-guided multiple alignment, unaligned sequences
 
 ## Creating a variant call file from a pair of aligned sequences and a variant file
 
-`combine-msa-vcf/combine_msa_vcf` may be used to generate a variant call file from two aligned sequences. Optionally, variants relative to the second sequence may be included in the resulting file.
+`combine-msa-vcf/combine_msa_vcf` may be used to generate a variant call file from two aligned sequences. Optionally, variants relative to the second sequence may be included in the resulting file; they will be merged with the variants generated from the alignment and rewritten to be relative to the first sequence.
