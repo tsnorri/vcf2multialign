@@ -32,6 +32,10 @@ namespace vcf2multialign {
 		// Calculate the overlap count.
 		auto const [var_overlap_count, ploidy] = (count_set_genotype_values(var.variant, 0));
 		libbio_always_assert_eq_msg(ploidy, expected_ploidy, "Line ", var.variant.lineno(), ": expected the sample ploidy to match the passed value, got ", ploidy, '.');
+
+		// Don’t add counts if no GT values were set.
+		if (0 == var_overlap_count)
+			return;
 		
 		m_overlap_counts.emplace_back(var_pos, var_overlap_count);
 		m_overlap_counts.emplace_back(var_end, -1 * var_overlap_count);

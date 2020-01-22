@@ -45,6 +45,7 @@ namespace vcf2multialign {
 		void prepare() { m_overlap_counts.emplace_back(0, 0); }
 		const_iterator begin() const { return m_overlap_counts.begin(); }
 		const_iterator end() const { return m_overlap_counts.end(); }
+		overlap_count_vector const &overlap_counts() const { return m_overlap_counts; }
 		
 		void push_count(variant_record const &var, std::size_t const ploidy);
 		void update_running_sums();

@@ -26,6 +26,27 @@ namespace {
 		libbio_assert_lte(alt_pos, var_pos);
 		return var_pos - alt_pos;
 	}
+
+
+	template <typename t_item>
+	struct print_helper
+	{
+		std::vector <t_item> const	*vector{};
+
+		print_helper(std::vector <t_item> const &vector_): vector(&vector_) {}
+	};
+
+	template <typename t_item>
+	std::ostream &operator<<(std::ostream &os, print_helper <t_item> const &ph)
+	{
+		std::size_t i(0);
+		for (auto const &item : *ph.vector)
+		{
+			os << "[" << i << "]: " << item << '\n';
+			++i;
+		}
+		return os;
+	}
 }
 
 
@@ -253,6 +274,10 @@ namespace vcf2multialign {
 				std::size_t total_alt_characters_consumed{};
 				auto const [gt_count, ploidy] = (count_set_genotype_values(var.variant, alt_idx));
 				libbio_always_assert_eq_msg(ploidy, m_ploidy, "Line ", var.variant.lineno(), ": expected the sample ploidy to match the passed value, got ", ploidy, '.');
+				// Skip if no GT values were set.
+				if (0 == gt_count)
+					continue;
+
 				auto &desc(m_variant_writer.emplace_back(variant_description(m_ploidy, gt_count, variant_origin::VC)));
 				desc.overlap_count = max_overlaps - 1;
 				std::string_view const var_alt_sv(var_alt.alt);
@@ -436,10 +461,19 @@ namespace vcf2multialign {
 				// Determine the max. overlap count.
 				auto const res(segmentation.overlap_counter.max_overlaps_in_range(overlap_it, overlap_end, var_pos, var_end_pos));
 				auto const max_overlaps(res.first);
+				libbio_assert_msg(
+					0 < max_overlaps || 0 == count_set_genotype_values(var_it->variant, 0).first,
+					"Got ", max_overlaps, " for maximum overlaps. Overlap list:\n", print_helper(segmentation.overlap_counter.overlap_counts()),
+					"range: [",
+					std::distance(segmentation.overlap_counter.overlap_counts().begin(), overlap_it), ", ",
+					std::distance(segmentation.overlap_counter.overlap_counts().begin(), overlap_end), ") ",
+					"var_pos: ", var_pos, " var_end_pos: ", var_end_pos
+				);
 				overlap_it = res.second;
 				
 				// Process the variant and the found segments.
-				process_variant_in_range(var, seg_it, seg_current_end, max_overlaps);
+				if (0 < max_overlaps)
+					process_variant_in_range(var, seg_it, seg_current_end, max_overlaps);
 				++var_it;
 			}
 			
