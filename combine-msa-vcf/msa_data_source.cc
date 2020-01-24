@@ -52,7 +52,7 @@ namespace vcf2multialign {
 		m_fsm.update_characters(pack);
 		parse_msa(pack);
 		
-		if (m_logs_status && 0 == m_handled_characters % 100000)
+		if (m_logs_status && 0 == m_handled_characters % 10000000)
 			lb::log_time(std::cerr) << " Handled " << m_handled_characters << " characters…\n";
 	}
 	
@@ -76,7 +76,7 @@ namespace vcf2multialign {
 		m_segmentation.overlap_counter.push_count(rec, m_ploidy);
 		m_segmentation.overlapping_variants.emplace_back(std::move(rec));
 		
-		if (m_logs_status && 0 == m_handled_variants % 1000)
+		if (m_logs_status && 0 == m_handled_variants % 100000)
 			lb::log_time(std::cerr) << " Handled " << m_handled_variants << " variants…\n";
 	}
 	
