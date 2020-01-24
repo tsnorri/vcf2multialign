@@ -268,15 +268,20 @@ namespace vcf2multialign {
 			for (auto const &var_alt : var.variant.alts())
 			{
 				++alt_idx;
-				auto left_pad(var_pos_seg_relative);
-				std::size_t var_ref_characters_remaining(var.size); // Number of remaining variant reference characters, i.e. in seg.alt.
-				std::size_t var_alt_characters_remaining(var_alt.alt.size());
-				std::size_t total_alt_characters_consumed{};
-				auto const [gt_count, ploidy] = (count_set_genotype_values(var.variant, alt_idx));
+				// Skip if the ALT allele was unknown.
+				if ("*" == var_alt.alt)
+					continue;
+
+				auto const [gt_count, ploidy] = count_set_genotype_values(var.variant, alt_idx);
 				libbio_always_assert_eq_msg(ploidy, m_ploidy, "Line ", var.variant.lineno(), ": expected the sample ploidy to match the passed value, got ", ploidy, '.');
 				// Skip if no GT values were set.
 				if (0 == gt_count)
 					continue;
+
+				auto left_pad(var_pos_seg_relative);
+				std::size_t var_ref_characters_remaining(var.size); // Number of remaining variant reference characters, i.e. in seg.alt.
+				std::size_t var_alt_characters_remaining(var_alt.alt.size());
+				std::size_t total_alt_characters_consumed{};
 
 				auto &desc(m_variant_writer.emplace_back(variant_description(m_ploidy, gt_count, variant_origin::VC)));
 				desc.overlap_count = max_overlaps - 1;
