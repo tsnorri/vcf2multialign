@@ -205,6 +205,24 @@ namespace vcf2multialign {
 	}
 	
 	
+	bool variant_graph_generator::samples_have_alt(lb::variant const &var, path_sorted_variant const &psv, std::size_t const given_alt_idx) const
+	{
+		auto const *gt_field(get_variant_format(var).gt);
+		auto const &representatives(psv.representatives_by_path());
+		auto const &samples(var.samples());
+		for (auto const sample_idx : representatives)
+		{
+			auto const [donor_idx, chr_idx] = m_sample_indexer.donor_and_chr_idx(sample_idx);
+			auto const &sample(samples[donor_idx]);
+			auto const &gt((*gt_field)(sample));
+			auto const alt_idx(gt[chr_idx].alt);
+			if (alt_idx == given_alt_idx)
+				return true;
+		}
+		return false;
+	}
+	
+	
 	// Retrieve the accumulated group of variants and pass them to the worker thread for processing.
 	void variant_graph_generator::process_subgraph(std::size_t const prev_overlap_end_pos)
 	{
@@ -328,8 +346,9 @@ namespace vcf2multialign {
 			auto const &alts(var.alts());
 			unhandled_alt_csum.clear();
 			unhandled_alt_csum.resize(1 + alts.size());
-			for (auto const &[i, alt] : ranges::view::enumerate(alts))
-				unhandled_alt_csum[1 + i] = unhandled_alt_csum[i] + (can_handle_variant_alt(alt) ? 0 : 1);
+			unhandled_alt_csum[0] = samples_have_alt(var, psv, 0) ? 0 : 1;	// Check whether any of the samples has GT = 0.
+			for (auto const &[i, alt] : ranges::view::enumerate(alts))		// Check the other GT values.
+				unhandled_alt_csum[1 + i] = unhandled_alt_csum[i] + (can_handle_variant_alt(alt) && samples_have_alt(var, psv, 1 + i) ? 0 : 1);
 			
 			auto const *gt_field(get_variant_format(var).gt);
 			for (auto const &[path_idx, sample_idx] : ranges::view::enumerate(psv.representatives_by_path()))
@@ -378,7 +397,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void variant_graph_generator::assign_alt_edge_labels_and_queue(libbio::variant const &var, std::size_t const node_idx, std::size_t const alt_edge_start_idx)
+	void variant_graph_generator::assign_alt_edge_labels_and_queue(lb::variant const &var, std::size_t const node_idx, std::size_t const alt_edge_start_idx)
 	{
 		auto &alt_edge_labels(m_graph.alt_edge_labels());
 		auto const &edge_count_csum(m_graph.alt_edge_count_csum());

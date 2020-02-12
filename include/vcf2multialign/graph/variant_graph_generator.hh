@@ -139,6 +139,7 @@ namespace vcf2multialign {
 		
 	protected:
 		void update_sample_names();
+		bool samples_have_alt(libbio::variant const &var, path_sorted_variant const &psv, std::size_t const given_alt_idx) const;
 		void process_subgraph(std::size_t const prev_overlap_end);
 		void calculate_aligned_ref_pos_for_new_node(std::size_t const node_idx);
 		void update_aligned_ref_pos(std::size_t const node_idx, std::size_t const max_in_alt_edge_aligned_pos);
