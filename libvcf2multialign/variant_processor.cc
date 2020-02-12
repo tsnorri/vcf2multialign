@@ -41,7 +41,10 @@ namespace vcf2multialign {
 	{
 		// Check the chromosome name.
 		if (var.chrom_id() != *m_chromosome_name)
+		{
+			delegate.variant_processor_found_variant_with_chrom_id_mismatch(var);
 			return variant_check_status::ERROR;
+		}
 		
 		auto const var_pos(var.zero_based_pos());
 		if (! (var_pos < m_reference->size()))

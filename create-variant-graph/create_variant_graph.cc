@@ -72,6 +72,7 @@ namespace vcf2multialign {
 	protected:
 		virtual std::size_t progress_step_max() const = 0;
 		virtual void generate_variant_graph(progress_indicator_delegate &indicator_delegate) = 0;
+		virtual void log_statistics() const = 0;
 	};
 	
 	
@@ -90,6 +91,7 @@ namespace vcf2multialign {
 	protected:
 		std::size_t progress_step_max() const override { return m_preprocessing_result.handled_line_numbers.size(); }
 		void generate_variant_graph(progress_indicator_delegate &indicator_delegate) override;
+		virtual void log_statistics() const override;
 	};
 	
 	
@@ -116,6 +118,7 @@ namespace vcf2multialign {
 	protected:
 		std::size_t progress_step_max() const override { return 0; }
 		void generate_variant_graph(progress_indicator_delegate &indicator_delegate) override;
+		virtual void log_statistics() const override;
 	};
 }
 
@@ -206,6 +209,18 @@ namespace vcf2multialign {
 		this->progress_indicator().log_with_counter(lb::copy_time() + "Creating the variant graph…", indicator_delegate);
 		m_generator.generate_graph(m_field_names_for_filter_if_set);
 	}
+
+
+	void variant_graph_precalculated_context::log_statistics() const
+	{
+		dispatch_async_main(^{ lb::log_time(std::cerr); std::cerr << "Done.\n"; }); // FIXME: log statistics?
+	}
+
+
+	void variant_graph_single_pass_context::log_statistics() const
+	{
+		dispatch_async_main(^{ lb::log_time(std::cerr); std::cerr << "Done. Chromosome ID mismatches: " << this->chrom_id_mismatches() << "\n"; }); // FIXME: log more statistics?
+	}
 	
 	
 	void variant_graph_context::process_and_output()
@@ -218,8 +233,7 @@ namespace vcf2multialign {
 			this->generate_variant_graph(indicator_delegate);
 			this->end_logging();
 			this->uninstall_progress_indicator();
-			
-			dispatch_async_main(^{ lb::log_time(std::cerr); std::cerr << "Done.\n"; }); // FIXME: log statistics?
+			this->log_statistics();
 			
 			// Output.
 			cereal::PortableBinaryOutputArchive archive(this->m_output_stream);

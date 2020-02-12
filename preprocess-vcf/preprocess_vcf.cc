@@ -102,7 +102,12 @@ namespace vcf2multialign {
 			
 			dispatch_async(dispatch_get_main_queue(), ^{
 				lb::log_time(std::cerr);
-				std::cerr << "Done. Maximum segment size: " << result.max_segment_size << " Cut position count: " << result.positions.size() << '\n';
+				std::cerr
+					<< "Done. Handled variants: " << result.handled_line_numbers.size()
+					<< " Maximum segment size: " << result.max_segment_size
+					<< " Cut position count: " << result.positions.size()
+					<< " Chromosome ID mismatches: " << this->chrom_id_mismatches()
+					<< '\n';
 			});
 			
 			// Output.

@@ -10,6 +10,11 @@ namespace lb = libbio;
 
 
 namespace vcf2multialign {
+
+	void logging_variant_processor_delegate::variant_processor_found_variant_with_chrom_id_mismatch(libbio::transient_variant const &var) 
+	{
+		// No-op.
+	}
 	
 	void logging_variant_processor_delegate::variant_processor_no_field_for_identifier(std::string const &identifier)
 	{

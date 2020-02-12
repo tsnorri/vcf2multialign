@@ -17,6 +17,7 @@ namespace vcf2multialign {
 	struct variant_processor_delegate
 	{
 		virtual ~variant_processor_delegate() {}
+		virtual void variant_processor_found_variant_with_chrom_id_mismatch(libbio::transient_variant const &var) = 0;
 		virtual void variant_processor_no_field_for_identifier(std::string const &identifier) = 0;
 		virtual void variant_processor_found_variant_with_position_greater_than_reference_length(libbio::transient_variant const &var) = 0;
 		virtual void variant_processor_found_variant_with_no_suitable_alts(libbio::transient_variant const &var) = 0;
@@ -27,6 +28,7 @@ namespace vcf2multialign {
 	
 	struct logging_variant_processor_delegate : virtual public variant_processor_delegate
 	{
+		void variant_processor_found_variant_with_chrom_id_mismatch(libbio::transient_variant const &var) override;
 		void variant_processor_no_field_for_identifier(std::string const &identifier) override;
 		void variant_processor_found_variant_with_position_greater_than_reference_length(libbio::transient_variant const &var) override;
 		void variant_processor_found_variant_with_no_suitable_alts(libbio::transient_variant const &var) override;
