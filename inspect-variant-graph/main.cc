@@ -4,6 +4,7 @@
  */
 
 #include <cereal/archives/portable_binary.hpp>
+#include <charconv>
 #include <vcf2multialign/graph/variant_graph.hh>
 #include <vcf2multialign/utility/read_single_fasta_seq.hh>
 #include "cmdline.h"
@@ -14,6 +15,87 @@ namespace v2m	= vcf2multialign;
 
 
 namespace {
+	
+	enum class reading_mode
+	{
+		NODE_NUMBER,
+		REF_POSITION
+	};
+	
+	
+	reading_mode g_mode{reading_mode::NODE_NUMBER};
+	
+
+	template <typename t_range>
+	std::size_t read_next_node_number(t_range const &range)
+	{
+		auto const length(ranges::size(range));
+		std::string buffer;
+		
+		while (true)
+		{
+			switch (g_mode)
+			{
+				case reading_mode::NODE_NUMBER:
+				{
+					std::cout << "Node number [0, " << length << ") or ‘r’ for REF position? " << std::flush;
+					std::cin >> buffer;
+					if (std::cin.eof())
+						return SIZE_MAX;
+					
+					if ("r" == buffer)
+					{
+						g_mode = reading_mode::REF_POSITION;
+						continue;
+					}
+
+					std::size_t node_number{};
+					auto const res(std::from_chars(buffer.data(), buffer.data() + buffer.size(), node_number));
+					if (std::errc{} != res.ec)
+						continue;
+					
+					if (! (node_number < length))
+						continue;
+					
+					return node_number;
+				}
+					
+				case reading_mode::REF_POSITION:
+				{
+					std::cout << "REF position or ‘n’ for node number? " << std::flush;
+					std::cin >> buffer;
+					if (std::cin.eof())
+						return SIZE_MAX;
+					
+					if ("n" == buffer)
+					{
+						g_mode = reading_mode::NODE_NUMBER;
+						continue;
+					}
+					
+					std::size_t ref_pos{};
+					auto const res(std::from_chars(buffer.data(), buffer.data() + buffer.size(), ref_pos));
+					if (std::errc{} != res.ec)
+						continue;
+					
+					auto const it(ranges::upper_bound(
+						range,
+						ref_pos,
+						ranges::less{},
+						[](auto const &item){
+							auto const &[ref_pair, aligned_ref_pair, alt_edge_pair] = item;
+							auto const ref_lhs(ref_pair[0]);
+							return ref_lhs;
+						}
+					));
+					
+					return std::distance(ranges::begin(range), it - 1);
+				}
+			}
+		}
+	}
+	
+	
 	void inspect_variant_graph(
 		char const *reference_path,
 		char const *input_graph_path,
@@ -53,21 +135,14 @@ namespace {
 				aligned_ref_positions | ranges::view::tail | ranges::view::sliding(2),
 				alt_edge_count_csum | ranges::view::sliding(2)
 			));
-			auto const length(ranges::size(rsv));
 			
 			if (std::cin.eof())
 				return;
 			while (true)
 			{
-				std::cout << "Node number [0, " << length << ")? " << std::flush;
-				std::size_t idx{};
-				std::cin >> idx;
-				
-				if (std::cin.eof())
+				auto const idx(read_next_node_number(rsv));
+				if (SIZE_MAX == idx)
 					break;
-				
-				if (! (idx < length))
-					continue;
 				
 				auto const &pairs(rsv[idx]);
 				auto const &[ref_pair, aligned_ref_pair, alt_edge_pair] = pairs;
