@@ -7,6 +7,7 @@
 #define VCF2MULTIALIGN_COMBINE_MSA_MSA_DATA_SOURCE_HH
 
 #include <vcf2multialign/types.hh>
+#include <vcf2multialign/utility/forwarder.hh>
 #include "overlap_counter.hh"
 #include "types.hh"
 #include "vcf_record_generator.hh"
