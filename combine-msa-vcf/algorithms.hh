@@ -6,6 +6,8 @@
 #ifndef VCF2MULTIALIGN_COMBINE_MSA_ALGORITHMS_HH
 #define VCF2MULTIALIGN_COMBINE_MSA_ALGORITHMS_HH
 
+#include <range/v3/all.hpp>
+
 
 namespace vcf2multialign {
 	
