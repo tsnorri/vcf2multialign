@@ -109,7 +109,7 @@ namespace vcf2multialign {
 		{
 		}
 		
-		inline void reset(aligned_character_pack const &pack, segment_type const st);
+		inline void reset(aligned_character_pack const &pack, segment_type const st, bool const is_mixed_with_gap_in_alt = false);
 		inline std::size_t alt_end() const;
 	};
 	
@@ -134,12 +134,12 @@ namespace vcf2multialign {
 	}
 	
 	
-	void aligned_segment::reset(aligned_character_pack const &pack, segment_type const st)
+	void aligned_segment::reset(aligned_character_pack const &pack, segment_type const st, bool const is_mixed_with_gap_in_alt)
 	{
 		ref.string.clear();
 		alt.string.clear();
 		ref.position = pack.ref.position;
-		alt.position = pack.alt.position;
+		alt.position = pack.alt.position + is_mixed_with_gap_in_alt;
 		aligned_position = pack.aligned_position;
 		type = st;
 	}
