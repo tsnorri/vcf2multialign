@@ -151,6 +151,7 @@ namespace vcf2multialign {
 			}
 				
 			case segment_type::MIXED:
+			case segment_type::MIXED_ALT_STARTS_WITH_GAP:
 				throw std::runtime_error("Unexpected segment type");
 		}
 	}
@@ -300,6 +301,7 @@ namespace vcf2multialign {
 						break;
 						
 					case segment_type::MIXED:
+					case segment_type::MIXED_ALT_STARTS_WITH_GAP:
 					case segment_type::DELETION:
 						throw std::runtime_error("Unexpected segment type");
 				}
@@ -368,6 +370,7 @@ namespace vcf2multialign {
 						}
 						
 						case segment_type::MIXED:
+						case segment_type::MIXED_ALT_STARTS_WITH_GAP:
 							throw std::runtime_error("Unexpected segment type");
 					}
 				
@@ -448,6 +451,8 @@ namespace vcf2multialign {
 				auto const var_end_pos(var_pos + var.size);
 				
 				// Determine the segments that overlap with var.
+				if (var_pos == 34718151)
+					std::cerr << "test" << std::endl;
 				auto const seg_range(find_overlapping_segment_range(seg_it, seg_end, var));
 				libbio_assert_neq_msg(seg_range.first, seg_end, "There should be at least one element not less than (overlapping with) the variant.");
 				seg_it = seg_range.first;

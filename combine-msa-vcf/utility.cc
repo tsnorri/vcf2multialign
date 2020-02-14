@@ -63,7 +63,6 @@ namespace vcf2multialign {
 	
 	void split_mixed_segment(aligned_segment &src, aligned_segment_vector &dst)
 	{
-		aligned_segment seg;
 		auto const ref_size(src.ref.string.size());
 		auto const alt_size(src.alt.string.size()); // OK b.c. segment_type is MIXED.
 		auto const head_size(alt_size <= ref_size ? alt_size : ref_size - 1);
@@ -75,7 +74,15 @@ namespace vcf2multialign {
 		//		    ^tail begins	   ^tail begins
 		// Then create smaller segments.
 		
+		// Considering the case where the alt start with a gap (segment_type::MIXED_ALT_STARTS_WITH_GAP == src.type),
+		// the alt character position needs to be adjusted by one b.c. the parser sets the segment position to that of the first
+		// alt character (which is set to the position of the previous non-gap character). Obviously this need not be done if
+		// there actually are no alt characters.
+		if (segment_type::MIXED_ALT_STARTS_WITH_GAP == src.type && alt_size)
+			++src.alt.position;
+		
 		// Handle the head part.
+		aligned_segment seg;
 		{
 			auto const head_range(
 				rsv::zip(rsv::iota(std::size_t(0)), src.ref.string, src.alt.string)

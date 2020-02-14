@@ -18,7 +18,7 @@ namespace vcf2multialign {
 	void msa_data_source::push_current_segment()
 	{
 		// If a segment is mixed, partition it.
-		if (segment_type::MIXED == m_current_segment.type)
+		if (segment_type::MIXED == m_current_segment.type || segment_type::MIXED_ALT_STARTS_WITH_GAP == m_current_segment.type)
 			split_mixed_segment(m_current_segment, m_segmentation.overlapping_segments);
 		else
 		{
@@ -53,7 +53,7 @@ namespace vcf2multialign {
 		parse_msa(pack);
 		
 		if (m_logs_status && 0 == m_handled_characters % 10000000)
-			lb::log_time(std::cerr) << " Handled " << m_handled_characters << " characters…\n";
+			lb::log_time(std::cerr) << "Handled " << m_handled_characters << " characters…\n";
 	}
 	
 	
@@ -171,7 +171,7 @@ namespace vcf2multialign {
 			fwd,
 			ranges::less(),
 			[](auto const &pck){ return proj_return_type(pck.alt.position, ('-' == pck.alt.character ? 2 : 0)); },
-			[](auto const &var){ return proj_return_type(var.aligned_position - 1, 1); }	// Not yet aligned.
+			[](auto const &var){ return proj_return_type(var.variant.zero_based_pos(), 1); }
 		);
 		push_current_segment();
 		

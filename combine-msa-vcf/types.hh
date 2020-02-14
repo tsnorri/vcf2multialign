@@ -21,7 +21,8 @@ namespace vcf2multialign {
 		DELETION,
 		INSERTION,
 		INSERTION_WITH_SNP,
-		MIXED
+		MIXED,
+		MIXED_ALT_STARTS_WITH_GAP
 	};
 	
 	
@@ -109,7 +110,7 @@ namespace vcf2multialign {
 		{
 		}
 		
-		inline void reset(aligned_character_pack const &pack, segment_type const st, bool const is_mixed_with_gap_in_alt = false);
+		inline void reset(aligned_character_pack const &pack, segment_type const st);
 		inline std::size_t alt_end() const;
 	};
 	
@@ -134,12 +135,12 @@ namespace vcf2multialign {
 	}
 	
 	
-	void aligned_segment::reset(aligned_character_pack const &pack, segment_type const st, bool const is_mixed_with_gap_in_alt)
+	void aligned_segment::reset(aligned_character_pack const &pack, segment_type const st)
 	{
 		ref.string.clear();
 		alt.string.clear();
 		ref.position = pack.ref.position;
-		alt.position = pack.alt.position + is_mixed_with_gap_in_alt;
+		alt.position = pack.alt.position;
 		aligned_position = pack.aligned_position;
 		type = st;
 	}
@@ -159,6 +160,7 @@ namespace vcf2multialign {
 			case segment_type::INSERTION:
 			case segment_type::INSERTION_WITH_SNP:
 			case segment_type::MIXED:
+			case segment_type::MIXED_ALT_STARTS_WITH_GAP:
 				return alt.position + alt.string.size();
 		}
 	}
@@ -190,6 +192,10 @@ namespace vcf2multialign {
 
 			case segment_type::MIXED:
 				os << "MIXED";
+				return os;
+				
+			case segment_type::MIXED_ALT_STARTS_WITH_GAP:
+				os << "MIXED_ALT_STARTS_WITH_GAP";
 				return os;
 		};
 	}

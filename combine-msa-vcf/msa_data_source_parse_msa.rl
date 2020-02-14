@@ -105,7 +105,7 @@ namespace vcf2multialign {
 			}
 			
 			action main_new_mixed_r {
-				m_current_segment.reset(pack, segment_type::MIXED, true);
+				m_current_segment.reset(pack, segment_type::MIXED_ALT_STARTS_WITH_GAP);
 				m_current_segment.ref.string += pack.ref.character;
 				fnext handle_mixed;
 				fbreak;
@@ -201,7 +201,7 @@ namespace vcf2multialign {
 			
 			action start_new_mixed_r {
 				push_current_segment();
-				m_current_segment.reset(pack, segment_type::MIXED, true);
+				m_current_segment.reset(pack, segment_type::MIXED_ALT_STARTS_WITH_GAP);
 				m_current_segment.ref.string += pack.ref.character;
 				fnext handle_mixed;
 				fbreak;
