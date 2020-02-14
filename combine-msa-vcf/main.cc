@@ -8,7 +8,29 @@
 #include "combine_msa.hh"
 
 
+namespace lb	= libbio;
 namespace v2m	= vcf2multialign;
+
+
+namespace {
+	void combine_msa(gengetopt_args_info const &args_info, std::ostream &os)
+	{
+		// Read the input FASTAs.
+		v2m::vector_type ref_seq, alt_seq;
+		v2m::read_single_fasta_seq(args_info.ref_arg, ref_seq, nullptr);
+		v2m::read_single_fasta_seq(args_info.alt_arg, alt_seq, nullptr);
+		
+		// Combine.
+		v2m::combine_msa(
+			ref_seq,
+			alt_seq,
+			args_info.variants_arg,
+			args_info.output_chr_arg,
+			args_info.ploidy_arg,
+			os
+		);
+	}
+}
 
 
 int main(int argc, char **argv)
@@ -34,20 +56,21 @@ int main(int argc, char **argv)
 		std::exit(EXIT_FAILURE);
 	}
 	
-	// Read the input FASTAs.
-	v2m::vector_type ref_seq, alt_seq;
-	v2m::read_single_fasta_seq(args_info.ref_arg, ref_seq, nullptr);
-	v2m::read_single_fasta_seq(args_info.alt_arg, alt_seq, nullptr);
-	
-	// Combine.
-	v2m::combine_msa(
-		ref_seq,
-		alt_seq,
-		args_info.variants_arg,
-		args_info.output_chr_arg,
-		args_info.ploidy_arg,
-		std::cout
-	);
+	// Open the output file.
+	if (args_info.output_given)
+	{
+		lb::file_ostream os;
+		auto const mode(lb::make_writing_open_mode({
+			lb::writing_open_mode::CREATE,
+			(false ? lb::writing_open_mode::OVERWRITE : lb::writing_open_mode::NONE)
+		}));
+		lb::open_file_for_writing(args_info.output_arg, os, mode);
+		combine_msa(args_info, os);
+	}
+	else
+	{
+		combine_msa(args_info, std::cout);
+	}
 	
 	return EXIT_SUCCESS;
 }
