@@ -1,0 +1,12 @@
+# Copyright (c) 2020 Tuukka Norri
+# This code is licensed under MIT license (see LICENSE for details).
+
+package		"vcfcontains"
+version		"0.1"
+purpose		"Check whether a VCF file contains all the variants in a second VCF file."
+description	"Outputs the missing variant records. Samples are currently not compared."
+usage		"vcfcontains --subset=subset.vcf --superset=superset.vcf [ --compare-info=info-key ... ]"
+
+option		"subset"			-	"Subset variant file path"		string	typestr = "filename"	required
+option		"superset"			-	"Superset variant file path"	string	typestr = "filename"	required
+option		"compare-info-key"	-	"Info keys for comparison"		string	typestr = "key"			optional	multiple
