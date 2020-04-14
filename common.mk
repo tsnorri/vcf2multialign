@@ -31,17 +31,17 @@ BOOST_ROOT		?= /usr
 BOOST_INCLUDE	?= -I$(BOOST_ROOT)/include
 
 CFLAGS			+= -std=c99   $(OPT_FLAGS) $(WARNING_FLAGS) $(SYSTEM_CFLAGS)
-CXXFLAGS		+= -std=c++17 $(OPT_FLAGS) $(WARNING_FLAGS) $(SYSTEM_CXXFLAGS)
+CXXFLAGS		+= -std=c++2a $(OPT_FLAGS) $(WARNING_FLAGS) $(SYSTEM_CXXFLAGS)
 CPPFLAGS		+= $(SYSTEM_CPPFLAGS) -DHAVE_CONFIG_H -I../include -I../lib/cereal/include -I../lib/libbio/include -I../lib/libbio/lib/GSL/include -I../lib/libbio/lib/range-v3/include $(BOOST_INCLUDE)
 LDFLAGS			+= $(SYSTEM_LDFLAGS) ../lib/libbio/src/libbio.a $(BOOST_LIBS)
 
 ifeq ($(shell uname -s),Linux)
 	CPPFLAGS	+= -I../lib/swift-corelibs-libdispatch
-	LDFLAGS		+= ../lib/swift-corelibs-libdispatch/build/src/libdispatch.a ../lib/swift-corelibs-libdispatch/build/libBlocksRuntime.a -lbsd -lpthread -lz
+	LDFLAGS		+= ../lib/swift-corelibs-libdispatch/build/src/libdispatch.a ../lib/swift-corelibs-libdispatch/build/libBlocksRuntime.a /usr/lib/x86_64-linux-gnu/libbsd.a -lpthread -lz
 endif
 
 
-# FIXME: the first two likely only work with Clang; I think GCC uses something else thant -coverage.
+# FIXME: the first two likely only work with Clang; I think GCC uses something else than -coverage.
 %.cov.o: %.c
 	$(CC) -c -coverage $(CFLAGS) $(CPPFLAGS) -o $@ $<
 
