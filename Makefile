@@ -81,13 +81,15 @@ $(DIST_TAR_GZ):	preprocess-vcf/preprocess_vcf \
 				create-variant-graph/create_variant_graph \
 				inspect-variant-graph/inspect_variant_graph \
 				variant-graph-to-sequences/variant_graph_to_sequences \
-				variant-graph-to-gv/variant_graph_to_gv
+				variant-graph-to-gv/variant_graph_to_gv \
+				combine-msa-vcf/combine_msa_vcf
 	$(MKDIR) -p $(DIST_TARGET_DIR)
 	$(CP) preprocess-vcf/preprocess_vcf $(DIST_TARGET_DIR)
 	$(CP) create-variant-graph/create_variant_graph $(DIST_TARGET_DIR)
 	$(CP) inspect-variant-graph/inspect_variant_graph $(DIST_TARGET_DIR)
 	$(CP) variant-graph-to-sequences/variant_graph_to_sequences $(DIST_TARGET_DIR)
 	$(CP) variant-graph-to-gv/variant_graph_to_gv $(DIST_TARGET_DIR)
+	$(CP) combine-msa-vcf/combine_msa_vcf $(DIST_TARGET_DIR)
 	$(CP) README.md $(DIST_TARGET_DIR)
 	$(CP) LICENSE $(DIST_TARGET_DIR)
 	$(CP) lib/swift-corelibs-libdispatch/LICENSE $(DIST_TARGET_DIR)/swift-corelibs-libdispatch-license.txt
