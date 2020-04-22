@@ -4,10 +4,12 @@
  */
 
 #include <libbio/vcf/variant.hh>
+#include <libbio/vcf/variant_end_pos.hh>
 #include "vcf_record_generator.hh"
 
 
-namespace lb = libbio;
+namespace lb	= libbio;
+namespace vcf	= libbio::vcf;
 
 
 namespace vcf2multialign {
@@ -28,12 +30,12 @@ namespace vcf2multialign {
 	variant_record vcf_record_generator::next_variant()
 	{
 		variant_record retval;
-		bool const st(this->m_vcf_reader.parse_one([this, &retval](lb::transient_variant const &var) {
+		bool const st(this->m_vcf_reader.parse_one([this, &retval](vcf::transient_variant const &var) {
 			// Not reached on EOF.
 			libbio_assert(m_end_field);
 			retval.variant = var;
 			retval.aligned_position = var.pos();
-			retval.size = lb::variant_end_pos(var, *m_end_field) - var.zero_based_pos(); // FIXME: what do we store?
+			retval.size = vcf::variant_end_pos(var, *m_end_field) - var.zero_based_pos(); // FIXME: what do we store?
 			return true;
 		}, m_parser_state));
 	

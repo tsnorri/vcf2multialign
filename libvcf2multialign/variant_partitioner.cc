@@ -9,6 +9,7 @@
 #include <vcf2multialign/utility/can_handle_variant_alts.hh>
 
 namespace lb	= libbio;
+namespace vcf	= libbio::vcf;
 namespace v2m	= vcf2multialign;
 
 
@@ -20,13 +21,13 @@ namespace vcf2multialign {
 	)
 	{
 		this->m_reader->reset();
-		this->m_reader->set_parsed_fields(lb::vcf_field::ALL);
+		this->m_reader->set_parsed_fields(vcf::field::ALL);
 		
 		// Get the field descriptors needed for accessing the values.
 		auto const *end_field(this->m_reader->get_end_field_ptr());
 		
 		// Determine the fields used for filtering.
-		std::vector <lb::vcf_info_field_base *> filter_by_assigned;
+		std::vector <vcf::info_field_base *> filter_by_assigned;
 		this->fill_filter_by_assigned(field_names_for_filter_by_assigned, filter_by_assigned, *m_delegate);
 		
 		std::vector <cut_position> cut_position_tree;
@@ -56,11 +57,11 @@ namespace vcf2multialign {
 					&unclosable_partitions,
 					&handled_line_numbers,
 				 	&overlap_end
-				](lb::transient_variant const &var) -> bool
+				](vcf::transient_variant const &var) -> bool
 				{
 					auto const lineno(var.lineno());
 					auto const var_pos(var.zero_based_pos());
-					auto const var_end(lb::variant_end_pos(var, *end_field));
+					auto const var_end(vcf::variant_end_pos(var, *end_field));
 					libbio_always_assert_lte(var_pos, var_end);
 					
 					switch (this->check_variant(var, filter_by_assigned, *m_delegate))
@@ -91,22 +92,25 @@ namespace vcf2multialign {
 					
 					// Update the scores.
 					{
+						// FIXME: count_paths expects a vcf::variant. Otherwise the copy would not be needed.
+						vcf::variant persistent_var(var);
+						
 						auto const alt_count(var.alts().size());
 						for (auto &ctx : closable_partitions)
-							ctx.count_paths(var, alt_count);
+							ctx.count_paths(persistent_var, alt_count);
 						
 						lb::parallel_for_each_range_view(
 							unclosable_partitions,
 							8,
-							[&var, alt_count](auto &ctx, std::size_t const j)
+							[&persistent_var, alt_count](auto &ctx, std::size_t const j)
 							{
-								ctx.count_paths(var, alt_count);
+								ctx.count_paths(persistent_var, alt_count);
 							}
 						);
 					}
 					
 					{
-						auto const var_end(lb::variant_end_pos(var, *end_field));
+						auto const var_end(vcf::variant_end_pos(var, *end_field));
 						overlap_end = std::max(overlap_end, var_end);
 					}
 					

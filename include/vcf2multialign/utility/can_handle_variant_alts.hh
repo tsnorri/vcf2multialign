@@ -11,8 +11,8 @@
 
 namespace vcf2multialign {
 		
-	bool can_handle_variant_alts(libbio::transient_variant const &var);
-	bool can_handle_variant_alt(libbio::variant_alt_base const &alt);
+	bool can_handle_variant_alts(libbio::vcf::transient_variant const &var);
+	bool can_handle_variant_alt(libbio::vcf::variant_alt_base const &alt);
 }
 
 #endif

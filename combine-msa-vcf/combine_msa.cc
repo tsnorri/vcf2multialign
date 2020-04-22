@@ -6,6 +6,7 @@
 #include "combine_msa.hh"
 
 namespace lb	= libbio;
+namespace vcf	= libbio::vcf;
 namespace v2m	= vcf2multialign;
 
 
@@ -28,7 +29,7 @@ namespace vcf2multialign {
 		{
 			gen.open_variants_file(variants_path);
 			gen.prepare();
-			gen.vcf_reader().set_parsed_fields(lb::vcf_field::ALL);
+			gen.vcf_reader().set_parsed_fields(vcf::field::ALL);
 		}
 
 		combiner.process_msa(ref_seq, alt_seq, gen);

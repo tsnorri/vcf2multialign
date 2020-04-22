@@ -15,11 +15,11 @@ namespace vcf2multialign {
 	class vcf_record_generator : public vcf_processor
 	{
 	protected:
-		libbio::vcf_reader::parser_state	m_parser_state;
+		libbio::vcf::reader::parser_state	m_parser_state;
 		
 	public:
 		void prepare();
-		bool next_variant(libbio::variant &out_var);
+		bool next_variant(libbio::vcf::variant &out_var);
 	};
 }
 

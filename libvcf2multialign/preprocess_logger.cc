@@ -7,6 +7,7 @@
 
 
 namespace lb	= libbio;
+namespace vcf	= libbio::vcf;
 namespace v2m	= vcf2multialign;
 
 
@@ -44,7 +45,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void preprocess_logger::variant_processor_found_variant_with_position_greater_than_reference_length(libbio::transient_variant const &var)
+	void preprocess_logger::variant_processor_found_variant_with_position_greater_than_reference_length(vcf::transient_variant const &var)
 	{
 		auto const lineno(var.lineno());
 		dispatch_async(dispatch_get_main_queue(), ^{
@@ -53,7 +54,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void preprocess_logger::variant_processor_found_variant_with_no_suitable_alts(libbio::transient_variant const &var)
+	void preprocess_logger::variant_processor_found_variant_with_no_suitable_alts(vcf::transient_variant const &var)
 	{
 		if (!m_queue)
 			return;
@@ -65,7 +66,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void preprocess_logger::variant_processor_found_filtered_variant(libbio::transient_variant const &var, libbio::vcf_info_field_base const &field)
+	void preprocess_logger::variant_processor_found_filtered_variant(vcf::transient_variant const &var, vcf::info_field_base const &field)
 	{
 		if (!m_queue)
 			return;
@@ -78,7 +79,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void preprocess_logger::variant_processor_found_variant_with_ref_mismatch(libbio::transient_variant const &var, std::string_view const &ref_sub)
+	void preprocess_logger::variant_processor_found_variant_with_ref_mismatch(vcf::transient_variant const &var, std::string_view const &ref_sub)
 	{
 		auto const lineno(var.lineno());
 		std::string var_ref(var.ref());
@@ -89,7 +90,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void preprocess_logger::sample_sorter_found_overlapping_variant(lb::variant const &var, std::size_t const sample_idx, std::size_t const prev_end_pos)
+	void preprocess_logger::sample_sorter_found_overlapping_variant(vcf::variant const &var, std::size_t const sample_idx, std::size_t const prev_end_pos)
 	{
 		if (!m_queue)
 			return;

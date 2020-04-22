@@ -16,8 +16,8 @@ namespace vcf2multialign {
 	{
 	protected:
 		libbio::mmap_handle <char>	m_vcf_handle;
-		libbio::vcf_mmap_input		m_vcf_input;
-		libbio::vcf_reader			m_vcf_reader;
+		libbio::vcf::mmap_input		m_vcf_input;
+		libbio::vcf::reader			m_vcf_reader;
 		
 		
 	public:
@@ -27,7 +27,7 @@ namespace vcf2multialign {
 		{
 		}
 		
-		libbio::vcf_reader &vcf_reader() { return m_vcf_reader; }
+		libbio::vcf::reader &vcf_reader() { return m_vcf_reader; }
 		void open_variants_file(char const *variant_file_path);
 		void prepare_reader();
 	};

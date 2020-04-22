@@ -7,7 +7,8 @@
 #include <vcf2multialign/variant_format.hh>
 #include <vcf2multialign/vcf_processor.hh>
 
-namespace lb = libbio;
+namespace lb	= libbio;
+namespace vcf	= libbio::vcf;
 
 
 namespace {
@@ -54,11 +55,11 @@ namespace vcf2multialign {
 	
 	void vcf_processor::prepare_reader()
 	{
-		lb::add_reserved_genotype_keys(m_vcf_reader.genotype_fields());
+		vcf::add_reserved_genotype_keys(m_vcf_reader.genotype_fields());
 	
 		{
 			auto &info_fields(m_vcf_reader.info_fields());
-			lb::add_reserved_info_keys(info_fields);
+			vcf::add_reserved_info_keys(info_fields);
 	
 			// Add some fields used in 1000G.
 			add_to_map(info_fields, "CIPOS",	new vcf_info_field_cipos());

@@ -3,13 +3,14 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
+#include <compare>
 #include <libbio/assert.hh>
 #include <libbio/cxxcompat.hh>
 #include <libbio/file_handling.hh>
+#include <libbio/vcf/subfield.hh>
 #include <libbio/vcf/variant.hh>
 #include <libbio/vcf/variant_printer.hh>
 #include <libbio/vcf/vcf_reader.hh>
-#include <libbio/vcf/vcf_subfield.hh>
 #include <range/v3/all.hpp>
 #include <vcf2multialign/utility/forwarder.hh>
 #include "cmdline.h"
@@ -18,6 +19,7 @@
 
 namespace lb	= libbio;
 namespace rsv	= ranges::view;
+namespace vcf	= libbio::vcf;
 namespace v2m	= vcf2multialign;
 
 
@@ -35,7 +37,59 @@ namespace vcf2multialign {
 	{
 		return make_pointers <t_base>(values, std::make_index_sequence <std::tuple_size_v <t_tuple>>{});
 	}
+	
+	
+	// Helpers with a specialization for floats.
+	template <typename t_type>
+	std::weak_ordering compare_fallback(t_type const &lhs, t_type const &rhs)
+	{
+		if (lhs < rhs)
+			return std::weak_ordering::less;
+		
+		if (rhs < lhs)
+			return std::weak_ordering::greater;
+		
+		return std::weak_ordering::equivalent;
+	}
+	
+	template <typename t_type>
+	std::weak_ordering compare_floating_point(t_type const &lhs, t_type const &rhs)
+	{
+		if (!(std::isnan(lhs) || std::isnan(rhs)))
+			return compare_fallback(lhs, rhs);
+		
+		if (!std::isnan(lhs))
+			return std::weak_ordering::less;
+		
+		if (!std::isnan(rhs))
+			return std::weak_ordering::greater;
 
+		// Both NaN.
+		return std::weak_ordering::equivalent;
+	}
+	
+	template <typename t_type, bool t_is_fp = std::is_floating_point_v <t_type>>
+	struct three_way_compare
+	{
+		std::weak_ordering result;
+		
+		three_way_compare(t_type const &lhs, t_type const &rhs):
+			result(compare_fallback(lhs, rhs))
+		{
+		}
+	};
+	
+	template <typename t_type>
+	struct three_way_compare <t_type, true>
+	{
+		std::weak_ordering result;
+		
+		three_way_compare(t_type const &lhs, t_type const &rhs):
+			result(compare_floating_point(lhs, rhs))
+		{
+		}
+	};
+	
 
 	// Comparators for the VCF types.
 	struct value_comparator {};
@@ -45,6 +99,7 @@ namespace vcf2multialign {
 	{
 		virtual bool lhs_is_missing() const = 0;
 		virtual bool compare(t_type const &lhs, t_type const &rhs) const = 0;
+		virtual std::weak_ordering compare_three_way(t_type const &lhs, t_type const &rhs) const = 0;
 	};
 
 	template <typename t_type>
@@ -52,18 +107,19 @@ namespace vcf2multialign {
 	{
 		bool lhs_is_missing() const override { return false; }
 		bool compare(t_type const &lhs, t_type const &rhs) const override { return lhs == rhs; }
+		std::weak_ordering compare_three_way(t_type const &lhs, t_type const &rhs) const override { three_way_compare const cmp(lhs, rhs); return cmp.result; }
 	};
-
+	
 	// Wrap the comparator into an object that handles either info or genotype values.
 	struct field_comparator_base {};
 
 	struct info_field_comparator : public field_comparator_base
 	{
-		typedef lb::variant_base				container_type;
-		typedef lb::vcf_typed_info_field_base	field_base_type;
+		typedef vcf::variant_base			container_type;
+		typedef vcf::typed_info_field_base	field_base_type;
 
-		template <bool t_is_vector, lb::vcf_metadata_value_type t_value_type>
-		using field_tpl = lb::vcf_typed_info_field <t_is_vector, t_value_type>;
+		template <bool t_is_vector, vcf::metadata_value_type t_value_type>
+		using field_tpl = vcf::typed_info_field_t <t_is_vector, t_value_type>;
 
 		virtual bool lhs_is_missing() const = 0;
 
@@ -73,15 +129,23 @@ namespace vcf2multialign {
 			field_base_type const &lhs_access,
 			field_base_type const &rhs_access
 		) const = 0;
+		
+		virtual std::weak_ordering compare_three_way(
+			container_type const &lhs,
+			container_type const &rhs,
+			field_base_type const &lhs_access,
+			field_base_type const &rhs_access
+		) const = 0;
+
 	};
 
 	struct genotype_field_comparator : public field_comparator_base
 	{
-		typedef lb::variant_sample				container_type;
-		typedef lb::vcf_typed_info_field_base	field_base_type;
+		typedef vcf::variant_sample			container_type;
+		typedef vcf::typed_info_field_base	field_base_type;
 
-		template <bool t_is_vector, lb::vcf_metadata_value_type t_value_type>
-		using field_tpl = lb::vcf_typed_genotype_field <t_is_vector, t_value_type>;
+		template <bool t_is_vector, vcf::metadata_value_type t_value_type>
+		using field_tpl = vcf::typed_genotype_field_t <t_is_vector, t_value_type>;
 
 		virtual bool compare(
 			container_type const &lhs,
@@ -91,7 +155,7 @@ namespace vcf2multialign {
 		) const = 0;
 	};
 
-	template <bool t_is_vector, lb::vcf_metadata_value_type t_value_type, typename t_base>
+	template <bool t_is_vector, vcf::metadata_value_type t_value_type, typename t_base>
 	struct field_comparator final : public t_base
 	{
 	public:
@@ -101,6 +165,7 @@ namespace vcf2multialign {
 		typedef typename field_type::value_type									value_type;		// Underlying value type.
 	
 		static_assert(std::is_same_v <typename t_base::container_type, container_type>);
+		static_assert(field_type::is_typed_field() == true);
 
 	protected:
 		typed_value_comparator <value_type> const	*m_comparator{};
@@ -119,8 +184,26 @@ namespace vcf2multialign {
 			field_type const &lhs_access,
 			field_type const &rhs_access
 		) const { return m_comparator->compare(lhs_access(lhs), rhs_access(rhs)); }
-
+		
+		std::weak_ordering compare_three_way(
+			container_type const &lhs,
+			container_type const &rhs,
+			field_type const &lhs_access,
+			field_type const &rhs_access
+		) const {
+			auto const &lhsv(lhs_access(lhs));
+			auto const &rhsv(rhs_access(rhs));
+			return m_comparator->compare_three_way(lhsv, rhsv);
+		}
+		
 		bool compare(
+			container_type const &lhs,
+			container_type const &rhs,
+			field_base_type const &lhs_access,
+			field_base_type const &rhs_access
+		) const;
+		
+		std::weak_ordering compare_three_way(
 			container_type const &lhs,
 			container_type const &rhs,
 			field_base_type const &lhs_access,
@@ -128,7 +211,7 @@ namespace vcf2multialign {
 		) const;
 	};
 
-	template <bool t_is_vector, lb::vcf_metadata_value_type t_value_type, typename t_base>
+	template <bool t_is_vector, vcf::metadata_value_type t_value_type, typename t_base>
 	bool field_comparator <t_is_vector, t_value_type, t_base>::compare(
 		container_type const &lhs,
 		container_type const &rhs,
@@ -143,18 +226,35 @@ namespace vcf2multialign {
 			dynamic_cast <field_type const &>(lhs_access)
 		);
 	}
+	
+	template <bool t_is_vector, vcf::metadata_value_type t_value_type, typename t_base>
+	std::weak_ordering field_comparator <t_is_vector, t_value_type, t_base>::compare_three_way(
+		container_type const &lhs,
+		container_type const &rhs,
+		field_base_type const &lhs_access,
+		field_base_type const &rhs_access
+	) const
+	{
+		return compare_three_way(
+			lhs,
+			rhs,
+			dynamic_cast <field_type const &>(lhs_access),
+			dynamic_cast <field_type const &>(lhs_access)
+		);
+	}
+
 
 	// Helpers for counting.
-	constexpr std::size_t g_scalar_type_count(lb::to_underlying(lb::vcf_metadata_value_type::SCALAR_LIMIT) - lb::to_underlying(lb::vcf_metadata_value_type::FIRST));
-	constexpr std::size_t g_vector_type_count(lb::to_underlying(lb::vcf_metadata_value_type::VECTOR_LIMIT) - lb::to_underlying(lb::vcf_metadata_value_type::FIRST));
+	constexpr std::size_t g_scalar_type_count(lb::to_underlying(vcf::metadata_value_type::SCALAR_LIMIT) - lb::to_underlying(vcf::metadata_value_type::FIRST));
+	constexpr std::size_t g_vector_type_count(lb::to_underlying(vcf::metadata_value_type::VECTOR_LIMIT) - lb::to_underlying(vcf::metadata_value_type::FIRST));
 
 	// Make the comparators (only equals for now).
 	template <bool t_is_vector, std::size_t ... I>
 	constexpr auto make_value_comparators(std::index_sequence <I...>)
 	{
 		constexpr auto make_comparator([](auto const J) constexpr {
-			constexpr auto const metadata_value_type(static_cast <lb::vcf_metadata_value_type>(J() + lb::to_underlying(lb::vcf_metadata_value_type::FIRST)));
-			typedef lb::vcf_value_type_mapping_t <t_is_vector, metadata_value_type> value_type;
+			constexpr auto const metadata_value_type(static_cast <vcf::metadata_value_type>(J() + lb::to_underlying(vcf::metadata_value_type::FIRST)));
+			typedef vcf::value_type_mapping_t <metadata_value_type, t_is_vector> value_type;
 			return equals_value_comparator <value_type>();
 		});
 		return std::make_tuple(make_comparator(std::integral_constant <std::size_t, I>{})...);
@@ -167,9 +267,9 @@ namespace vcf2multialign {
 		)
 	);
 
-	constexpr std::size_t value_comparator_index(bool is_vector, lb::vcf_metadata_value_type value_type)
+	constexpr std::size_t value_comparator_index(bool is_vector, vcf::metadata_value_type value_type)
 	{
-		return (is_vector * g_scalar_type_count) + lb::to_underlying(value_type) - lb::to_underlying(lb::vcf_metadata_value_type::FIRST);
+		return (is_vector * g_scalar_type_count) + lb::to_underlying(value_type) - lb::to_underlying(vcf::metadata_value_type::FIRST);
 	}
 
 	// Make the field comparators.
@@ -177,7 +277,7 @@ namespace vcf2multialign {
 	constexpr auto make_field_comparators(std::index_sequence <I...>)
 	{
 		auto make_comparator([](auto const J) constexpr {
-			constexpr auto const value_type(static_cast <lb::vcf_metadata_value_type>(J() + lb::to_underlying(lb::vcf_metadata_value_type::FIRST)));
+			constexpr auto const value_type(static_cast <vcf::metadata_value_type>(J() + lb::to_underlying(vcf::metadata_value_type::FIRST)));
 			constexpr auto const &eq_value_cmp(std::get <value_comparator_index(t_is_vector, value_type)>(g_equals_value_comparators));
 			typedef field_comparator <t_is_vector, value_type, t_base> return_value_type;
 			return return_value_type(eq_value_cmp);
@@ -195,7 +295,7 @@ namespace vcf2multialign {
 	// Erase here, too.
 	constexpr static auto g_info_field_comparator_pointers(make_pointers <info_field_comparator>(g_info_field_comparators));
 
-	constexpr std::size_t info_field_comparator_index(bool is_vector, lb::vcf_metadata_value_type value_type)
+	constexpr std::size_t info_field_comparator_index(bool is_vector, vcf::metadata_value_type value_type)
 	{
 		// Use the same indexing for now.
 		return value_comparator_index(is_vector, value_type);
@@ -205,13 +305,13 @@ namespace vcf2multialign {
 	struct info_field_checker
 	{
 		info_field_comparator const			*comparator{};
-		lb::vcf_typed_info_field_base const	*lhs_field{};
-		lb::vcf_typed_info_field_base const	*rhs_field{};
+		vcf::typed_info_field_base const	*lhs_field{};
+		vcf::typed_info_field_base const	*rhs_field{};
 
 		info_field_checker(
 			info_field_comparator const &comparator_,
-			lb::vcf_typed_info_field_base const &lhs_field_,
-			lb::vcf_typed_info_field_base const &rhs_field_
+			vcf::typed_info_field_base const &lhs_field_,
+			vcf::typed_info_field_base const &rhs_field_
 		):
 			comparator(&comparator_),
 			lhs_field(&lhs_field_),
@@ -219,30 +319,46 @@ namespace vcf2multialign {
 		{
 		}
 
-		bool check(lb::variant const &lhs, lb::variant const &rhs) const
-		{
-			auto const lhs_is_missing(lhs_field->has_value(lhs));
-			auto const rhs_is_missing(rhs_field->has_value(rhs));
-			if (lhs_is_missing)
-			{
-				if (rhs_is_missing)
-					return true;
-				return comparator->lhs_is_missing();
-			}
-			return comparator->compare(lhs, rhs, *lhs_field, *rhs_field);
-		}
+		bool check(vcf::variant const &lhs, vcf::variant const &rhs) const;
+		std::weak_ordering compare_three_way(vcf::variant const &lhs, vcf::variant const &rhs) const;
 	};
-
-
+	
+	bool info_field_checker::check(vcf::variant const &lhs, vcf::variant const &rhs) const
+	{
+		auto const lhs_is_missing(!lhs_field->has_value(lhs));
+		auto const rhs_is_missing(!rhs_field->has_value(rhs));
+		if (lhs_is_missing)
+		{
+			if (rhs_is_missing)
+				return true;
+			return comparator->lhs_is_missing();
+		}
+		return comparator->compare(lhs, rhs, *lhs_field, *rhs_field);
+	}
+	
+	std::weak_ordering info_field_checker::compare_three_way(vcf::variant const &lhs, vcf::variant const &rhs) const
+	{
+		auto const lhs_is_missing(!lhs_field->has_value(lhs));
+		auto const rhs_is_missing(!rhs_field->has_value(rhs));
+		if (lhs_is_missing)
+		{
+			if (rhs_is_missing)
+				return std::weak_ordering::equivalent;
+			return (comparator->lhs_is_missing() ? std::weak_ordering::equivalent : std::weak_ordering::less);
+		}
+		return comparator->compare_three_way(lhs, rhs, *lhs_field, *rhs_field);
+	}
+	
+	
 	template <bool t_is_superset_variant>
 	struct variant_pack
 	{
-		lb::variant	variant;
-		bool		did_succeed{false};
+		vcf::variant	variant;
+		bool			did_succeed{false};
 	};
 
 
-	class variant_checker final : public lb::vcf_reader_delegate
+	class variant_checker final : public vcf::reader_delegate
 	{
 		friend class forwarder <variant_checker>;
 
@@ -250,22 +366,22 @@ namespace vcf2multialign {
 		vcf_record_generator				m_subset_gen;
 		vcf_record_generator				m_superset_gen;
 		std::vector <info_field_checker>	m_info_field_checkers;
-		lb::variant							m_subset_var;
+		vcf::variant						m_subset_var;
 		bool								m_found_match{true};	// Initially true to handle superset variants with lower POS than the first subset variant.
 
 	public:
 		void prepare(char const *subset_path, char const *superset_path, std::span <char *> const &info_key_names);
 		void check_contains();
 
-		void vcf_reader_did_parse_metadata(lb::vcf_reader &reader) override { fix_wp_field(reader); }
+		void vcf_reader_did_parse_metadata(vcf::reader &reader) override { fix_wp_field(reader); }
 
 	protected:
 		void prepare_vcf_record_generator(vcf_record_generator &gen, char const *vcf_path);
-		void fix_wp_field(lb::vcf_reader &reader);
+		void fix_wp_field(vcf::reader &reader);
 		void check_found_match() const;
 		void handle(variant_pack <false> &&pack);
 		void handle(variant_pack <true> &&pack);
-		bool compare_to_superset_variant(lb::variant const &var) const;
+		bool compare_to_superset_variant(vcf::variant const &var) const;
 	};
 
 
@@ -292,7 +408,7 @@ namespace vcf2multialign {
 	}
 
 
-	bool variant_checker::compare_to_superset_variant(lb::variant const &var) const
+	bool variant_checker::compare_to_superset_variant(vcf::variant const &var) const
 	{
 		// Compare just POS, REF, ALT and the chosen INFO values.
 		// FIXME: CHROM?
@@ -320,7 +436,7 @@ namespace vcf2multialign {
 	}
 
 
-	void variant_checker::fix_wp_field(lb::vcf_reader &reader)
+	void variant_checker::fix_wp_field(vcf::reader &reader)
 	{
 		auto &info_fields(reader.metadata().info());
 		auto wp_it(info_fields.find("WP"));
@@ -328,7 +444,7 @@ namespace vcf2multialign {
 		{
 			auto &field(wp_it->second);
 			field.set_number(1);
-			field.set_value_type(lb::vcf_metadata_value_type::STRING);
+			field.set_value_type(vcf::metadata_value_type::STRING);
 		}
 	}
 
@@ -338,7 +454,7 @@ namespace vcf2multialign {
 		gen.open_variants_file(vcf_path);
 		gen.vcf_reader().set_delegate(*this);
 		gen.prepare();
-		gen.vcf_reader().set_parsed_fields(lb::vcf_field::INFO);
+		gen.vcf_reader().set_parsed_fields(vcf::field::INFO);
 	}
 
 
@@ -385,8 +501,8 @@ namespace vcf2multialign {
 			}
 
 			// Check that the fields’ types match.
-			auto const &lhs_access_(dynamic_cast <lb::vcf_typed_info_field_base const &>(lhs_access));
-			auto const &rhs_access_(dynamic_cast <lb::vcf_typed_info_field_base const &>(rhs_access));
+			auto const &lhs_access_(dynamic_cast <vcf::typed_info_field_base const &>(lhs_access));
+			auto const &rhs_access_(dynamic_cast <vcf::typed_info_field_base const &>(rhs_access));
 			auto const lhs_value_type(lhs_access_.get_value_type());
 			auto const lhs_uses_vectors(lhs_access_.value_type_is_vector());
 
@@ -432,14 +548,62 @@ namespace vcf2multialign {
 		);
 
 		forwarder fwd(*this);
-		typedef std::tuple <std::size_t, std::uint8_t> proj_return_type;
+		typedef std::tuple <vcf::variant const *, std::uint8_t> proj_return_type;
 		ranges::merge(
 			lrange,
 			rrange,
 			fwd,
-			ranges::less(),
-			[](auto const &pack){ return proj_return_type(pack.variant.zero_based_pos(), 0); },
-			[](auto const &pack){ return proj_return_type(pack.variant.zero_based_pos(), 1); }
+			[this](proj_return_type const &lhs, proj_return_type const &rhs){
+				// The VCF file can have multiple records for the same POS.
+				// Hence, we need to compare the values of the other fields.
+				
+				auto const [lhs_var_ptr, lhs_origin] = lhs;
+				auto const [rhs_var_ptr, rhs_origin] = rhs;
+				auto const &lhs_var(*lhs_var_ptr);
+				auto const &rhs_var(*rhs_var_ptr);
+				auto const lhs_pos(lhs_var.zero_based_pos());
+				auto const rhs_pos(rhs_var.zero_based_pos());
+				
+				// POS.
+				if (lhs_pos != rhs_pos)
+					return lhs_pos < rhs_pos;
+				
+				// ALT count.
+				auto const &lhs_alts(lhs_var.alts());
+				auto const &rhs_alts(rhs_var.alts());
+				if (lhs_alts.size() != rhs_alts.size())
+					return lhs_alts.size() < rhs_alts.size();
+				
+				// ALT values (since the counts were equivalent).
+				if (lhs_alts != rhs_alts)
+					return lhs_alts < rhs_alts;
+				
+				// INFO fields.
+				if (0 == lhs_origin && 1 == rhs_origin)
+				{
+					for (auto const &info_checker : m_info_field_checkers)
+					{
+						auto const cmp_res(info_checker.compare_three_way(lhs_var, rhs_var));
+						if (std::is_eq(cmp_res))
+							continue;
+						return std::is_lt(cmp_res);
+					}
+				}
+				else if (1 == lhs_origin && 0 == rhs_origin)
+				{
+					for (auto const &info_checker : m_info_field_checkers)
+					{
+						auto const cmp_res(info_checker.compare_three_way(rhs_var, lhs_var));
+						if (std::is_eq(cmp_res))
+							continue;
+						return std::is_gt(cmp_res);
+					}
+				}
+				
+				return lhs_origin < rhs_origin;
+			},
+			[](auto const &pack){ return proj_return_type(&pack.variant, 0); },
+			[](auto const &pack){ return proj_return_type(&pack.variant, 1); }
 		);
 	}
 }

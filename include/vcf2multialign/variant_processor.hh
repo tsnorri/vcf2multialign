@@ -6,7 +6,7 @@
 #ifndef VCF2MULTIALIGN_VARIANT_PROCESSOR_HH
 #define VCF2MULTIALIGN_VARIANT_PROCESSOR_HH
 
-#include <libbio/vcf/vcf_subfield.hh>
+#include <libbio/vcf/subfield.hh>
 #include <vcf2multialign/types.hh>
 #include <vcf2multialign/variant_processor_delegate.hh>
 
@@ -22,10 +22,10 @@ namespace vcf2multialign {
 			FATAL_ERROR
 		};
 		
-		typedef std::vector <libbio::vcf_info_field_base *> vcf_info_field_vector;
+		typedef std::vector <libbio::vcf::info_field_base *> vcf_info_field_vector;
 		
 	protected:
-		libbio::vcf_reader								*m_reader{};
+		libbio::vcf::reader								*m_reader{};
 		vector_type const								*m_reference{};
 		std::string const								*m_chromosome_name{};
 		
@@ -33,7 +33,7 @@ namespace vcf2multialign {
 		variant_processor() = default;
 		
 		variant_processor(
-			libbio::vcf_reader &reader,
+			libbio::vcf::reader &reader,
 			vector_type const &reference,
 			std::string const &chromosome_name
 		):
@@ -45,7 +45,7 @@ namespace vcf2multialign {
 		
 		virtual ~variant_processor() {}
 		
-		libbio::vcf_reader &reader() { return *m_reader; }
+		libbio::vcf::reader &reader() { return *m_reader; }
 		vector_type const &reference() { return *m_reference; }
 		
 		void fill_filter_by_assigned(
@@ -55,7 +55,7 @@ namespace vcf2multialign {
 		);
 		
 		variant_check_status check_variant(
-			libbio::transient_variant const &var,
+			libbio::vcf::transient_variant const &var,
 			vcf_info_field_vector const &filter_by_assigned,
 			variant_processor_delegate &delegate
 		);

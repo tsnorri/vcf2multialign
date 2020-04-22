@@ -20,6 +20,7 @@
 
 
 namespace lb	= libbio;
+namespace vcf	= libbio::vcf;
 namespace v2m	= vcf2multialign;
 
 
@@ -149,13 +150,13 @@ namespace vcf2multialign {
 	{
 		auto &reader(this->vcf_reader());
 		reader.reset();
-		reader.set_parsed_fields(lb::vcf_field::ALL);
+		reader.set_parsed_fields(vcf::field::ALL);
 		
 		// Get the field descriptors needed for accessing the values.
 		auto const *end_field(reader.get_end_field_ptr());
 		
 		// Determine the fields used for filtering.
-		std::vector <lb::vcf_info_field_base *> filter_by_assigned;
+		std::vector <vcf::info_field_base *> filter_by_assigned;
 		{
 			auto const &fields(reader.info_fields());
 			for (auto const &name : m_field_names_for_filter_if_set)
@@ -186,7 +187,7 @@ namespace vcf2multialign {
 					&filter_by_assigned,
 					&statistics,
 					&indicator_delegate
-				](lb::transient_variant const &var) -> bool
+				](vcf::transient_variant const &var) -> bool
 				{
 					auto const lineno(var.lineno());
 					auto const var_pos(var.zero_based_pos());
@@ -271,10 +272,10 @@ namespace vcf2multialign {
 							switch (alt.alt_sv_type)
 							{
 								// Handled ALTs:
-								case lb::sv_type::NONE:
-								case lb::sv_type::UNKNOWN:
-								case lb::sv_type::DEL:
-								case lb::sv_type::DEL_ME:
+								case vcf::sv_type::NONE:
+								case vcf::sv_type::UNKNOWN:
+								case vcf::sv_type::DEL:
+								case vcf::sv_type::DEL_ME:
 									break;
 								default:
 									// FIXME: log the ALT.
@@ -286,13 +287,13 @@ namespace vcf2multialign {
 							std::string_view const ref_sub(m_reference.data() + prev_end_pos, var_pos - prev_end_pos);
 							this->m_output_stream << ref_sub;
 							
-							if (lb::sv_type::NONE == alt.alt_sv_type)
+							if (vcf::sv_type::NONE == alt.alt_sv_type)
 							{
 								auto const &alt_seq(alt.alt);
 								this->m_output_stream << alt_seq;
 							}
 							
-							auto const var_end(lb::variant_end_pos(var, *end_field));
+							auto const var_end(vcf::variant_end_pos(var, *end_field));
 							prev_end_pos = var_end;
 							++statistics.included_variant;
 						}

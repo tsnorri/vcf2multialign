@@ -16,6 +16,7 @@
 
 
 namespace lb	= libbio;
+namespace vcf	= libbio::vcf;
 namespace v2m	= vcf2multialign;
 
 
@@ -67,7 +68,7 @@ namespace vcf2multialign {
 		
 		virtual class variant_graph_generator &variant_graph_generator() = 0;
 		void process_and_output();
-		void variant_graph_generator_will_handle_subgraph(libbio::variant const &, std::size_t const, std::size_t const);
+		void variant_graph_generator_will_handle_subgraph(vcf::variant const &, std::size_t const, std::size_t const);
 		
 	protected:
 		virtual std::size_t progress_step_max() const = 0;
@@ -134,7 +135,7 @@ namespace {
 namespace vcf2multialign {
 	
 	void variant_graph_context::variant_graph_generator_will_handle_subgraph(
-		lb::variant const &first_var,
+		vcf::variant const &first_var,
 		std::size_t const variant_count,
 		std::size_t const path_count
 	)

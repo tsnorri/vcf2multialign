@@ -10,6 +10,7 @@
 
 namespace lb	= libbio;
 namespace rsv	= ranges::view;
+namespace vcf	= libbio::vcf;
 namespace v2m	= vcf2multialign;
 
 
@@ -32,7 +33,7 @@ namespace {
 
 namespace vcf2multialign {
 	
-	std::pair <std::uint16_t, std::uint16_t> count_set_genotype_values(lb::variant const &var, std::uint16_t const alt_idx)
+	std::pair <std::uint16_t, std::uint16_t> count_set_genotype_values(vcf::variant const &var, std::uint16_t const alt_idx)
 	{
 		typedef std::pair <std::uint16_t, std::uint16_t> return_type;
 		

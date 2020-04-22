@@ -7,7 +7,8 @@
 #include <vcf2multialign/variant_processor.hh>
 
 
-namespace lb = libbio;
+namespace lb	= libbio;
+namespace vcf	= libbio::vcf;
 
 
 namespace vcf2multialign {
@@ -34,7 +35,7 @@ namespace vcf2multialign {
 	
 	
 	auto variant_processor::check_variant(
-		lb::transient_variant const &var,
+		vcf::transient_variant const &var,
 		vcf_info_field_vector const &filter_by_assigned,
 		variant_processor_delegate &delegate
 	) -> variant_check_status

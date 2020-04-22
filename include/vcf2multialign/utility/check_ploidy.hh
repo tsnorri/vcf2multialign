@@ -13,7 +13,7 @@
 
 namespace vcf2multialign {
 
-	void check_ploidy(libbio::vcf_reader &vcf_reader, ploidy_map &out_ploidy);
+	void check_ploidy(libbio::vcf::reader &vcf_reader, ploidy_map &out_ploidy);
 }
 
 #endif

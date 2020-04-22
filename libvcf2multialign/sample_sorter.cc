@@ -11,12 +11,13 @@
 
 
 namespace lb	= libbio;
+namespace vcf	= libbio::vcf;
 namespace v2m	= vcf2multialign;
 
 
 namespace vcf2multialign {
 	
-	bool sample_sorter::check_variant_for_sample_and_update_state(std::size_t const sample_idx, lb::variant const &var, std::uint8_t const alt_idx)
+	bool sample_sorter::check_variant_for_sample_and_update_state(std::size_t const sample_idx, vcf::variant const &var, std::uint8_t const alt_idx)
 	{
 		// Check the output position of the given sample. REF can always be handled.
 		// If the current sample has zero, do not change its end position.
@@ -58,7 +59,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void sample_sorter::sort_by_variant_and_alt(lb::variant const &var, std::uint8_t const expected_alt_idx)
+	void sample_sorter::sort_by_variant_and_alt(vcf::variant const &var, std::uint8_t const expected_alt_idx)
 	{
 		libbio_assert_neq(0, expected_alt_idx);
 

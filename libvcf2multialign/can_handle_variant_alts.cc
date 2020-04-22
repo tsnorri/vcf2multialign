@@ -7,12 +7,13 @@
 
 
 namespace lb	= libbio;
+namespace vcf	= libbio::vcf;
 namespace v2m	= vcf2multialign;
 
 
 namespace vcf2multialign {
 
-	bool can_handle_variant_alts(lb::transient_variant const &var)
+	bool can_handle_variant_alts(vcf::transient_variant const &var)
 	{
 		// Keep.
 		for (auto const &alt : var.alts())
@@ -21,19 +22,19 @@ namespace vcf2multialign {
 			switch (svt)
 			{
 				// These structural variant types are currently handled.
-				case lb::sv_type::NONE:
-				case lb::sv_type::DEL:
-				case lb::sv_type::DEL_ME:
-				case lb::sv_type::UNKNOWN:
+				case vcf::sv_type::NONE:
+				case vcf::sv_type::DEL:
+				case vcf::sv_type::DEL_ME:
+				case vcf::sv_type::UNKNOWN:
 					return true;
 					
-				case lb::sv_type::INS:
-				case lb::sv_type::DUP:
-				case lb::sv_type::INV:
-				case lb::sv_type::CNV:
-				case lb::sv_type::DUP_TANDEM:
-				case lb::sv_type::INS_ME:
-				case lb::sv_type::UNKNOWN_SV:
+				case vcf::sv_type::INS:
+				case vcf::sv_type::DUP:
+				case vcf::sv_type::INV:
+				case vcf::sv_type::CNV:
+				case vcf::sv_type::DUP_TANDEM:
+				case vcf::sv_type::INS_ME:
+				case vcf::sv_type::UNKNOWN_SV:
 				default:
 					break;
 			}
@@ -43,24 +44,24 @@ namespace vcf2multialign {
 	}
 	
 	
-	bool can_handle_variant_alt(lb::variant_alt_base const &alt)
+	bool can_handle_variant_alt(vcf::variant_alt_base const &alt)
 	{
 		auto const svt(alt.alt_sv_type);
 		switch (svt)
 		{
-			case lb::sv_type::NONE:
-			case lb::sv_type::DEL:
-			case lb::sv_type::DEL_ME:
-			case lb::sv_type::UNKNOWN:
+			case vcf::sv_type::NONE:
+			case vcf::sv_type::DEL:
+			case vcf::sv_type::DEL_ME:
+			case vcf::sv_type::UNKNOWN:
 				return true;
 				
-			case lb::sv_type::INS:
-			case lb::sv_type::DUP:
-			case lb::sv_type::INV:
-			case lb::sv_type::CNV:
-			case lb::sv_type::DUP_TANDEM:
-			case lb::sv_type::INS_ME:
-			case lb::sv_type::UNKNOWN_SV:
+			case vcf::sv_type::INS:
+			case vcf::sv_type::DUP:
+			case vcf::sv_type::INV:
+			case vcf::sv_type::CNV:
+			case vcf::sv_type::DUP_TANDEM:
+			case vcf::sv_type::INS_ME:
+			case vcf::sv_type::UNKNOWN_SV:
 			default:
 				break;
 		}

@@ -12,6 +12,7 @@
 #include <vcf2multialign/variant_format.hh>
 
 namespace lb	= libbio;
+namespace vcf	= libbio::vcf;
 
 
 namespace vcf2multialign {
@@ -39,7 +40,7 @@ namespace vcf2multialign {
 		
 		m_processed_count.store(0, std::memory_order_relaxed);
 		reader.reset();
-		reader.set_parsed_fields(lb::vcf_field::ALL);
+		reader.set_parsed_fields(vcf::field::ALL);
 	}
 	
 	
@@ -53,13 +54,13 @@ namespace vcf2multialign {
 		generate_graph_setup();
 		
 		reader.reset();
-		reader.set_parsed_fields(lb::vcf_field::ALL);
+		reader.set_parsed_fields(vcf::field::ALL);
 		
 		// Get the field descriptors needed for accessing the values.
 		auto const *end_field(reader.get_end_field_ptr());
 		
 		// Determine the fields used for filtering.
-		std::vector <lb::vcf_info_field_base *> filter_by_assigned;
+		std::vector <vcf::info_field_base *> filter_by_assigned;
 		this->fill_filter_by_assigned(field_names_for_filter_by_assigned, filter_by_assigned, delegate);
 		
 		std::size_t prev_overlap_end_pos(0);
@@ -79,11 +80,11 @@ namespace vcf2multialign {
 					&overlap_end_pos,
 					&prev_overlap_end_pos
 				]
-				(lb::transient_variant const &var) -> bool
+				(vcf::transient_variant const &var) -> bool
 				{
 					auto const lineno(var.lineno());
 					auto const var_pos(var.zero_based_pos());
-					auto const var_end(lb::variant_end_pos(var, *m_end_field));
+					auto const var_end(vcf::variant_end_pos(var, *m_end_field));
 					libbio_always_assert_lte(var_pos, var_end);
 					
 					switch (this->check_variant(var, filter_by_assigned, delegate))
@@ -159,14 +160,14 @@ namespace vcf2multialign {
 					line_no_end,
 					&overlap_end_pos,
 					&prev_overlap_end_pos
-				](lb::transient_variant const &var) -> bool
+				](vcf::transient_variant const &var) -> bool
 				{
 					auto const lineno(var.lineno());
 					libbio_always_assert_lte(lineno, *line_no_it);
 					if (lineno == *line_no_it)
 					{
 						auto const var_pos(var.zero_based_pos());
-						auto const var_end(lb::variant_end_pos(var, *m_end_field));
+						auto const var_end(vcf::variant_end_pos(var, *m_end_field));
 						libbio_always_assert_lte(var_pos, var_end);
 						libbio_always_assert_lte(var_pos, *cut_pos_it);
 						
@@ -205,7 +206,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	bool variant_graph_generator::samples_have_alt(lb::variant const &var, path_sorted_variant const &psv, std::size_t const given_alt_idx) const
+	bool variant_graph_generator::samples_have_alt(vcf::variant const &var, path_sorted_variant const &psv, std::size_t const given_alt_idx) const
 	{
 		auto const *gt_field(get_variant_format(var).gt);
 		auto const &representatives(psv.representatives_by_path());
@@ -269,7 +270,7 @@ namespace vcf2multialign {
 			{
 				auto const &top_entry(m_overlap_stack.top());
 				auto const &prev_var(*top_entry.variant);
-				auto const prev_end_pos(lb::variant_end_pos(prev_var, *m_end_field));
+				auto const prev_end_pos(vcf::variant_end_pos(prev_var, *m_end_field));
 
 				if (ref_pos < prev_end_pos)
 				{
@@ -318,7 +319,7 @@ namespace vcf2multialign {
 		{
 			auto const &top_entry(m_overlap_stack.top());
 			auto const &var(*top_entry.variant);
-			auto const end_pos(lb::variant_end_pos(var, *m_end_field));
+			auto const end_pos(vcf::variant_end_pos(var, *m_end_field));
 			auto const [node_idx, alt_edge_start_idx, did_create] = m_graph.add_main_node(end_pos, 0);
 			if (did_create)
 				calculate_aligned_ref_pos_for_new_node(node_idx);
@@ -361,7 +362,7 @@ namespace vcf2multialign {
 				
 				// Check whether the ALT was handled. Otherwise don’t modify the zero stored in dst_path_edges.
 				// FIXME: allow substituting the null allele with something else than REF.
-				if (alt_idx && lb::sample_genotype::NULL_ALLELE != alt_idx && 0 == unhandled_alt_csum[alt_idx] - unhandled_alt_csum[alt_idx - 1])
+				if (alt_idx && vcf::sample_genotype::NULL_ALLELE != alt_idx && 0 == unhandled_alt_csum[alt_idx] - unhandled_alt_csum[alt_idx - 1])
 				{
 					auto const fixed_alt_idx(alt_idx - unhandled_alt_csum[alt_idx]);
 					dst_path_edges(var_idx, path_idx) |= fixed_alt_idx;
@@ -397,7 +398,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void variant_graph_generator::assign_alt_edge_labels_and_queue(lb::variant const &var, std::size_t const node_idx, std::size_t const alt_edge_start_idx)
+	void variant_graph_generator::assign_alt_edge_labels_and_queue(vcf::variant const &var, std::size_t const node_idx, std::size_t const alt_edge_start_idx)
 	{
 		auto &alt_edge_labels(m_graph.alt_edge_labels());
 		auto const &edge_count_csum(m_graph.alt_edge_count_csum());
@@ -416,13 +417,13 @@ namespace vcf2multialign {
 				switch (alt.alt_sv_type)
 				{
 					// Handled ALTs:
-					case lb::sv_type::NONE:
+					case vcf::sv_type::NONE:
 						alt_edge_labels[i] = alt.alt;
 						max_alt_edge_aligned_dst_pos = std::max(max_alt_edge_aligned_dst_pos, start_aligned_pos + alt.alt.size());
 						break;
-					case lb::sv_type::UNKNOWN:
-					case lb::sv_type::DEL:
-					case lb::sv_type::DEL_ME:
+					case vcf::sv_type::UNKNOWN:
+					case vcf::sv_type::DEL:
+					case vcf::sv_type::DEL_ME:
 						alt_edge_labels[i] = "";
 						break;
 					default:

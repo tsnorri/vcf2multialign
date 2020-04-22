@@ -7,7 +7,8 @@
 #include "vcf_record_generator.hh"
 
 
-namespace lb = libbio;
+namespace lb	= libbio;
+namespace vcf	= libbio::vcf;
 
 
 namespace vcf2multialign {
@@ -21,10 +22,10 @@ namespace vcf2multialign {
 	}
 	
 	
-	bool vcf_record_generator::next_variant(lb::variant &out_var)
+	bool vcf_record_generator::next_variant(vcf::variant &out_var)
 	{
 		bool retval(false);
-		bool const st(this->m_vcf_reader.parse_one([this, &retval, &out_var](lb::transient_variant const &var) {
+		bool const st(this->m_vcf_reader.parse_one([this, &retval, &out_var](vcf::transient_variant const &var) {
 			// Not reached on EOF.
 			out_var = var;
 			retval = true;

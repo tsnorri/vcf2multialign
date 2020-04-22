@@ -26,7 +26,7 @@ namespace vcf2multialign {
 	using remove_cvref_t = typename remove_cvref <t_type>::type;
 	
 	
-	std::pair <std::uint16_t, std::uint16_t> count_set_genotype_values(libbio::variant const &var, std::uint16_t const alt_idx);
+	std::pair <std::uint16_t, std::uint16_t> count_set_genotype_values(libbio::vcf::variant const &var, std::uint16_t const alt_idx);
 	void split_mixed_segment(aligned_segment &src, aligned_segment_vector &dst);
 	
 	

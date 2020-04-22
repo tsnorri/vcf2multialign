@@ -28,10 +28,10 @@ namespace vcf2multialign {
 	
 	struct variant_record
 	{
-		libbio::variant	variant;
-		std::size_t		aligned_position{};				// 1-based, 0 indicates invalid record.
-		std::size_t		size{};
-		bool			is_skipped{};
+		libbio::vcf::variant	variant;
+		std::size_t				aligned_position{};				// 1-based, 0 indicates invalid record.
+		std::size_t				size{};
+		bool					is_skipped{};
 	};
 	
 	typedef std::vector <variant_record> variant_record_vector;

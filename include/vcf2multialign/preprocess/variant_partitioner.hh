@@ -8,8 +8,8 @@
 
 #include <libbio/matrix.hh>
 #include <libbio/int_matrix.hh>
+#include <libbio/vcf/subfield.hh>
 #include <libbio/vcf/variant.hh>
-#include <libbio/vcf/vcf_subfield_def.hh>
 #include <list>
 #include <ostream>
 #include <string>
@@ -58,7 +58,7 @@ namespace vcf2multialign {
 		
 	protected:
 		variant_partitioner_delegate					*m_delegate{};
-		//libbio::vcf_info_field_end						*m_end_field{};
+		//libbio::vcf::info_field_end						*m_end_field{};
 		sample_indexer									m_sample_indexer;
 		std::size_t										m_minimum_subgraph_distance{};
 		std::atomic_size_t								m_processed_count{};
@@ -66,7 +66,7 @@ namespace vcf2multialign {
 	public:
 		variant_partitioner(
 			variant_partitioner_delegate &delegate,
-			libbio::vcf_reader &reader,
+			libbio::vcf::reader &reader,
 			vector_type const &reference,
 			std::string const chr_name,
 			std::size_t const donor_count,
@@ -120,7 +120,7 @@ namespace vcf2multialign {
 			
 			dp_ctx() = default;
 			
-			dp_ctx(sample_sorter_delegate &delegate, libbio::vcf_reader &reader, sample_indexer const &indexer):
+			dp_ctx(sample_sorter_delegate &delegate, libbio::vcf::reader &reader, sample_indexer const &indexer):
 				sorter(delegate, reader, indexer)
 			{
 				sorter.prepare_for_next_subgraph();
@@ -134,8 +134,9 @@ namespace vcf2multialign {
 				max_size = other.max_size;
 			}
 			
-			void count_paths(libbio::transient_variant const &var, std::size_t const alt_count)
+			void count_paths(libbio::vcf::variant const &var, std::size_t const alt_count)
 			{
+				// FIXME: sort_by_variant_and_alt expects a vcf::variant.
 				for (std::size_t i(0); i < alt_count; ++i)
 				{
 					sorter.sort_by_variant_and_alt(var, 1 + i);

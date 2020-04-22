@@ -31,13 +31,13 @@ namespace vcf2multialign {
 	public:
 		void open_log_file(char const *path, bool const should_overwrite_files);
 		
-		void variant_processor_found_variant_with_chrom_id_mismatch(libbio::transient_variant const &var) override { ++m_chrom_id_mismatches; }
+		void variant_processor_found_variant_with_chrom_id_mismatch(libbio::vcf::transient_variant const &var) override { ++m_chrom_id_mismatches; }
 		void variant_processor_no_field_for_identifier(std::string const &identifier) override;
-		void variant_processor_found_variant_with_position_greater_than_reference_length(libbio::transient_variant const &var) override;
-		void variant_processor_found_variant_with_no_suitable_alts(libbio::transient_variant const &var) override;
-		void variant_processor_found_filtered_variant(libbio::transient_variant const &var, libbio::vcf_info_field_base const &field) override;
-		void variant_processor_found_variant_with_ref_mismatch(libbio::transient_variant const &var, std::string_view const &ref_sub) override;
-		void sample_sorter_found_overlapping_variant(libbio::variant const &var, std::size_t const sample_idx, std::size_t const prev_end_pos) override;
+		void variant_processor_found_variant_with_position_greater_than_reference_length(libbio::vcf::transient_variant const &var) override;
+		void variant_processor_found_variant_with_no_suitable_alts(libbio::vcf::transient_variant const &var) override;
+		void variant_processor_found_filtered_variant(libbio::vcf::transient_variant const &var, libbio::vcf::info_field_base const &field) override;
+		void variant_processor_found_variant_with_ref_mismatch(libbio::vcf::transient_variant const &var, std::string_view const &ref_sub) override;
+		void sample_sorter_found_overlapping_variant(libbio::vcf::variant const &var, std::size_t const sample_idx, std::size_t const prev_end_pos) override;
 
 		std::size_t chrom_id_mismatches() const { return m_chrom_id_mismatches; }
 		

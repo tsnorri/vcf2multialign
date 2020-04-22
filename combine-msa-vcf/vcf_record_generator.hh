@@ -16,8 +16,8 @@ namespace vcf2multialign {
 	class vcf_record_generator : public vcf_processor
 	{
 	protected:
-		libbio::vcf_reader::parser_state	m_parser_state;
-		libbio::vcf_info_field_end const	*m_end_field{};
+		libbio::vcf::reader::parser_state	m_parser_state;
+		libbio::vcf::info_field_end const	*m_end_field{};
 		
 	public:
 		void prepare();

@@ -18,6 +18,7 @@
 
 
 namespace lb	= libbio;
+namespace vcf	= libbio::vcf;
 namespace v2m	= vcf2multialign;
 
 
@@ -83,7 +84,7 @@ namespace {
 	{
 		bool should_continue(false);
 		auto &reader(this->m_vcf_reader);
-		reader.set_parsed_fields(lb::vcf_field::POS);
+		reader.set_parsed_fields(vcf::field::POS);
 		v2m::vcf_index::chromosome_entry *entry_ptr{};
 		std::size_t prev_pos{};
 		do {
@@ -93,7 +94,7 @@ namespace {
 					this,
 					&entry_ptr,
 					&prev_pos
-				](lb::transient_variant const &var) -> bool
+				](vcf::transient_variant const &var) -> bool
 				{
 					auto const &chrom_id(var.chrom_id());
 					if (!m_chromosome_name.empty() && m_chromosome_name != chrom_id)

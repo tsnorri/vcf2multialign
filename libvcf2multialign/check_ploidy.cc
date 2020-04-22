@@ -7,19 +7,20 @@
 #include <vcf2multialign/variant_format.hh>
 
 namespace lb	= libbio;
+namespace vcf	= libbio::vcf;
 
 
 namespace vcf2multialign {
 	
-	void check_ploidy(lb::vcf_reader &vcf_reader, ploidy_map &out_ploidy)
+	void check_ploidy(vcf::reader &vcf_reader, ploidy_map &out_ploidy)
 	{
 		out_ploidy.clear();
 		vcf_reader.reset();
-		vcf_reader.set_parsed_fields(lb::vcf_field::ALL);
+		vcf_reader.set_parsed_fields(vcf::field::ALL);
 		
 		bool handled_variant(false);
 		vcf_reader.fill_buffer();
-		vcf_reader.parse([&vcf_reader, &out_ploidy, &handled_variant](lb::transient_variant const &var) -> bool {
+		vcf_reader.parse([&vcf_reader, &out_ploidy, &handled_variant](vcf::transient_variant const &var) -> bool {
 			handled_variant = true;
 			auto const *gt_field(get_variant_format(var).gt);
 			for (auto const &kv : vcf_reader.sample_names())

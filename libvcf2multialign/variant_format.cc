@@ -8,16 +8,17 @@
 
 
 namespace lb	= libbio;
+namespace vcf	= libbio::vcf;
 
 
 namespace vcf2multialign {
 	
-	void variant_format::reader_will_update_format(lb::vcf_reader &reader)
+	void variant_format::reader_will_update_format(vcf::reader &reader)
 	{
 	}
 	
 	
-	void variant_format::reader_did_update_format(lb::vcf_reader &reader)
+	void variant_format::reader_did_update_format(vcf::reader &reader)
 	{	
 		this->assign_field_ptr("GT", gt);
 	}
