@@ -33,6 +33,7 @@
 # Coverage
 *.gcda
 *.gcno
+*.gcov
 
 combine-msa-vcf/cmdline.c
 combine-msa-vcf/cmdline.h
