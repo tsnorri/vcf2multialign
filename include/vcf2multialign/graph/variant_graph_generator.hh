@@ -178,7 +178,7 @@ namespace vcf2multialign {
 		vector_type const &reference() override { return *m_reference; }
 		variant_graph_generator_delegate &delegate() override { return *m_delegate; }
 		
-		void generate_graph();
+		void generate_graph(bool const should_start_from_current_variant);
 	};
 	
 	
@@ -210,7 +210,8 @@ namespace vcf2multialign {
 		variant_graph_single_pass_generator_delegate &delegate() override { return *m_delegate; }
 		
 		void generate_graph(
-			std::vector <std::string> const &field_names_for_filter_by_assigned
+			std::vector <std::string> const &field_names_for_filter_by_assigned,
+			bool const should_start_from_current_variant
 		);
 	};
 }

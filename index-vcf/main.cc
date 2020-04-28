@@ -87,41 +87,38 @@ namespace {
 		reader.set_parsed_fields(vcf::field::POS);
 		v2m::vcf_index::chromosome_entry *entry_ptr{};
 		std::size_t prev_pos{};
-		do {
-			reader.fill_buffer();
-			should_continue = this->m_vcf_reader.parse(
-				[
-					this,
-					&entry_ptr,
-					&prev_pos
-				](vcf::transient_variant const &var) -> bool
-				{
-					auto const &chrom_id(var.chrom_id());
-					if (!m_chromosome_name.empty() && m_chromosome_name != chrom_id)
-						return true;
-					
-					auto const var_pos(var.pos());
-					auto const line_range(this->m_vcf_reader.current_line_range());
-					auto const [line_start, line_end] = line_range;
-					
-					// Check if the chromosome identifier has changed. If not,
-					// check if the position changed in order to store only the first entry for
-					// each position.
-					if (!entry_ptr || chrom_id != entry_ptr->chromosome_identifier)
-					{
-						entry_ptr = &m_index.add_entry(chrom_id);
-						entry_ptr->add_position(var_pos - 1, line_start);
-					}
-					else if (prev_pos < var_pos)
-					{
-						entry_ptr->add_position(var_pos - 1, line_start);
-					}
-					
-					prev_pos = var_pos;
+		this->m_vcf_reader.parse(
+			[
+				this,
+				&entry_ptr,
+				&prev_pos
+			](vcf::transient_variant const &var) -> bool
+			{
+				auto const &chrom_id(var.chrom_id());
+				if (!m_chromosome_name.empty() && m_chromosome_name != chrom_id)
 					return true;
+				
+				auto const var_pos(var.pos());
+				auto const line_range(this->m_vcf_reader.current_line_range());
+				auto const [line_start, line_end] = line_range;
+				
+				// Check if the chromosome identifier has changed. If not,
+				// check if the position changed in order to store only the first entry for
+				// each position.
+				if (!entry_ptr || chrom_id != entry_ptr->chromosome_identifier)
+				{
+					entry_ptr = &m_index.add_entry(chrom_id);
+					entry_ptr->add_position(var_pos - 1, line_start);
 				}
-			);
-		} while (should_continue);
+				else if (prev_pos < var_pos)
+				{
+					entry_ptr->add_position(var_pos - 1, line_start);
+				}
+				
+				prev_pos = var_pos;
+				return true;
+			}
+		);
 	}
 	
 	

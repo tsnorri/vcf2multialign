@@ -83,7 +83,8 @@ namespace vcf2multialign {
 		
 		bool partition(
 			std::vector <std::string> const &field_names_for_filter_by_assigned,
-			preprocessing_result &out_preprocessing_results
+			preprocessing_result &out_preprocessing_results,
+			bool const should_start_from_current_variant
 		);
 		
 		std::size_t processed_count() const { return m_processed_count.load(std::memory_order_relaxed); }

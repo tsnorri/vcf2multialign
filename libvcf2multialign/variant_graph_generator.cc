@@ -39,13 +39,13 @@ namespace vcf2multialign {
 		m_graph.clear();
 		
 		m_processed_count.store(0, std::memory_order_relaxed);
-		reader.reset();
 		reader.set_parsed_fields(vcf::field::ALL);
 	}
 	
 	
 	void variant_graph_single_pass_generator::generate_graph(
-		std::vector <std::string> const &field_names_for_filter_by_assigned
+		std::vector <std::string> const &field_names_for_filter_by_assigned,
+		bool const should_start_from_current_variant
 	)
 	{
 		auto &reader(this->vcf_reader());
@@ -53,7 +53,6 @@ namespace vcf2multialign {
 		
 		generate_graph_setup();
 		
-		reader.reset();
 		reader.set_parsed_fields(vcf::field::ALL);
 		
 		// Get the field descriptors needed for accessing the values.
@@ -67,56 +66,56 @@ namespace vcf2multialign {
 		std::size_t overlap_end_pos(0);
 		
 		// Process the variants.
-		bool should_continue(false);
-		do
-		{
-			reader.fill_buffer();
-			bool should_continue_line_number_loop(false);
-			should_continue = reader.parse(
-				[
-					this,
-					&delegate,
-					&filter_by_assigned,
-					&overlap_end_pos,
-					&prev_overlap_end_pos
-				]
-				(vcf::transient_variant const &var) -> bool
+		auto handling_callback(
+			[
+				this,
+				&delegate,
+				&filter_by_assigned,
+				&overlap_end_pos,
+				&prev_overlap_end_pos
+			]
+			(vcf::transient_variant const &var) -> bool
+			{
+				auto const lineno(var.lineno());
+				auto const var_pos(var.zero_based_pos());
+				auto const var_end(vcf::variant_end_pos(var, *m_end_field));
+				libbio_always_assert_lte(var_pos, var_end);
+				
+				switch (this->check_variant(var, filter_by_assigned, delegate))
 				{
-					auto const lineno(var.lineno());
-					auto const var_pos(var.zero_based_pos());
-					auto const var_end(vcf::variant_end_pos(var, *m_end_field));
-					libbio_always_assert_lte(var_pos, var_end);
-					
-					switch (this->check_variant(var, filter_by_assigned, delegate))
-					{
-						case variant_check_status::PASS:
-							break;
-						case variant_check_status::ERROR:
-							goto end;
-						case variant_check_status::FATAL_ERROR:
-							return false;
-					}
-					
-					// Check for a suitable subgraph starting position.
-					// process_subgraph() actually does a similar check in order to
-					// handle overlaps within a subgraph.
-					if (overlap_end_pos <= var_pos)
-					{
-						// Handle the subgraph.
-						process_subgraph(prev_overlap_end_pos);
-						prev_overlap_end_pos = overlap_end_pos;
-					}
-					
-					// Add to the stack.
-					overlap_end_pos = std::max(overlap_end_pos, var_end);
-					m_subgraph_variants.emplace_back(var);
-					
-				end:
-					++m_processed_count;
-					return true;
+					case variant_check_status::PASS:
+						break;
+					case variant_check_status::ERROR:
+						goto end;
+					case variant_check_status::FATAL_ERROR:
+						return false;
 				}
-			);
-		} while (should_continue);
+				
+				// Check for a suitable subgraph starting position.
+				// process_subgraph() actually does a similar check in order to
+				// handle overlaps within a subgraph.
+				if (overlap_end_pos <= var_pos)
+				{
+					// Handle the subgraph.
+					process_subgraph(prev_overlap_end_pos);
+					prev_overlap_end_pos = overlap_end_pos;
+				}
+				
+				// Add to the stack.
+				overlap_end_pos = std::max(overlap_end_pos, var_end);
+				m_subgraph_variants.emplace_back(var);
+				
+			end:
+				++m_processed_count;
+				return true;
+			}
+		);
+		
+		bool should_continue(true);
+		if (should_start_from_current_variant)
+			should_continue = handling_callback(reader.current_variant());
+		if (should_continue)
+			reader.parse(handling_callback);
 		
 		// Process the remaining variants.
 		process_subgraph(prev_overlap_end_pos);
@@ -127,7 +126,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void variant_graph_precalculated_generator::generate_graph()
+	void variant_graph_precalculated_generator::generate_graph(bool const should_start_from_current_variant)
 	{
 		auto &reader(this->vcf_reader());
 		auto &delegate(this->delegate());
@@ -146,56 +145,55 @@ namespace vcf2multialign {
 		libbio_always_assert_neq(cut_pos_it, cut_pos_end);
 		
 		// Process the variants.
-		bool should_continue(false);
-		do
-		{
-			reader.fill_buffer();
-			bool should_continue_line_number_loop(false);
-			should_continue = reader.parse(
-				[
-					this,
-					&cut_pos_it,
-					cut_pos_end,
-					&line_no_it,
-					line_no_end,
-					&overlap_end_pos,
-					&prev_overlap_end_pos
-				](vcf::transient_variant const &var) -> bool
+		auto handling_callback(
+			[
+				this,
+				&cut_pos_it,
+				cut_pos_end,
+				&line_no_it,
+				line_no_end,
+				&overlap_end_pos,
+				&prev_overlap_end_pos
+			](vcf::transient_variant const &var) -> bool
+			{
+				auto const lineno(var.lineno());
+				libbio_always_assert_lte(lineno, *line_no_it);
+				if (lineno == *line_no_it)
 				{
-					auto const lineno(var.lineno());
-					libbio_always_assert_lte(lineno, *line_no_it);
-					if (lineno == *line_no_it)
+					auto const var_pos(var.zero_based_pos());
+					auto const var_end(vcf::variant_end_pos(var, *m_end_field));
+					libbio_always_assert_lte(var_pos, var_end);
+					libbio_always_assert_lte(var_pos, *cut_pos_it);
+					
+					if (var_pos == *cut_pos_it)
 					{
-						auto const var_pos(var.zero_based_pos());
-						auto const var_end(vcf::variant_end_pos(var, *m_end_field));
-						libbio_always_assert_lte(var_pos, var_end);
-						libbio_always_assert_lte(var_pos, *cut_pos_it);
+						// Handle the subgraph.
+						process_subgraph(prev_overlap_end_pos);
+						prev_overlap_end_pos = overlap_end_pos;
 						
-						if (var_pos == *cut_pos_it)
-						{
-							// Handle the subgraph.
-							process_subgraph(prev_overlap_end_pos);
-							prev_overlap_end_pos = overlap_end_pos;
-							
-							++cut_pos_it;
-							libbio_always_assert_neq(cut_pos_it, cut_pos_end);
-						}
-						
-						// Add to the stack.
-						overlap_end_pos = std::max(overlap_end_pos, var_end);
-						m_subgraph_variants.emplace_back(var);
-						
-						++m_processed_count;
-						++line_no_it;
-						
-						auto const should_continue(line_no_it != line_no_end);
-						return should_continue;
+						++cut_pos_it;
+						libbio_always_assert_neq(cut_pos_it, cut_pos_end);
 					}
-					return true;
+					
+					// Add to the stack.
+					overlap_end_pos = std::max(overlap_end_pos, var_end);
+					m_subgraph_variants.emplace_back(var);
+					
+					++m_processed_count;
+					++line_no_it;
+					
+					auto const should_continue(line_no_it != line_no_end);
+					return should_continue;
 				}
-			);
-			
-		} while (should_continue);
+				return true;
+			}
+		);
+		
+		bool should_continue(true);
+		if (should_start_from_current_variant)
+			should_continue = handling_callback(reader.current_variant());
+		if (should_continue)
+			reader.parse(handling_callback);
 		
 		// Process the remaining variants.
 		process_subgraph(prev_overlap_end_pos);

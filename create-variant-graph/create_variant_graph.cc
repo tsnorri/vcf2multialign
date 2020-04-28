@@ -201,14 +201,14 @@ namespace vcf2multialign {
 	{
 		dispatch_async_main(^{ lb::log_time(std::cerr); std::cerr << "Creating the variant graph…\n"; });
 		this->progress_indicator().log_with_progress_bar("\t", indicator_delegate);
-		m_generator.generate_graph();
+		m_generator.generate_graph(true);
 	}
 	
 	
 	void variant_graph_single_pass_context::generate_variant_graph(progress_indicator_delegate &indicator_delegate)
 	{
 		this->progress_indicator().log_with_counter(lb::copy_time() + "Creating the variant graph…", indicator_delegate);
-		m_generator.generate_graph(m_field_names_for_filter_if_set);
+		m_generator.generate_graph(m_field_names_for_filter_if_set, true);
 	}
 
 

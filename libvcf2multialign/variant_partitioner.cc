@@ -17,10 +17,10 @@ namespace vcf2multialign {
 	
 	bool variant_partitioner::partition(
 		std::vector <std::string> const &field_names_for_filter_by_assigned,
-		preprocessing_result &out_preprocessing_result
+		preprocessing_result &out_preprocessing_result,
+		bool const should_start_from_current_variant
 	)
 	{
-		this->m_reader->reset();
 		this->m_reader->set_parsed_fields(vcf::field::ALL);
 		
 		// Get the field descriptors needed for accessing the values.
@@ -43,83 +43,83 @@ namespace vcf2multialign {
 		auto &handled_line_numbers(out_preprocessing_result.handled_line_numbers);
 		handled_line_numbers.clear();
 		
-		bool should_continue(false);
 		std::size_t overlap_end{};
-		do {
-			this->m_reader->fill_buffer();
-			should_continue = this->m_reader->parse(
-				[
-					this,
-					end_field,
-					&filter_by_assigned,
-					&cut_position_tree,
-					&closable_partitions,
-					&unclosable_partitions,
-					&handled_line_numbers,
-				 	&overlap_end
-				](vcf::transient_variant const &var) -> bool
+		auto handling_callback(
+			[
+				this,
+				end_field,
+				&filter_by_assigned,
+				&cut_position_tree,
+				&closable_partitions,
+				&unclosable_partitions,
+				&handled_line_numbers,
+			 	&overlap_end
+			](vcf::transient_variant const &var) -> bool
+			{
+				auto const lineno(var.lineno());
+				auto const var_pos(var.zero_based_pos());
+				auto const var_end(vcf::variant_end_pos(var, *end_field));
+				libbio_always_assert_lte(var_pos, var_end);
+				
+				switch (this->check_variant(var, filter_by_assigned, *m_delegate))
 				{
-					auto const lineno(var.lineno());
-					auto const var_pos(var.zero_based_pos());
-					auto const var_end(vcf::variant_end_pos(var, *end_field));
-					libbio_always_assert_lte(var_pos, var_end);
-					
-					switch (this->check_variant(var, filter_by_assigned, *m_delegate))
-					{
-						case variant_check_status::PASS:
-							break;
-						case variant_check_status::ERROR:
-							goto end;
-						case variant_check_status::FATAL_ERROR:
-							return false;
-					}
-					
-					// Variant passes the checks, handle it.
-					handled_line_numbers.emplace_back(lineno);
-					
-					// Check if the current node is a candidate for splitting.
-					if (overlap_end <= var_pos)
-					{
-						check_closable(var_pos, cut_position_tree, unclosable_partitions, closable_partitions);
-						
-						// If there is a closable partition, make a copy of it.
-						if (!closable_partitions.empty())
-						{
-							auto &new_ctx(unclosable_partitions.emplace_back(*m_delegate, *this->m_reader, m_sample_indexer));
-							new_ctx.chain_previous(closable_partitions.front(), var_pos, cut_position_tree);
-						}
-					}
-					
-					// Update the scores.
-					{
-						// FIXME: count_paths expects a vcf::variant. Otherwise the copy would not be needed.
-						vcf::variant persistent_var(var);
-						
-						auto const alt_count(var.alts().size());
-						for (auto &ctx : closable_partitions)
-							ctx.count_paths(persistent_var, alt_count);
-						
-						lb::parallel_for_each_range_view(
-							unclosable_partitions,
-							8,
-							[&persistent_var, alt_count](auto &ctx, std::size_t const j)
-							{
-								ctx.count_paths(persistent_var, alt_count);
-							}
-						);
-					}
-					
-					{
-						auto const var_end(vcf::variant_end_pos(var, *end_field));
-						overlap_end = std::max(overlap_end, var_end);
-					}
-					
-				end:
-					m_processed_count.fetch_add(1, std::memory_order_relaxed);
-					return true;
+					case variant_check_status::PASS:
+						break;
+					case variant_check_status::ERROR:
+						goto end;
+					case variant_check_status::FATAL_ERROR:
+						return false;
 				}
-			);
-		} while (should_continue);
+				
+				// Variant passes the checks, handle it.
+				handled_line_numbers.emplace_back(lineno);
+				
+				// Check if the current node is a candidate for splitting.
+				if (overlap_end <= var_pos)
+				{
+					check_closable(var_pos, cut_position_tree, unclosable_partitions, closable_partitions);
+					
+					// If there is a closable partition, make a copy of it.
+					if (!closable_partitions.empty())
+					{
+						auto &new_ctx(unclosable_partitions.emplace_back(*m_delegate, *this->m_reader, m_sample_indexer));
+						new_ctx.chain_previous(closable_partitions.front(), var_pos, cut_position_tree);
+					}
+				}
+				
+				// Update the scores.
+				{
+					// FIXME: count_paths expects a vcf::variant. Otherwise the copy would not be needed.
+					vcf::variant persistent_var(var);
+					
+					auto const alt_count(var.alts().size());
+					for (auto &ctx : closable_partitions)
+						ctx.count_paths(persistent_var, alt_count);
+					
+					lb::parallel_for_each_range_view(
+						unclosable_partitions,
+						8,
+						[&persistent_var, alt_count](auto &ctx, std::size_t const j)
+						{
+							ctx.count_paths(persistent_var, alt_count);
+						}
+					);
+				}
+				
+				{
+					auto const var_end(vcf::variant_end_pos(var, *end_field));
+					overlap_end = std::max(overlap_end, var_end);
+				}
+				
+			end:
+				m_processed_count.fetch_add(1, std::memory_order_relaxed);
+				return true;
+			}
+		);
+		
+		if (should_start_from_current_variant)
+			handling_callback(this->m_reader->current_variant());
+		this->m_reader->parse(handling_callback);
 		
 		auto const ref_len(m_reference->size());
 		check_closable(ref_len, cut_position_tree, unclosable_partitions, closable_partitions);

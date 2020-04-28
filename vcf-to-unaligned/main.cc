@@ -149,7 +149,6 @@ namespace vcf2multialign {
 	void unaligned_processor::output_variants(std::size_t const sample_idx, std::uint8_t const chr_idx, variant_statistics &statistics, progress_indicator_delegate &indicator_delegate)
 	{
 		auto &reader(this->vcf_reader());
-		reader.reset();
 		reader.set_parsed_fields(vcf::field::ALL);
 		
 		// Get the field descriptors needed for accessing the values.
@@ -175,138 +174,135 @@ namespace vcf2multialign {
 		bool should_continue(false);
 		std::size_t prev_end_pos{};
 		std::size_t overlap_end{};
-		do {
-			reader.fill_buffer();
-			should_continue = reader.parse(
-				[
-					this,
-					sample_idx,
-					chr_idx,
-					end_field,
-					&prev_end_pos,
-					&filter_by_assigned,
-					&statistics,
-					&indicator_delegate
-				](vcf::transient_variant const &var) -> bool
+		reader.parse(
+			[
+				this,
+				sample_idx,
+				chr_idx,
+				end_field,
+				&prev_end_pos,
+				&filter_by_assigned,
+				&statistics,
+				&indicator_delegate
+			](vcf::transient_variant const &var) -> bool
+			{
+				auto const lineno(var.lineno());
+				auto const var_pos(var.zero_based_pos());
+				
+				// Check the chromosome name.
+				if (var.chrom_id() != m_chromosome_name)
+					goto end;
+				
+				if (! (var_pos < m_reference.size()))
 				{
-					auto const lineno(var.lineno());
-					auto const var_pos(var.zero_based_pos());
-					
-					// Check the chromosome name.
-					if (var.chrom_id() != m_chromosome_name)
-						goto end;
-					
-					if (! (var_pos < m_reference.size()))
+					this->variant_processor_found_variant_with_position_greater_than_reference_length(var);
+					return false;
+				}
+				
+				if (!can_handle_variant_alts(var))
+				{
+					this->variant_processor_found_variant_with_no_suitable_alts(var);
+					++statistics.no_suitable_alts;
+					goto end;
+				}
+				
+				// Filter.
+				{
+					auto const &filters(var.filters());
+					for (auto const *filter : filters)
 					{
-						this->variant_processor_found_variant_with_position_greater_than_reference_length(var);
-						return false;
-					}
-					
-					if (!can_handle_variant_alts(var))
-					{
-						this->variant_processor_found_variant_with_no_suitable_alts(var);
-						++statistics.no_suitable_alts;
-						goto end;
-					}
-					
-					// Filter.
-					{
-						auto const &filters(var.filters());
-						for (auto const *filter : filters)
+						auto const &filter_id(filter->get_id());
+						if (std::binary_search(m_excluded_filters.begin(), m_excluded_filters.end(), filter_id))
 						{
-							auto const &filter_id(filter->get_id());
-							if (std::binary_search(m_excluded_filters.begin(), m_excluded_filters.end(), filter_id))
-							{
-								++statistics.filtered_variant;
-								goto end;
-							}
-						}
-					}
-
-					for (auto const *field_ptr : filter_by_assigned)
-					{
-						if (field_ptr->has_value(var))
-						{
-							this->variant_processor_found_filtered_variant(var, *field_ptr);
 							++statistics.filtered_variant;
 							goto end;
 						}
 					}
-					
-					// Compare the REF column against the reference sequence.
-					{
-						auto const &ref_col(var.ref());
-						std::string_view const ref_sub(m_reference.data() + var_pos, ref_col.size());
-						if (ref_col != ref_sub)
-						{
-							this->variant_processor_found_variant_with_ref_mismatch(var, ref_sub);
-							++statistics.ref_mismatch;
-							goto end;
-						}
-					}
-					
-					// Variant passes the checks, handle it.
-					{
-						libbio_always_assert_lt(sample_idx, var.samples().size());
-						auto const &sample(var.samples()[sample_idx]);
-						auto const *gt_field(get_variant_format(var).gt);
-						auto const &gt((*gt_field)(sample));
-						libbio_always_assert_lt(chr_idx, gt.size());
-						auto const alt_idx(gt[chr_idx].alt);
-						if (0 == alt_idx)
-						{
-							++statistics.gt_equals_0;
-							goto end;
-						}
-						else
-						{
-							if (! (prev_end_pos <= var_pos))
-							{
-								// FIXME: log the overlap.
-								//this->variant_processor_found_overlapping_variant(var, prev_end_pos);
-								++statistics.overlapping_variant;
-								goto end;
-							}
-							
-							auto const &alt(var.alts()[alt_idx - 1]);
-							switch (alt.alt_sv_type)
-							{
-								// Handled ALTs:
-								case vcf::sv_type::NONE:
-								case vcf::sv_type::UNKNOWN:
-								case vcf::sv_type::DEL:
-								case vcf::sv_type::DEL_ME:
-									break;
-								default:
-									// FIXME: log the ALT.
-									//this->variant_processor_unhandled_alt(var, alt_idx);
-									++statistics.unhandled_structural_variant;
-									goto end;
-							}
-							
-							std::string_view const ref_sub(m_reference.data() + prev_end_pos, var_pos - prev_end_pos);
-							this->m_output_stream << ref_sub;
-							
-							if (vcf::sv_type::NONE == alt.alt_sv_type)
-							{
-								auto const &alt_seq(alt.alt);
-								this->m_output_stream << alt_seq;
-							}
-							
-							auto const var_end(vcf::variant_end_pos(var, *end_field));
-							prev_end_pos = var_end;
-							++statistics.included_variant;
-						}
+				}
 
+				for (auto const *field_ptr : filter_by_assigned)
+				{
+					if (field_ptr->has_value(var))
+					{
+						this->variant_processor_found_filtered_variant(var, *field_ptr);
+						++statistics.filtered_variant;
 						goto end;
 					}
-					
-				end:
-					indicator_delegate.increment();
-					return true;
 				}
-			);
-		} while (should_continue);
+				
+				// Compare the REF column against the reference sequence.
+				{
+					auto const &ref_col(var.ref());
+					std::string_view const ref_sub(m_reference.data() + var_pos, ref_col.size());
+					if (ref_col != ref_sub)
+					{
+						this->variant_processor_found_variant_with_ref_mismatch(var, ref_sub);
+						++statistics.ref_mismatch;
+						goto end;
+					}
+				}
+				
+				// Variant passes the checks, handle it.
+				{
+					libbio_always_assert_lt(sample_idx, var.samples().size());
+					auto const &sample(var.samples()[sample_idx]);
+					auto const *gt_field(get_variant_format(var).gt);
+					auto const &gt((*gt_field)(sample));
+					libbio_always_assert_lt(chr_idx, gt.size());
+					auto const alt_idx(gt[chr_idx].alt);
+					if (0 == alt_idx)
+					{
+						++statistics.gt_equals_0;
+						goto end;
+					}
+					else
+					{
+						if (! (prev_end_pos <= var_pos))
+						{
+							// FIXME: log the overlap.
+							//this->variant_processor_found_overlapping_variant(var, prev_end_pos);
+							++statistics.overlapping_variant;
+							goto end;
+						}
+						
+						auto const &alt(var.alts()[alt_idx - 1]);
+						switch (alt.alt_sv_type)
+						{
+							// Handled ALTs:
+							case vcf::sv_type::NONE:
+							case vcf::sv_type::UNKNOWN:
+							case vcf::sv_type::DEL:
+							case vcf::sv_type::DEL_ME:
+								break;
+							default:
+								// FIXME: log the ALT.
+								//this->variant_processor_unhandled_alt(var, alt_idx);
+								++statistics.unhandled_structural_variant;
+								goto end;
+						}
+						
+						std::string_view const ref_sub(m_reference.data() + prev_end_pos, var_pos - prev_end_pos);
+						this->m_output_stream << ref_sub;
+						
+						if (vcf::sv_type::NONE == alt.alt_sv_type)
+						{
+							auto const &alt_seq(alt.alt);
+							this->m_output_stream << alt_seq;
+						}
+						
+						auto const var_end(vcf::variant_end_pos(var, *end_field));
+						prev_end_pos = var_end;
+						++statistics.included_variant;
+					}
+
+					goto end;
+				}
+				
+			end:
+				indicator_delegate.increment();
+				return true;
+			}
+		);
 		
 		std::string_view const ref_sub(m_reference.data() + prev_end_pos, m_reference.size() - prev_end_pos);
 		this->m_output_stream << ref_sub;

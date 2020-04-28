@@ -22,8 +22,6 @@ namespace vcf2multialign {
 		
 		// Init the end field description.
 		m_end_field = reader.get_end_field_ptr();
-		
-		reader.reset();
 	}
 	
 	

@@ -3,12 +3,16 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
+#include <boost/iostreams/filtering_stream.hpp>
+#include <boost/iostreams/filter/gzip.hpp>
 #include <vcf2multialign/utility/read_single_fasta_seq.hh>
 #include <vcf2multialign/variant_format.hh>
 #include <vcf2multialign/vcf_processor.hh>
 
+namespace io	= boost::iostreams;
 namespace lb	= libbio;
 namespace vcf	= libbio::vcf;
+namespace v2m	= vcf2multialign;
 
 
 namespace {
@@ -22,6 +26,23 @@ namespace {
 			std::forward_as_tuple(ptr_value)
 		);
 	}
+	
+	
+	struct vcf_mmap_input : public v2m::detail::vcf_input
+	{
+		vcf::mmap_input	input{};
+	};
+	
+	
+	struct vcf_compressed_stream_input : public v2m::detail::vcf_input
+	{
+		typedef vcf::stream_input <
+			io::filtering_stream <io::input>
+		> filtering_stream_input;
+		
+		filtering_stream_input	input;
+		lb::file_istream		compressed_input_stream;
+	};
 }
 
 
@@ -38,8 +59,28 @@ namespace vcf2multialign {
 	
 	void vcf_processor::open_variants_file(char const *variant_file_path)
 	{
-		m_vcf_handle.open(variant_file_path);
-		m_vcf_input.reset_range();
+		std::string_view const sv(variant_file_path);
+		if (sv.ends_with(".gz"))
+		{
+			auto ptr(std::make_unique <vcf_compressed_stream_input>());
+			lb::open_file_for_reading(variant_file_path, ptr->compressed_input_stream);
+			
+			auto &filtering_stream(ptr->input.stream());
+			filtering_stream.push(boost::iostreams::gzip_decompressor());
+			filtering_stream.push(ptr->compressed_input_stream);
+			filtering_stream.exceptions(std::istream::badbit);
+			
+			m_vcf_reader.set_input(ptr->input);
+			m_vcf_input = std::move(ptr);
+		}
+		else
+		{
+			auto ptr(std::make_unique <vcf_mmap_input>());
+			ptr->input.handle().open(variant_file_path);
+			
+			m_vcf_reader.set_input(ptr->input);
+			m_vcf_input = std::move(ptr);
+		}
 	}
 	
 	
@@ -69,7 +110,6 @@ namespace vcf2multialign {
 		}
 	
 		m_vcf_reader.set_variant_format(new variant_format());
-		m_vcf_reader.fill_buffer();
 		m_vcf_reader.read_header();
 	}
 }

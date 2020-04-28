@@ -15,11 +15,9 @@ namespace vcf2multialign {
 	void check_ploidy(vcf::reader &vcf_reader, ploidy_map &out_ploidy)
 	{
 		out_ploidy.clear();
-		vcf_reader.reset();
 		vcf_reader.set_parsed_fields(vcf::field::ALL);
 		
 		bool handled_variant(false);
-		vcf_reader.fill_buffer();
 		vcf_reader.parse([&vcf_reader, &out_ploidy, &handled_variant](vcf::transient_variant const &var) -> bool {
 			handled_variant = true;
 			auto const *gt_field(get_variant_format(var).gt);
