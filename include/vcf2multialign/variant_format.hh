@@ -14,10 +14,10 @@
 namespace vcf2multialign {
 	
 	// Custom fields for 1000G variants.
-	using vcf_info_field_cipos	= libbio::vcf::info_field <2, libbio::vcf::metadata_value_type::FLOAT>;
-	using vcf_info_field_ciend	= libbio::vcf::info_field <2, libbio::vcf::metadata_value_type::FLOAT>;
-	using vcf_info_field_svlen	= libbio::vcf::info_field <1, libbio::vcf::metadata_value_type::INTEGER>;
-	using vcf_info_field_svtype	= libbio::vcf::info_field <1, libbio::vcf::metadata_value_type::STRING>;
+	using vcf_info_field_cipos	= libbio::vcf::info_field <libbio::vcf::metadata_value_type::FLOAT,		2>;
+	using vcf_info_field_ciend	= libbio::vcf::info_field <libbio::vcf::metadata_value_type::FLOAT,		2>;
+	using vcf_info_field_svlen	= libbio::vcf::info_field <libbio::vcf::metadata_value_type::INTEGER,	1>;
+	using vcf_info_field_svtype	= libbio::vcf::info_field <libbio::vcf::metadata_value_type::STRING,	1>;
 	
 	
 	struct variant_format final : public libbio::vcf::variant_format
