@@ -26,6 +26,19 @@ namespace {
 			std::forward_as_tuple(ptr_value)
 		);
 	}
+
+
+	template <std::size_t t_size>
+	inline bool ends_with(std::string_view const &sv, char const (&ending_arr)[t_size])
+	{
+		auto const sv_size(sv.size());
+		if (sv_size < t_size - 1) // Remove the trailing nul character.
+			return false;
+
+		std::string_view const ending(ending_arr, t_size - 1);
+		auto const suffix(sv.substr(sv_size - t_size + 1));
+		return (suffix == ending);
+	}
 	
 	
 	struct vcf_mmap_input : public v2m::detail::vcf_input
@@ -60,7 +73,7 @@ namespace vcf2multialign {
 	void vcf_processor::open_variants_file(char const *variant_file_path)
 	{
 		std::string_view const sv(variant_file_path);
-		if (sv.ends_with(".gz"))
+		if (ends_with(sv, ".gz")) // std::string_view::ends_with is a C++20 addition.
 		{
 			auto ptr(std::make_unique <vcf_compressed_stream_input>());
 			lb::open_file_for_reading(variant_file_path, ptr->compressed_input_stream);
