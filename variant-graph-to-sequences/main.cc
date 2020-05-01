@@ -162,6 +162,34 @@ namespace {
 }
 
 
+void process(gengetopt_args_info &args_info)
+{
+	try
+	{
+		if (args_info.output_founders_given)
+		{
+			auto gen_ptr(instantiate_generator <founder_sequence_generator>(args_info));
+			prepare(*gen_ptr, args_info);
+			output_sequences(std::move(gen_ptr));
+		}
+		else if (args_info.output_samples_given)
+		{
+			auto gen_ptr(instantiate_generator <sample_sequence_generator>(args_info));
+			prepare(*gen_ptr, args_info);
+			output_sequences(std::move(gen_ptr));
+		}
+	}
+	catch (lb::assertion_failure_exception const &exc)
+	{
+		std::cerr << "Assertion failure: " << exc.what() << '\n';
+		boost::stacktrace::stacktrace const *st(boost::get_error_info <lb::traced>(exc));
+		if (st)
+			std::cerr << "Stack trace:\n" << *st << '\n';
+		throw exc;
+	}
+}
+
+
 int main(int argc, char **argv)
 {
 #ifndef NDEBUG
@@ -190,31 +218,12 @@ int main(int argc, char **argv)
 		}
 	}
 
-	try
-	{
-		if (args_info.output_founders_given)
-		{
-			auto gen_ptr(instantiate_generator <founder_sequence_generator>(args_info));
-			prepare(*gen_ptr, args_info);
-			output_sequences(std::move(gen_ptr));
-		}
-		else if (args_info.output_samples_given)
-		{
-			auto gen_ptr(instantiate_generator <sample_sequence_generator>(args_info));
-			prepare(*gen_ptr, args_info);
-			output_sequences(std::move(gen_ptr));
-		}
-	}
-	catch (lb::assertion_failure_exception const &exc)
-	{
-		std::cerr << "Assertion failure: " << exc.what() << '\n';
-		boost::stacktrace::stacktrace const *st(boost::get_error_info <lb::traced>(exc));
-		if (st)
-			std::cerr << "Stack trace:\n" << *st << '\n';
-		throw exc;
-	}
-	
-	dispatch_main(); // Needs to be outside the try block.
+	process(args_info);
+
+	// Needs to be outside the try block in process().
+	// Also it seemed that the compiler attempted to optimize the block somehow when
+	// it was located in the same function as the call to dispatch_main().
+	dispatch_main();
 
 	// Not reached.
 	return EXIT_SUCCESS;
