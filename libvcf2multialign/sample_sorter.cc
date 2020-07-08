@@ -83,7 +83,7 @@ namespace vcf2multialign {
 				libbio_assert_lt(donor_idx, var_samples.size());
 				auto const &sample(var_samples[donor_idx]);
 				auto const &gt((*gt_field)(sample));
-				libbio_assert_lt(chr_idx, gt.size());
+				libbio_assert_lt_msg(chr_idx, gt.size(), "Line ", var.lineno(), ": expected chr_idx < gt.size() (", +chr_idx, ", ", gt.size(), ")");
 				auto const alt_idx(gt[chr_idx].alt);
 				if (expected_alt_idx == alt_idx)
 				{
