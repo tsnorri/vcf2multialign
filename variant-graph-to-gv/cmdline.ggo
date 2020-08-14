@@ -11,3 +11,4 @@ option		"variants"				g	"Variant graph file path"																	string	typestr
 option		"output"				o	"Output graph file path"																	string	typestr = "filename"	required
 option		"reference-sequence"	-	"Reference sequence identifier"																string	typestr = "identifier"	optional
 option		"overwrite"				-	"Overwrite output files"																	flag	off
+option		"max-aligned-pos"		-	"Maximum aligned position to be output"														long	typestr = "position"	optional

@@ -25,6 +25,7 @@ namespace {
 		char const *input_graph_path,
 		char const *output_graph_path,
 		char const *reference_seq_name,
+		std::size_t const max_aligned_pos,
 		bool const should_overwrite_files
 	)
 	{
@@ -77,6 +78,9 @@ namespace {
 			auto const rsv(ranges::view::zip(ranges::view::ints(0), ref_positions | ranges::view::tail, aligned_ref_positions | ranges::view::tail));
 			for (auto const &[i, ref_pos, aligned_ref_pos] : rsv)
 			{
+				if (max_aligned_pos < aligned_ref_pos)
+					break;
+
 				if (i == next_subgraph_start_idx)
 				{
 					next_subgraph_start_idx = (sg_it == sg_end ? SIZE_MAX : *sg_it++);
@@ -100,6 +104,13 @@ namespace {
 			{
 				auto const aligned_lhs(aligned_ref_pair[0]);
 				auto const aligned_rhs(aligned_ref_pair[1]);
+
+				if (max_aligned_pos < aligned_lhs)
+					break;
+
+				if (max_aligned_pos < aligned_rhs)
+					continue;
+
 				auto const ref_lhs(ref_pair[0]);
 				auto const ref_rhs(ref_pair[1]);
 				std::string_view const ref_sub(reference.data() + ref_lhs, ref_rhs - ref_lhs);
@@ -133,6 +144,13 @@ namespace {
 				{
 					auto const src(aligned_ref_positions[1 + i]);
 					auto const dst(aligned_ref_positions[1 + target]);
+
+					if (max_aligned_pos < src)
+						break;
+
+					if (max_aligned_pos < dst)
+						continue;
+
 					output_graph_stream << '\t' << src << " -> " << dst << " [label = \"" << label << "\"];\n"; // FIXME: handle special characters?
 				}
 				
@@ -152,10 +170,21 @@ int main(int argc, char **argv)
 
 	gengetopt_args_info args_info;
 	if (0 != cmdline_parser(argc, argv, &args_info))
-		exit(EXIT_FAILURE);
+		std::exit(EXIT_FAILURE);
 	
 	std::ios_base::sync_with_stdio(false);	// Don't use C style IO after calling cmdline_parser.
 	std::cin.tie(nullptr);					// We don't require any input from the user.
+
+	std::size_t max_aligned_pos(SIZE_MAX);
+	if (args_info.max_aligned_pos_given)
+	{
+		if (args_info.max_aligned_pos_arg < 0)
+		{
+			std::cerr << "Maximum aligned position needs to be non-negative.\n";
+			std::exit(EXIT_FAILURE);
+		}
+		max_aligned_pos = args_info.max_aligned_pos_arg;
+	}
 	
 	try
 	{
@@ -164,6 +193,7 @@ int main(int argc, char **argv)
 			args_info.variants_arg,
 			args_info.output_arg,
 			args_info.reference_sequence_given ? args_info.reference_sequence_arg : nullptr,
+			max_aligned_pos,
 			args_info.overwrite_flag
 		);
 	}
