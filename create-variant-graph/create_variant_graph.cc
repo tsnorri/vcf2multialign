@@ -99,16 +99,22 @@ namespace vcf2multialign {
 	class variant_graph_single_pass_context final : public variant_graph_context,
 													public virtual variant_graph_single_pass_generator_delegate,
 													public preprocess_logger // For the case in which preprocessing was not done.
-													{
+	{
 	protected:
 		std::string								m_chromosome_name;
 		std::vector <std::string>				m_field_names_for_filter_if_set;
 		variant_graph_single_pass_generator		m_generator;
+		std::size_t								m_minimum_bridge_length{};
 		
 	public:
-		variant_graph_single_pass_context(std::string &&chromosome_name, std::vector <std::string> &&field_names_for_filter_if_set):
+		variant_graph_single_pass_context(
+			std::string &&chromosome_name,
+			std::vector <std::string> &&field_names_for_filter_if_set,
+			std::size_t minimum_bridge_length
+		):
 			m_chromosome_name(std::move(chromosome_name)),
-			m_field_names_for_filter_if_set(std::move(field_names_for_filter_if_set))
+			m_field_names_for_filter_if_set(std::move(field_names_for_filter_if_set)),
+			m_minimum_bridge_length(minimum_bridge_length)
 		{
 		}
 		
@@ -191,7 +197,8 @@ namespace vcf2multialign {
 			this->m_reference,
 			m_chromosome_name,
 			donor_count,
-			chr_count
+			chr_count,
+			m_minimum_bridge_length
 		);
 		m_generator.sample_sorter().set_sample_indexer(m_generator.sample_indexer()); // Fix the pointer. FIXME: should be done in variant_graph_generator’s move assignment operator.
 	}
@@ -301,6 +308,7 @@ namespace vcf2multialign {
 		char const *variant_file_path,
 		char const *output_graph_path,
 		char const *log_path,
+		std::size_t const minimum_bridge_length,
 		char const *reference_seq_name,
 		char const *chr_id,
 		std::vector <std::string> &&field_names_for_filter_if_set,
@@ -311,13 +319,18 @@ namespace vcf2multialign {
 		try
 		{
 			// Since the context has Boost’s streams, it cannot be moved. Hence the use of a pointer.
-			auto ctx_ptr(std::make_unique <variant_graph_single_pass_context>(chr_id, std::move(field_names_for_filter_if_set)));
+			auto ctx_ptr(std::make_unique <variant_graph_single_pass_context>(
+				chr_id,
+				std::move(field_names_for_filter_if_set),
+				minimum_bridge_length
+			));
 			auto &ctx(*ctx_ptr);
 			
 			ctx.open_variants_file(variant_file_path);
 			ctx.read_reference(reference_file_path, reference_seq_name);
 			ctx.open_output_file(output_graph_path, should_overwrite_files);
-			ctx.open_log_file(log_path, should_overwrite_files);
+			if (log_path)
+				ctx.open_log_file(log_path, should_overwrite_files);
 			ctx.prepare_reader();
 			ctx.prepare_generator();
 			

@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <vcf2multialign/graph/variant_graph.hh>
 #include "cmdline.h"
+#include "founder_sequence_greedy_generator.hh"
 #include "sequence_generator_base.hh"
 
 
@@ -61,12 +62,12 @@ namespace {
 	};
 	
 	
-	class founder_sequence_generator final : public v2m::sequence_generator_base
+	class founder_sequence_generator final : public v2m::direct_matching_sequence_generator
 	{
 	public:
-		typedef v2m::sequence_generator_base::output_stream_vector	output_stream_vector;
+		typedef v2m::direct_matching_sequence_generator::output_stream_vector	output_stream_vector;
 		
-		using v2m::sequence_generator_base::sequence_generator_base;
+		using v2m::direct_matching_sequence_generator::direct_matching_sequence_generator;
 		
 		std::unique_ptr <v2m::alt_edge_handler_base> make_alt_edge_handler(
 			std::string_view const &reference_sv,
@@ -86,17 +87,17 @@ namespace {
 	protected:
 		void open_output_file(std::size_t const idx, lb::file_ostream &of, lb::writing_open_mode const mode) const override
 		{
-			lb::open_file_for_writing(std::to_string(1 + idx), of, mode);
+			v2m::open_founder_output_file(idx, of, mode);
 		}
 	};
 	
 	
-	class sample_sequence_generator final : public v2m::sequence_generator_base
+	class sample_sequence_generator final : public v2m::direct_matching_sequence_generator
 	{
 	public:
-		typedef v2m::sequence_generator_base::output_stream_vector	output_stream_vector;
+		typedef v2m::direct_matching_sequence_generator::output_stream_vector	output_stream_vector;
 		
-		using v2m::sequence_generator_base::sequence_generator_base;
+		using v2m::direct_matching_sequence_generator::direct_matching_sequence_generator;
 		
 		std::unique_ptr <v2m::alt_edge_handler_base> make_alt_edge_handler(
 			std::string_view const &reference_sv,
@@ -172,6 +173,31 @@ void process(gengetopt_args_info &args_info)
 			prepare(*gen_ptr, args_info);
 			output_sequences(std::move(gen_ptr));
 		}
+		else if (args_info.output_founders_greedy_given)
+		{
+			auto gen_ptr(std::make_unique <v2m::founder_sequence_greedy_generator>(
+				args_info.founder_count_arg,
+				(args_info.omit_reference_output_flag ? false : true),
+				args_info.overwrite_flag
+			));
+			prepare(*gen_ptr, args_info);
+			
+			{
+				auto const max_paths_in_subgraph(gen_ptr->variant_graph().max_paths_in_subgraph());
+				if (args_info.founder_count_arg < max_paths_in_subgraph)
+				{
+					std::cerr
+						<< "ERROR: There are at most "
+						<< max_paths_in_subgraph
+						<< " paths in a subgraph, which is more than the specified number of founder sequences to be generated, "
+						<< args_info.founder_count_arg
+						<< ".\n";
+					std::exit(EXIT_FAILURE);
+				}
+			}
+			
+			output_sequences(std::move(gen_ptr));
+		}
 		else if (args_info.output_samples_given)
 		{
 			auto gen_ptr(instantiate_generator <sample_sequence_generator>(args_info));
@@ -209,8 +235,19 @@ int main(int argc, char **argv)
 		std::exit(EXIT_FAILURE);
 	}
 	
+	if (args_info.founder_count_arg < 1)
 	{
-		auto const mode_count(args_info.output_founders_given + args_info.output_samples_given);
+		std::cerr << "Founder count must be positive." << std::endl;
+		std::exit(EXIT_FAILURE);
+	}
+	
+	if (args_info.founder_count_given && args_info.chunk_size_given)
+	{
+		std::cerr << "WARNING: Ignoring chunk size when using greedy matching.\n";
+	}
+	
+	{
+		auto const mode_count(args_info.output_samples_given + args_info.output_founders_given + args_info.output_founders_greedy_given);
 		if (0 == mode_count)
 		{
 			std::cerr << "No mode given." << std::endl;

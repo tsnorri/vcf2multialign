@@ -99,7 +99,6 @@ namespace vcf2multialign {
 		sample_sorter									m_sample_sorter;
 		std::vector <std::string>						m_sample_names;
 		overlap_stack									m_overlap_stack;
-		std::size_t										m_minimum_subgraph_distance{};
 		std::size_t										m_output_lineno{};
 		libbio::copyable_atomic <std::size_t>			m_processed_count{};
 	
@@ -187,6 +186,7 @@ namespace vcf2multialign {
 	{
 	protected:
 		variant_graph_single_pass_generator_delegate	*m_delegate{};
+		std::size_t										m_minimum_bridge_length{};
 		
 	public:
 		variant_graph_single_pass_generator() = default;
@@ -197,11 +197,13 @@ namespace vcf2multialign {
 			vector_type const &reference,
 			std::string const &chr_name,
 			std::size_t const donor_count,
-			std::uint8_t const chr_count
+			std::uint8_t const chr_count,
+			std::size_t const minimum_bridge_length
 		):
 			variant_graph_generator(reader, donor_count, chr_count),
 			variant_processor(reader, reference, chr_name),
-			m_delegate(&delegate)
+			m_delegate(&delegate),
+			m_minimum_bridge_length(minimum_bridge_length)
 		{
 		}
 		

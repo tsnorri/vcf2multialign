@@ -2,6 +2,7 @@ include ../local.mk
 include ../common.mk
 
 OBJECTS		=	cmdline.o \
+				founder_sequence_greedy_generator.o \
 				main.o \
 				sequence_generator_base.o
 

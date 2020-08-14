@@ -75,6 +75,9 @@ namespace vcf2multialign {
 				handled_line_numbers.emplace_back(lineno);
 				
 				// Check if the current node is a candidate for splitting.
+				// Since we’re trying to find an optimal segmentation, subgraph distance is only checked
+				// from the segment starting position (in check_closable()). Checking for the bridge
+				// length would result in a segmentation that could be used with arbitrary joining.
 				if (overlap_end <= var_pos)
 				{
 					check_closable(var_pos, cut_position_tree, unclosable_partitions, closable_partitions);
@@ -134,6 +137,8 @@ namespace vcf2multialign {
 			positions.emplace_back(ref_len);
 			
 			auto &ctx(closable_partitions.front());
+			//std::cerr << "*** Reversed path:\n";
+			//ctx.output_reversed_path(std::cerr, cut_position_tree);
 			auto idx(ctx.start_position_idx);
 			while (SIZE_MAX != idx)
 			{
@@ -167,6 +172,7 @@ namespace vcf2multialign {
 				auto const &ctx(*it);
 				auto const idx(ctx.start_position_idx);
 				auto const &cut_pos(cut_position_tree[idx]);
+				// Check that the current segment is long enough.
 				if (cut_pos.value + m_minimum_subgraph_distance <= var_pos)
 				{
 					auto const src(it++);

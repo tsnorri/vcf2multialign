@@ -23,6 +23,7 @@ namespace vcf2multialign {
 		char const *variant_file_path,
 		char const *output_graph_path,
 		char const *log_path,
+		std::size_t const minimum_bridge_length,
 		char const *reference_seq_name,
 		char const *chr_id,
 		std::vector <std::string> &&field_names_for_filter_if_set,

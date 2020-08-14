@@ -36,17 +36,14 @@ namespace vcf2multialign {
 		
 	protected:
 		variant_graph								m_graph;
-		std::size_t									m_chunk_size{};
 		bool										m_output_reference{};
 		bool										m_may_overwrite{};
 		
 	public:
 		sequence_generator_base(
-			std::size_t const chunk_size,
 			bool const output_reference,
 			bool const may_overwrite
 		):
-			m_chunk_size(chunk_size),
 			m_output_reference(output_reference),
 			m_may_overwrite(may_overwrite)
 		{
@@ -55,14 +52,39 @@ namespace vcf2multialign {
 		virtual ~sequence_generator_base() {}
 		
 		void read_variant_graph(char const *variant_graph_path);
-		void output_sequences();
+		virtual void output_sequences() = 0;
+		class variant_graph const &variant_graph() const { return m_graph; }
+	};
+	
+	
+	class direct_matching_sequence_generator : public sequence_generator_base
+	{
+	public:
+		typedef sequence_generator_base::output_stream_vector	output_stream_vector;
+		typedef sequence_generator_base::stream_position_list	stream_position_list;
+		
+	protected:
+		std::size_t									m_chunk_size{};
+		
+	public:
+		direct_matching_sequence_generator(
+			std::size_t const chunk_size,
+			bool const output_reference,
+			bool const may_overwrite
+		):
+			sequence_generator_base(output_reference, may_overwrite),
+			m_chunk_size(chunk_size)
+		{
+		}
+		
+		void output_sequences() override;
 		
 	protected:
 		virtual std::size_t const get_stream_count() const = 0;
 		
 		virtual std::unique_ptr <alt_edge_handler_base> make_alt_edge_handler(
 			std::string_view const &reference_sv,
-			variant_graph const &graph,
+			class variant_graph const &graph,
 			output_stream_vector &output_files
 		) const = 0;
 		
@@ -126,6 +148,12 @@ namespace vcf2multialign {
 	protected:
 		void handle_edge(stream_position &sp, std::size_t const edge_number) const;
 	};
+	
+	
+	inline void open_founder_output_file(std::size_t const idx, libbio::file_ostream &of, libbio::writing_open_mode const mode)
+	{
+		libbio::open_file_for_writing(std::to_string(1 + idx), of, mode);
+	}
 	
 	
 	void alt_edge_handler_base::set_subgraph_samples_and_edges(

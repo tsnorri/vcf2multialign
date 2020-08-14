@@ -29,6 +29,12 @@ int main(int argc, char **argv)
 	std::ios_base::sync_with_stdio(false);	// Don't use C style IO after calling cmdline_parser.
 	std::cin.tie(nullptr);					// We don't require any input from the user.
 	
+	if (args_info.minimum_subgraph_distance_arg < 0)
+	{
+		std::cerr << "Minimum subgraph distance must be non-negative.\n";
+		std::exit(EXIT_FAILURE);
+	}
+	
 	if (! (args_info.minimum_subgraph_distance_arg <= SIZE_MAX))
 	{
 		std::cerr << "Minimum subgraph distance must be less than or equal to " << SIZE_MAX << ".\n";

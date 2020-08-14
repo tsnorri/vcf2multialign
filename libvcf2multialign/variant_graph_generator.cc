@@ -23,7 +23,7 @@ namespace vcf2multialign {
 		auto &reader(this->vcf_reader());
 		auto const &sample_name_map(reader.sample_names());
 		m_sample_names.resize(sample_name_map.size());
-		for (auto const & [sample_name, idx1] : sample_name_map)
+		for (auto const &[sample_name, idx1] : sample_name_map)
 			m_sample_names[idx1 - 1] = sample_name; // Copy.
 	}
 	
@@ -94,7 +94,7 @@ namespace vcf2multialign {
 				// Check for a suitable subgraph starting position.
 				// process_subgraph() actually does a similar check in order to
 				// handle overlaps within a subgraph.
-				if (overlap_end_pos <= var_pos)
+				if (overlap_end_pos + m_minimum_bridge_length <= var_pos)
 				{
 					// Handle the subgraph.
 					process_subgraph(prev_overlap_end_pos);
@@ -282,7 +282,8 @@ namespace vcf2multialign {
 				{
 					// There may be multiple variants that end at ref_pos. Hence we don’t move directly to did_handle_current_variant
 					// in the end of this branch.
-					auto const [node_idx, alt_edge_start_idx, did_create] = m_graph.add_main_node(prev_end_pos, handled_alt_count);
+					// The ALT edges are created just before did_handle_current_variant.
+					auto const [node_idx, alt_edge_start_idx, did_create] = m_graph.add_main_node(prev_end_pos, 0);
 					if (did_create)
 						calculate_aligned_ref_pos_for_new_node(node_idx);
 					update_aligned_ref_pos(node_idx, top_entry.max_alt_edge_aligned_dst_pos);
@@ -305,6 +306,7 @@ namespace vcf2multialign {
 				auto const [node_idx, alt_edge_start_idx, did_create] = m_graph.add_main_node(ref_pos, handled_alt_count);
 				if (did_create)
 					calculate_aligned_ref_pos_for_new_node(node_idx);
+				//std::cerr << "rp: " << ref_pos << " aes: " << alt_edge_start_idx << " hc: " << handled_alt_count << '\n';
 				assign_alt_edge_labels_and_queue(var, node_idx, alt_edge_start_idx);
 			}
 			
@@ -425,6 +427,7 @@ namespace vcf2multialign {
 						alt_edge_labels[i] = "";
 						break;
 					default:
+						libbio_fail("Unexpected ALT type.");
 						break;
 				}
 				

@@ -10,7 +10,7 @@ all: create_variant_graph
 clean:
 	$(RM) $(OBJECTS) create_variant_graph cmdline.c cmdline.h version.h config.h
 
-create_variant_graph: $(OBJECTS)
+create_variant_graph: $(OBJECTS) ../libvcf2multialign/libvcf2multialign.a
 	$(CXX) -o $@ $(OBJECTS) ../libvcf2multialign/libvcf2multialign.a $(LDFLAGS)
 
 main.cc : cmdline.c

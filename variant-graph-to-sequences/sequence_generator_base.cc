@@ -12,38 +12,11 @@
 #include <unistd.h>
 #include <vcf2multialign/utility/read_single_fasta_seq.hh>
 #include "sequence_generator_base.hh"
+#include "utility.hh"
 
 
 namespace lb	= libbio;
 namespace v2m	= vcf2multialign;
-
-
-namespace {
-	
-	class progress_indicator_delegate final : public lb::progress_indicator_delegate
-	{
-	protected:
-		std::size_t			m_progress_max{};
-		std::atomic_size_t	m_progress_current{};
-		
-	public:
-		progress_indicator_delegate(std::size_t const progress_max):
-			m_progress_max(progress_max)
-		{
-		}
-		
-		virtual std::size_t progress_step_max() const { return m_progress_max; }
-		virtual std::size_t progress_current_step() const { return m_progress_current.load(std::memory_order_relaxed); }
-		virtual void progress_log_extra() const {}
-		void advance() { m_progress_current.fetch_add(1, std::memory_order_relaxed); }
-	};
-	
-	
-	inline void dispatch_async_main(dispatch_block_t block)
-	{
-		dispatch_async(dispatch_get_main_queue(), block);
-	}
-}
 
 
 namespace vcf2multialign {
@@ -58,7 +31,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void sequence_generator_base::output_sequences()
+	void direct_matching_sequence_generator::output_sequences()
 	{
 		try
 		{
@@ -124,7 +97,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void sequence_generator_base::output_chunk(std::string_view const &reference_sv, output_stream_vector &output_files)
+	void direct_matching_sequence_generator::output_chunk(std::string_view const &reference_sv, output_stream_vector &output_files)
 	{
 		// Use a simple queue for keeping track of the aligned positions of the founders.
 		// first: node index, second: stream number.

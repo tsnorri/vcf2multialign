@@ -37,6 +37,18 @@ int main(int argc, char **argv)
 	std::ios_base::sync_with_stdio(false);	// Don't use C style IO after calling cmdline_parser.
 	std::cin.tie(nullptr);					// We don't require any input from the user.
 	
+	if (args_info.minimum_bridge_length_arg < 0)
+	{
+		std::cerr << "Minimum bridge length must be non-negative.\n";
+		std::exit(EXIT_FAILURE);
+	}
+	
+	if (! (args_info.minimum_bridge_length_arg <= SIZE_MAX))
+	{
+		std::cerr << "Minimum bridge length must be less than or equal to " << SIZE_MAX << ".\n";
+		std::exit(EXIT_FAILURE);
+	}
+	
 	try
 	{
 		if (args_info.cut_by_overlap_start_given)
@@ -50,6 +62,7 @@ int main(int argc, char **argv)
 				args_info.variants_arg,
 				args_info.output_arg,
 				args_info.log_arg,
+				args_info.minimum_bridge_length_arg,
 				args_info.reference_sequence_given ? args_info.reference_sequence_arg : nullptr,
 				args_info.chromosome_arg,
 				std::move(field_names_for_filter_if_set),
@@ -66,6 +79,11 @@ int main(int argc, char **argv)
 				args_info.reference_sequence_given ? args_info.reference_sequence_arg : nullptr,
 				args_info.overwrite_flag
 			);
+		}
+		else
+		{
+			std::cerr << "ERROR: No mode given.\n";
+			std::exit(EXIT_FAILURE);
 		}
 	}
 	catch (lb::assertion_failure_exception const &exc)
