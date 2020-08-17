@@ -1,0 +1,21 @@
+# Copyright (c) 2020 Tuukka Norri
+# This code is licensed under MIT license (see LICENSE for details).
+
+package		"variant-graph-statistics"
+purpose		"Output statistics from a variant graph file."
+usage		"variant_graph_statistics --variants=variants.graph [<options>]"
+description	"Reads the variant graph file and outputs statistics."
+
+option		"variants"						g	"Variant graph file path"														string	typestr = "filename"	required
+
+defmode "Substring counts" modedesc = "Output substring counts per subgraph"
+modeoption	"substring-counts"				-	"Output substring counts"		mode = "Substring counts"														required
+
+defmode "Substring combination counts" modedesc = "Output substring combination counts for each pair of consecutive subgraphs"
+modeoption	"substring-combination-counts"	-	"Output combination counts"		mode = "Substring combination counts"											required
+
+defmode "ALT label counts" modedesc = "Output ALT label counts"
+modeoption	"alt-label-counts"				-	"Output ALT label counts"		mode = "ALT label counts"														required
+
+defmode "Subgraph lengths" modedesc = "Output subgraph lengths"
+modeoption	"subgraph-lengths"				-	"Output subgraph lengths"		mode = "Subgraph lengths"														required
