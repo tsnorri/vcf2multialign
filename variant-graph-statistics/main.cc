@@ -21,7 +21,7 @@ namespace v2m	= vcf2multialign;
 
 namespace {
 	
-	void output_substring_counts(v2m::variant_graph const &graph)
+	void output_substring_counts(char const *input_path, v2m::variant_graph const &graph, bool const output_summary_only)
 	{
 		auto const &ref_positions(graph.ref_positions()); // 1-based.
 		auto const &aln_positions(graph.aligned_ref_positions()); // 1-based.
@@ -31,26 +31,39 @@ namespace {
 		
 		std::size_t max_substrings(0), min_substrings(SIZE_MAX);
 		
-		std::cout << "SUBGRAPH\tSTART_POSITION\tALIGNED_START_POSITION\tPATHS\n";
+		if (!output_summary_only)
+			std::cout << "SUBGRAPH\tSTART_POSITION\tALIGNED_START_POSITION\tREF_LENGTH\tALIGNED_LENGTH\tPATHS\n";
 		auto const view(rsv::zip(rsv::ints(0), subgraph_start_positions, path_edges));
 		for (auto const &[subgraph_idx, start_pos_idx, path_edges] : view)
 		{
+			auto const end_pos_idx(2 + start_pos_idx);
 			auto const ref_pos(ref_positions[1 + start_pos_idx]);
 			auto const aln_pos(aln_positions[1 + start_pos_idx]);
+			auto const ref_end(end_pos_idx < ref_positions.size() ? ref_positions[end_pos_idx] : ref_positions.back());
+			auto const aln_end(end_pos_idx < aln_positions.size() ? aln_positions[end_pos_idx] : aln_positions.back());
 			auto const substring_count(path_edges.number_of_columns());
 			
-			std::cout << subgraph_idx << '\t' << ref_pos << '\t' << aln_pos << '\t' << substring_count << '\n';
+			if (!output_summary_only)
+				std::cout << subgraph_idx << '\t' << ref_pos << '\t' << aln_pos << '\t' << (ref_end - ref_pos) << '\t' << (aln_end - aln_pos) << '\t' << substring_count << '\n';
 			
 			max_substrings = std::max(max_substrings, substring_count);
 			min_substrings = std::min(min_substrings, substring_count);
 		}
 		
-		std::cerr << "Max substrings: " << max_substrings << '\n';
-		std::cerr << "Min substrings: " << min_substrings << '\n';
+		if (output_summary_only)
+		{
+			// Input path, max substrings, min substrings, sample count.
+			std::cout << input_path << '\t' << max_substrings << '\t' << min_substrings << '\t' << graph.sample_names().size() << '\n';
+		}
+		else
+		{
+			std::cerr << "Max substrings: " << max_substrings << '\n';
+			std::cerr << "Min substrings: " << min_substrings << '\n';
+		}
 	}
 	
 	
-	void output_substring_combination_counts(v2m::variant_graph const &graph)
+	void output_substring_combination_counts(char const *input_path, v2m::variant_graph const &graph, bool const output_summary_only)
 	{
 		auto const &sample_paths(graph.sample_paths()); // Sample path numbers by sample and subgraph number, vector of matrices.
 		
@@ -59,12 +72,15 @@ namespace {
 		
 		std::size_t max_combinations(0), min_combinations(SIZE_MAX);
 		
-		std::cout << "LHS_SUBGRAPH\tSUBSTRING_COMBINATIONS\n";
+		if (!output_summary_only)
+			std::cout << "LHS_SUBGRAPH\tSUBSTRING_COMBINATIONS\n";
 		for (auto const &[first_subgraph_idx, pair] : rsv::zip(rsv::ints(0), sample_paths | rsv::sliding(2)))
 		{
 			auto const &lhs_substring_numbers(pair[0]);
 			auto const &rhs_substring_numbers(pair[1]);
 			libbio_always_assert_eq(lhs_substring_numbers.size(), rhs_substring_numbers.size());
+
+			substring_pairs.clear();
 			
 			for (auto const &[lhs_substring_idx, rhs_substring_idx] : rsv::zip(lhs_substring_numbers, rhs_substring_numbers))
 			{
@@ -78,11 +94,20 @@ namespace {
 			max_combinations = std::max(max_combinations, combination_count);
 			min_combinations = std::min(min_combinations, combination_count);
 			
-			std::cout << first_subgraph_idx << '\t' << combination_count << '\n';
+			if (!output_summary_only)
+				std::cout << first_subgraph_idx << '\t' << combination_count << '\n';
 		}
 		
-		std::cerr << "Max combinations: " << max_combinations << '\n';
-		std::cerr << "Min combinations: " << min_combinations << '\n';
+		if (output_summary_only)
+		{
+			// Input path, max combinations, min combinations, sample count.
+			std::cout << input_path << '\t' << max_combinations << '\t' << min_combinations << '\t' << graph.sample_names().size() << '\n';
+		}
+		else
+		{
+			std::cerr << "Max combinations: " << max_combinations << '\n';
+			std::cerr << "Min combinations: " << min_combinations << '\n';
+		}
 	}
 
 
@@ -154,9 +179,9 @@ int main(int argc, char **argv)
 	}
 	
 	if (args_info.substring_counts_given)
-		output_substring_counts(graph);
+		output_substring_counts(args_info.variants_arg, graph, args_info.summary_given);
 	else if (args_info.substring_combination_counts_given)
-		output_substring_combination_counts(graph);
+		output_substring_combination_counts(args_info.variants_arg, graph, args_info.summary_given);
 	else if (args_info.alt_label_counts_given)
 		output_alt_label_counts(graph);
 	else if (args_info.subgraph_lengths_given)

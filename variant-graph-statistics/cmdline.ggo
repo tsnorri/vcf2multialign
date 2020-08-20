@@ -7,6 +7,7 @@ usage		"variant_graph_statistics --variants=variants.graph [<options>]"
 description	"Reads the variant graph file and outputs statistics."
 
 option		"variants"						g	"Variant graph file path"														string	typestr = "filename"	required
+option		"summary"						s	"In case of substring counts, output summary only"								flag	off
 
 defmode "Substring counts" modedesc = "Output substring counts per subgraph"
 modeoption	"substring-counts"				-	"Output substring counts"		mode = "Substring counts"														required
