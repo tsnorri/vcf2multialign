@@ -256,8 +256,7 @@ namespace vcf2multialign {
 			return;
 
 		auto it(m_subgraph_variants.begin() + 1);
-		auto const end(m_subgraph_variants.end());
-		while (it != end)
+		while (it != m_subgraph_variants.end())
 		{
 			auto &prev_var(*(it - 1));
 			auto const &curr_var(*it);
