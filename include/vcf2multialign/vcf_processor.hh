@@ -33,6 +33,7 @@ namespace vcf2multialign {
 		libbio::vcf::reader &vcf_reader() { return m_vcf_reader; }
 		void open_variants_file(char const *variant_file_path);
 		void prepare_reader();
+		void setup_empty_input();
 	};
 	
 	
