@@ -151,6 +151,37 @@ namespace {
 			std::cout << subgraph_idx << '\t' << (aep - asp) << '\t' << (rep - rsp) << '\t' << bridge_length << '\n';
 		}
 	}
+	
+	
+	void output_sample_paths(v2m::variant_graph const &graph)
+	{
+		std::cout << "SUBGRAPH_INDEX\tSAMPLE\tPATH\n";
+		auto const &sample_paths(graph.sample_paths());
+		for (auto const &[subgraph_idx, path_vec] : rsv::enumerate(sample_paths))
+		{
+			for (auto const &[sample_idx, path_idx] : rsv::enumerate(path_vec))
+				std::cout << subgraph_idx << '\t' << sample_idx << '\t' << path_idx << '\n';
+		}
+	}
+	
+	
+	void output_path_edges(v2m::variant_graph const &graph)
+	{
+		std::cout << "SUBGRAPH_INDEX\tPATHS\n";
+		auto const &path_edges(graph.path_edges());
+		for (auto const &[subgraph_idx, edge_mat] : rsv::enumerate(path_edges))
+		{
+			auto const nrow(edge_mat.number_of_rows());
+			auto const ncol(edge_mat.number_of_columns());
+			for (std::size_t i(0); i < nrow; ++i)
+			{
+				std::cout << subgraph_idx;
+				for (std::size_t j(0); j < ncol; ++j)
+					std::cout << '\t' << edge_mat(i, j);
+				std::cout << '\n';
+			}
+		}
+	}
 }
 
 
@@ -186,6 +217,10 @@ int main(int argc, char **argv)
 		output_alt_label_counts(graph);
 	else if (args_info.subgraph_lengths_given)
 		output_subgraph_lengths(graph);
+	else if (args_info.sample_paths_given)
+		output_sample_paths(graph);
+	else if (args_info.path_edges_given)
+		output_path_edges(graph);
 	else
 	{
 		std::cerr << "No mode given.\n";

@@ -20,3 +20,9 @@ modeoption	"alt-label-counts"				-	"Output ALT label counts"		mode = "ALT label 
 
 defmode "Subgraph lengths" modedesc = "Output subgraph lengths"
 modeoption	"subgraph-lengths"				-	"Output subgraph lengths"		mode = "Subgraph lengths"														required
+
+defmode "Sample paths" modedesc = "Output sample paths"
+modeoption	"sample-paths"					-	"Output sample paths"			mode = "Sample paths"															required
+
+defmode "Path edges" modedesc = "Output path edges"
+modeoption	"path-edges"					-	"Output path edges"				mode = "Path edges"																required
