@@ -9,7 +9,8 @@ CXXFLAGS += -coverage
 LDFLAGS += -coverage
 
 OBJECTS	=	combine_msa_vcf.o \
-			main.o
+			main.o \
+			variant_graph.o
 
 GCDA = $(OBJECTS:.o=.gcda)
 GCNO = $(OBJECTS:.o=.gcno)
