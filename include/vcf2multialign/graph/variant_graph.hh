@@ -14,6 +14,7 @@
 #include <libbio/int_matrix.hh>
 #include <libbio/int_matrix/cereal_serialization.hh>
 #include <tuple>
+#include <vcf2multialign/types.hh>
 #include <vector>
 
 
@@ -21,6 +22,21 @@ namespace vcf2multialign {
 	
 	class variant_graph
 	{
+		friend class variant_graph_walker;
+		
+	public:
+		struct alt_edge
+		{
+			std::string const	&label;
+			std::size_t			target_node{};
+			
+			alt_edge(std::size_t const target_node_, std::string const &label_):
+				label(label_),
+				target_node(target_node_)
+			{
+			}
+		};
+		
 	public:
 		typedef std::vector <std::size_t>		position_vector;
 		typedef std::vector <std::string>		string_vector;
@@ -43,6 +59,14 @@ namespace vcf2multialign {
 		// Variants correspond to nodes that do have ALT edges.
 		
 	public:
+		inline std::size_t ref_position_for_node(std::size_t const node_idx) const;
+		inline std::size_t aligned_position_for_node(std::size_t const node_idx) const;
+		inline std::string_view ref_label(std::size_t const lhs_node, std::size_t const rhs_node, vector_type const &ref) const;
+		inline std::string_view ref_label(std::size_t const lhs_node, vector_type const &ref) const { return ref_label(lhs_node, 1 + lhs_node, ref); }
+		inline auto alt_edge_labels(std::size_t const node_idx) const;
+		inline auto alt_edge_targets(std::size_t const node_idx) const;
+		inline auto alt_edges(std::size_t const node_idx) const;
+		
 		position_vector &ref_positions() { return m_ref_positions; }
 		position_vector &aligned_ref_positions() { return m_aligned_ref_positions; }
 		position_vector &alt_edge_targets() { return m_alt_edge_targets; }
@@ -68,12 +92,92 @@ namespace vcf2multialign {
 		void clear();
 		void reserve_memory_for_nodes(std::size_t const expected_count);
 		std::size_t add_subgraph(std::size_t const node_idx, std::size_t const sample_count, std::size_t const variant_count, std::size_t const path_count);
-		std::tuple <std::size_t, std::size_t, bool> add_main_node(std::size_t const ref_pos, std::size_t const alt_edge_count);
-		void connect_alt_edges(std::size_t const src_idx, std::size_t const dst_idx);
+		std::tuple <std::size_t, std::size_t> add_main_node(std::size_t const ref_pos, std::size_t const alt_edge_count);
+		std::tuple <std::size_t, std::size_t> add_main_node_if_needed(std::size_t const ref_pos, std::size_t const alt_edge_count);
+		void setup_path_edges_for_current_subgraph(std::size_t const max_node_alt_count, std::size_t const variant_count, std::size_t const path_count);
 		
 		// For Cereal.
 		template <typename t_archive>
 		void serialize(t_archive &archive, std::uint32_t const version);
+	};
+	
+	
+	auto variant_graph::alt_edge_labels(std::size_t const node_idx) const
+	{
+		libbio_assert_lt(1 + node_idx, m_alt_edge_count_csum.size());
+		auto const start_idx(m_alt_edge_count_csum[node_idx]);
+		auto const end_idx(m_alt_edge_count_csum[1 + node_idx]);
+		return m_alt_edge_labels | ranges::view::slice(start_idx, end_idx);
+	}
+	
+	
+	auto variant_graph::alt_edge_targets(std::size_t const node_idx) const
+	{
+		libbio_assert_lt(1 + node_idx, m_alt_edge_count_csum.size());
+		auto const start_idx(m_alt_edge_count_csum[node_idx]);
+		auto const end_idx(m_alt_edge_count_csum[1 + node_idx]);
+		return m_alt_edge_targets | ranges::view::slice(start_idx, end_idx);
+	}
+	
+	
+	auto variant_graph::alt_edges(std::size_t const node_idx) const
+	{
+		libbio_assert_lt(1 + node_idx, m_alt_edge_count_csum.size());
+		auto const start_idx(m_alt_edge_count_csum[node_idx]);
+		auto const end_idx(m_alt_edge_count_csum[1 + node_idx]);
+		return
+			ranges::view::zip(
+				m_alt_edge_targets | ranges::view::slice(start_idx, end_idx),
+				m_alt_edge_labels | ranges::view::slice(start_idx, end_idx)
+			)
+			| ranges::view::transform([](auto const &tup){
+				auto const &[target_node, label] = tup;
+				return alt_edge(target_node, label);
+			});
+	}
+	
+	
+	class variant_graph_walker
+	{
+	public:
+		enum state
+		{
+			NODE,
+			SUBGRAPH_START_NODE,
+			END
+		};
+		
+	protected:
+		vector_type			m_reference;
+		variant_graph const	*m_graph{};
+		std::size_t			m_node_1{};							// 1-based.
+		std::size_t			m_subgraph{};
+		std::size_t			m_next_subgraph_start_1{SIZE_MAX};	// 1-based.
+		
+	public:
+		variant_graph_walker() = default;
+		
+		variant_graph_walker(variant_graph const &graph, vector_type const &reference):
+			m_reference(reference),
+			m_graph(&graph)
+		{
+		}
+		
+		void setup() { m_next_subgraph_start_1 = 1 + m_graph->m_subgraph_start_positions.front(); }
+		state advance();
+		state advance_and_track_subgraph();
+		std::size_t node() const { return m_node_1 - 1; }
+		std::size_t subgraph() const { return m_subgraph; }
+		std::size_t ref_position() const { return m_graph->ref_position_for_node(m_node_1 - 1); }
+		std::size_t aligned_position() const { return m_graph->aligned_position_for_node(m_node_1 - 1); }
+		std::string_view ref_label() const { return ref_label_(m_node_1); }
+		std::string_view ref_label(std::size_t const rhs_node) const { libbio_assert_lte(m_node_1 - 1, rhs_node); return ref_label_(rhs_node); }
+		auto alt_edge_labels() const { return m_graph->alt_edge_labels(m_node_1 - 1); }
+		auto alt_edge_targets() const { return m_graph->alt_edge_targets(m_node_1 - 1); }
+		auto alt_edges() const { return m_graph->alt_edges(m_node_1 - 1); }
+		
+	protected:
+		std::string_view ref_label_(std::size_t const rhs_node) const { return m_graph->ref_label(m_node_1 - 1, rhs_node, m_reference); }
 	};
 	
 	
@@ -93,6 +197,30 @@ namespace vcf2multialign {
 			m_path_edges,
 			m_max_paths_in_subgraph
 		);
+	}
+	
+	
+	std::size_t variant_graph::ref_position_for_node(std::size_t const node_idx) const
+	{
+		libbio_assert_lt(1 + node_idx, m_ref_positions.size());
+		return m_ref_positions[1 + node_idx];
+	}
+	
+	
+	std::size_t variant_graph::aligned_position_for_node(std::size_t const node_idx) const
+	{
+		libbio_assert_lt(1 + node_idx, m_aligned_ref_positions.size());
+		return m_aligned_ref_positions[1 + node_idx];
+	}
+	
+	
+	std::string_view variant_graph::ref_label(std::size_t const lhs_node, std::size_t const rhs_node, vector_type const &ref) const
+	{
+		libbio_assert_lt(1 + lhs_node, m_ref_positions.size());
+		libbio_assert_lt(1 + rhs_node, m_ref_positions.size());
+		auto const lhs_ref_pos(m_ref_positions[1 + lhs_node]);
+		auto const rhs_ref_pos(m_ref_positions[1 + rhs_node]);
+		return std::string_view(ref.data() + lhs_ref_pos, rhs_ref_pos - lhs_ref_pos);
 	}
 }
 
