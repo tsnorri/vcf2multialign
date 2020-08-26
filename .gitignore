@@ -61,6 +61,7 @@ tests/tests
 variant-graph-statistics/cmdline.c
 variant-graph-statistics/cmdline.h
 variant-graph-statistics/config.h
+variant-graph-statistics/variant_graph_statistics
 variant-graph-to-gv/cmdline.c
 variant-graph-to-gv/cmdline.h
 variant-graph-to-gv/config.h

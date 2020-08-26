@@ -31,6 +31,10 @@ namespace vcf2multialign {
 			gen.prepare();
 			gen.vcf_reader().set_parsed_fields(vcf::field::ALL);
 		}
+		else
+		{
+			gen.setup_empty_input();
+		}
 
 		combiner.process_msa(ref_seq, alt_seq, gen);
 	}

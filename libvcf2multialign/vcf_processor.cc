@@ -41,6 +41,12 @@ namespace {
 	}
 	
 	
+	struct vcf_empty_input : public v2m::detail::vcf_input
+	{
+		vcf::empty_input input{};
+	};
+	
+	
 	struct vcf_mmap_input : public v2m::detail::vcf_input
 	{
 		vcf::mmap_input	input{};
@@ -94,6 +100,14 @@ namespace vcf2multialign {
 			m_vcf_reader.set_input(ptr->input);
 			m_vcf_input = std::move(ptr);
 		}
+	}
+	
+	
+	void vcf_processor::setup_empty_input()
+	{
+		auto ptr(std::make_unique <vcf_empty_input>());
+		m_vcf_reader.set_input(ptr->input);
+		m_vcf_input = std::move(ptr);
 	}
 	
 	

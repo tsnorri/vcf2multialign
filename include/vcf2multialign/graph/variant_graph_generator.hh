@@ -44,36 +44,18 @@ namespace vcf2multialign {
 
 namespace vcf2multialign { namespace detail {
 	
-	struct overlap_stack_entry
+	struct node_description
 	{
-		libbio::vcf::variant const	*variant{};
-		std::size_t					node_number{};
-		std::size_t					max_alt_edge_aligned_dst_pos{};
-		
-		overlap_stack_entry(libbio::vcf::variant const &variant_, std::size_t node_number_, std::size_t max_alt_edge_aligned_dst_pos_):
-			variant(&variant_),
-			node_number(node_number_),
-			max_alt_edge_aligned_dst_pos(max_alt_edge_aligned_dst_pos_)
-		{
-		}
-	};
+		std::size_t node_index{};
+		std::size_t ref_position{};
+		std::size_t alt_edge_start{};
+		std::size_t alt_edge_count{};
 	
-	// Use with a priority queue to sort the entries by variant end position in ascending order.
-	struct overlap_stack_compare
-	{
-		libbio::vcf::info_field_end const *end_field{};
-		
-		overlap_stack_compare() = default;
-		
-		overlap_stack_compare(libbio::vcf::info_field_end const &end_field_):
-			end_field(&end_field_)
+		node_description() = default;
+	
+		explicit node_description(std::size_t ref_position_):
+			ref_position(ref_position_)
 		{
-		}
-		
-		bool operator()(overlap_stack_entry const &lhs, overlap_stack_entry const &rhs)
-		{
-			// priority_queue sorts in descending order by default, hence the use of operator >.
-			return libbio::vcf::variant_end_pos(*lhs.variant, *end_field) > libbio::vcf::variant_end_pos(*rhs.variant, *end_field);
 		}
 	};
 }}
@@ -84,21 +66,21 @@ namespace vcf2multialign {
 	class variant_graph_generator :	public sample_sorter_delegate
 	{
 	protected:
-		typedef std::vector <libbio::vcf::variant>		variant_stack;
-		typedef std::priority_queue <
-			detail::overlap_stack_entry,
-			std::vector <detail::overlap_stack_entry>,
-			detail::overlap_stack_compare
-		>												overlap_stack;
+		typedef std::vector <libbio::vcf::variant>		variant_vector;
+		typedef std::vector <detail::node_description>	node_description_vector;
+		typedef std::vector <std::size_t>				position_vector;
 	
 	protected:
 		libbio::vcf::info_field_end const				*m_end_field{};
 		variant_graph									m_graph;
-		variant_stack									m_subgraph_variants;
+		variant_vector									m_subgraph_variants;
 		sample_indexer									m_sample_indexer;
 		sample_sorter									m_sample_sorter;
 		std::vector <std::string>						m_sample_names;
-		overlap_stack									m_overlap_stack;
+		node_description_vector							m_sorted_nodes;
+		position_vector									m_start_positions;
+		position_vector									m_end_positions;
+		std::vector <std::uint16_t>						m_unhandled_alt_csum;
 		std::size_t										m_output_lineno{};
 		libbio::copyable_atomic <std::size_t>			m_processed_count{};
 	
@@ -112,8 +94,7 @@ namespace vcf2multialign {
 		):
 			m_end_field(reader.get_end_field_ptr()),
 			m_sample_indexer(donor_count, chr_count), // donor_count and chr_count should be set in all cases.
-			m_sample_sorter(*this, reader, m_sample_indexer),
-			m_overlap_stack(detail::overlap_stack_compare(*m_end_field))
+			m_sample_sorter(*this, reader, m_sample_indexer)
 		{
 		}
 		
@@ -138,11 +119,9 @@ namespace vcf2multialign {
 		
 	protected:
 		void update_sample_names();
-		bool samples_have_alt(libbio::vcf::variant const &var, path_sorted_variant const &psv, std::size_t const given_alt_idx) const;
 		void process_subgraph(std::size_t const prev_overlap_end);
-		void calculate_aligned_ref_pos_for_new_node(std::size_t const node_idx);
-		void update_aligned_ref_pos(std::size_t const node_idx, std::size_t const max_in_alt_edge_aligned_pos);
-		void assign_alt_edge_labels_and_queue(libbio::vcf::variant const &var, std::size_t const node_idx, std::size_t const alt_edge_start_idx);
+		void combine_subgraph_variants_by_pos_and_ref();
+		std::tuple <std::size_t, std::size_t> create_subgraph_and_nodes();
 		void generate_graph_setup();
 		void finalize_graph();
 	};

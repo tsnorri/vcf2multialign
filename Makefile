@@ -50,6 +50,11 @@ dependencies: $(DEPENDENCIES)
 
 dist: $(DIST_TAR_GZ)
 
+test:
+	$(MAKE) -C libvcf2multialign
+	$(MAKE) -C combine-msa-vcf libcombinemsa.coverage.a
+	$(MAKE) -C tests
+
 libvcf2multialign/libvcf2multialign.a: $(DEPENDENCIES)
 	$(MAKE) -C libvcf2multialign
 
