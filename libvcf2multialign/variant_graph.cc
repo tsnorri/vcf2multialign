@@ -45,7 +45,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	std::size_t variant_graph::add_subgraph(std::size_t const node_idx, std::size_t const sample_count, std::size_t const variant_count, std::size_t const path_count)
+	std::size_t variant_graph::add_subgraph(std::size_t const node_idx, std::size_t const sample_count, std::size_t const path_count)
 	{
 		libbio_assert_lt(0, path_count);
 		libbio_assert(0 == m_subgraph_start_positions.size() || m_subgraph_start_positions.back() < node_idx);
@@ -116,6 +116,48 @@ namespace vcf2multialign {
 			m_alt_edge_labels.resize(new_alt_edge_count);
 			
 			return {m_ref_positions.size() - 2, prev_alt_edge_count};
+		}
+	}
+	
+	
+	void variant_graph::update_aligned_ref_positions_from_node(std::size_t const first_node_idx)
+	{
+		// Calculate the aligned positions.
+		// Handle nodes pairwise and at the same time update the aligned positions of the edge targets.
+		// This works b.c. calculating the aligned position of the destination node of an (ALT) edge
+		// based on that edge only requires the aligned position of the source node and the weight of
+		// the edge to be known.
+		
+		libbio_assert_eq(m_ref_positions.size(), m_aligned_ref_positions.size());
+		auto const total_node_count(m_ref_positions.size() - 1); // m_ref_positions uses 1-based indexing.
+		libbio_assert_lt(1 + first_node_idx, total_node_count); // There should be at least two nodes (position and end of one variant).
+		auto const node_pair_count(total_node_count - first_node_idx); // Start s.t. lhs is one node outside the current processed range.
+		for (std::size_t i(0); i < node_pair_count; ++i)
+		{
+			// Determine the values for the current handled pair of indices.
+			// Position indices are 1-based.
+			auto const lhs_node_idx(first_node_idx + i - 1);
+			auto const rhs_node_idx(1 + lhs_node_idx);
+			auto const lhs_ref(m_ref_positions[1 + lhs_node_idx]);
+			auto const lhs_aln(m_aligned_ref_positions[1 + lhs_node_idx]);
+			auto const rhs_ref(m_ref_positions[1 + rhs_node_idx]);
+			auto &rhs_aln(m_aligned_ref_positions[1 + rhs_node_idx]);
+		
+			// Update the aligned positions of the ALT edge targets.
+			auto alt_idx(m_alt_edge_count_csum[lhs_node_idx]);
+			auto const alt_limit(m_alt_edge_count_csum[rhs_node_idx]);
+			while (alt_idx < alt_limit)
+			{
+				auto const target_node_idx(m_alt_edge_targets[alt_idx]);
+				auto const label(m_alt_edge_labels[alt_idx]);
+				auto &target_aln_pos(m_aligned_ref_positions[1 + target_node_idx]);
+				target_aln_pos = std::max(target_aln_pos, lhs_aln + label.size());
+				++alt_idx;
+			}
+			
+			// Update the rhs aligned position.
+			auto const ref_len(rhs_ref - lhs_ref);
+			rhs_aln = std::max(rhs_aln, lhs_aln + ref_len);
 		}
 	}
 	

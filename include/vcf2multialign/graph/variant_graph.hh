@@ -91,15 +91,34 @@ namespace vcf2multialign {
 		
 		void clear();
 		void reserve_memory_for_nodes(std::size_t const expected_count);
-		std::size_t add_subgraph(std::size_t const node_idx, std::size_t const sample_count, std::size_t const variant_count, std::size_t const path_count);
 		std::tuple <std::size_t, std::size_t> add_main_node(std::size_t const ref_pos, std::size_t const alt_edge_count);
 		std::tuple <std::size_t, std::size_t> add_main_node_if_needed(std::size_t const ref_pos, std::size_t const alt_edge_count);
+		std::size_t add_subgraph(std::size_t const node_idx, std::size_t const sample_count, std::size_t const path_count);
 		void setup_path_edges_for_current_subgraph(std::size_t const max_node_alt_count, std::size_t const variant_count, std::size_t const path_count);
+		void update_aligned_ref_positions_from_node(std::size_t const first_node_idx);
+		
+		bool operator==(variant_graph const &other) const;
 		
 		// For Cereal.
 		template <typename t_archive>
 		void serialize(t_archive &archive, std::uint32_t const version);
 	};
+	
+	
+	bool variant_graph::operator==(variant_graph const &other) const
+	{
+		return
+			m_ref_positions				== other.m_ref_positions &&
+			m_aligned_ref_positions		== other.m_aligned_ref_positions &&
+			m_alt_edge_targets			== other.m_alt_edge_targets &&
+			m_alt_edge_count_csum		== other.m_alt_edge_count_csum &&
+			m_subgraph_start_positions	== other.m_subgraph_start_positions &&
+			m_alt_edge_labels			== other.m_alt_edge_labels &&
+			m_sample_names				== other.m_sample_names &&
+			m_sample_paths				== other.m_sample_paths &&
+			m_path_edges				== other.m_path_edges &&
+			m_max_paths_in_subgraph		== other.m_max_paths_in_subgraph;
+	}
 	
 	
 	auto variant_graph::alt_edge_labels(std::size_t const node_idx) const

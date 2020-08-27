@@ -328,7 +328,7 @@ namespace vcf2multialign {
 		first_node.alt_edge_start = first_alt_edge_start;
 	
 		auto const subgraph_start_pos(first_node.ref_position);
-		auto const subgraph_idx(m_graph.add_subgraph(first_node_idx, sample_count, nodes_with_alts, path_count));
+		auto const subgraph_idx(m_graph.add_subgraph(first_node_idx, sample_count, path_count));
 		auto max_alt_edge_count(first_node.alt_edge_count);
 		
 		for (auto &node : m_sorted_nodes | rsv::tail)
@@ -550,46 +550,8 @@ namespace vcf2multialign {
 				libbio_assert_eq(alt_edge_index, var_alt_edge_start);
 			}
 		}
-	
-		// Calculate the aligned positions.
-		// Handle nodes pairwise and at the same time update the aligned positions of the edge targets.
-		// This works b.c. calculating the aligned position of the destination node of an (ALT) edge
-		// based on that edge only requires the aligned position of the source node and the weight of
-		// the edge to be known.
-		{
-			auto &aln_positions(m_graph.aligned_ref_positions());
-			libbio_assert_eq(ref_positions.size(), aln_positions.size());
-			auto const total_node_count(ref_positions.size() - 1); // ref_positions uses 1-based indexing.
-			libbio_assert_lt(1 + first_node_idx, total_node_count); // There should be at least two nodes (position and end of one variant).
-			auto const node_pair_count(total_node_count - first_node_idx); // Start s.t. lhs is one node outside the current processed range.
-			for (std::size_t i(0); i < node_pair_count; ++i)
-			{
-				// Determine the values for the current handled pair of indices.
-				// Position indices are 1-based.
-				auto const lhs_node_idx(first_node_idx + i - 1);
-				auto const rhs_node_idx(1 + lhs_node_idx);
-				auto const lhs_ref(ref_positions[1 + lhs_node_idx]);
-				auto const lhs_aln(aln_positions[1 + lhs_node_idx]);
-				auto const rhs_ref(ref_positions[1 + rhs_node_idx]);
-				auto &rhs_aln(aln_positions[1 + rhs_node_idx]);
-			
-				// Update the aligned positions of the ALT edge targets.
-				auto alt_idx(alt_edge_count_csum[lhs_node_idx]);
-				auto const alt_limit(alt_edge_count_csum[rhs_node_idx]);
-				while (alt_idx < alt_limit)
-				{
-					auto const target_node_idx(alt_edge_targets[alt_idx]);
-					auto const label(alt_edge_labels[alt_idx]);
-					auto &target_aln_pos(aln_positions[1 + target_node_idx]);
-					target_aln_pos = std::max(target_aln_pos, lhs_aln + label.size());
-					++alt_idx;
-				}
-				
-				// Update the rhs aligned position.
-				auto const ref_len(rhs_ref - lhs_ref);
-				rhs_aln = std::max(rhs_aln, lhs_aln + ref_len);
-			}
-		}
+		
+		m_graph.update_aligned_ref_positions_from_node(first_node_idx);
 		
 		m_subgraph_variants.clear();
 	}	

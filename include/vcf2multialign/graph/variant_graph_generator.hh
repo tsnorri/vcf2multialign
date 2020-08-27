@@ -63,6 +63,7 @@ namespace vcf2multialign { namespace detail {
 
 namespace vcf2multialign {
 	
+	// Generate a variant graph from a set of VCF records.
 	class variant_graph_generator :	public sample_sorter_delegate
 	{
 	protected:
