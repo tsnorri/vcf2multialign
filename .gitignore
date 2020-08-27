@@ -57,6 +57,9 @@ preprocess-vcf/cmdline.c
 preprocess-vcf/cmdline.h
 preprocess-vcf/config.h
 preprocess-vcf/preprocess_vcf
+tests/test-files/variant-graph/*.dot
+tests/test-files/variant-graph/*.graph
+tests/test-files/variant-graph/*.pdf
 tests/tests
 variant-graph-statistics/cmdline.c
 variant-graph-statistics/cmdline.h
