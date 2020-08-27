@@ -11,6 +11,7 @@ OBJECTS =	can_handle_variant_alts.o \
 			sample_sorter.o \
 			variant_format.o \
 			variant_graph.o \
+			variant_graph_builder.o \
 			variant_graph_generator.o \
 			variant_partitioner.o \
 			variant_processor.o \
