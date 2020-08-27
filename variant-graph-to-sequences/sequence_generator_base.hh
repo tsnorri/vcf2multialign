@@ -8,7 +8,7 @@
 
 #include <libbio/file_handling.hh>
 #include <list>
-#include <vcf2multialign/graph/variant_graph.hh>
+#include <vcf2multialign/variant_graph/variant_graph.hh>
 #include <vcf2multialign/utility/progress_indicator_manager.hh>
 #include <vcf2multialign/vcf_processor.hh>
 

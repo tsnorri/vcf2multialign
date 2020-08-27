@@ -7,7 +7,7 @@
 #include <libbio/bits.hh>
 #include <range/v3/algorithm/copy.hpp>
 #include <range/v3/view/transform.hpp>
-#include <vcf2multialign/graph/variant_graph_generator.hh>
+#include <vcf2multialign/variant_graph/variant_graph_generator.hh>
 #include <vcf2multialign/utility/can_handle_variant_alts.hh>
 #include <vcf2multialign/variant_format.hh>
 

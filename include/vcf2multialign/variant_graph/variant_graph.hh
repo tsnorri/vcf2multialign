@@ -97,7 +97,7 @@ namespace vcf2multialign {
 		void setup_path_edges_for_current_subgraph(std::size_t const max_node_alt_count, std::size_t const variant_count, std::size_t const path_count);
 		void update_aligned_ref_positions_from_node(std::size_t const first_node_idx);
 		
-		bool operator==(variant_graph const &other) const;
+		inline bool operator==(variant_graph const &other) const;
 		
 		// For Cereal.
 		template <typename t_archive>

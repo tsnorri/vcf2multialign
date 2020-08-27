@@ -10,7 +10,7 @@
 #include <range/v3/view/enumerate.hpp>
 #include <range/v3/view/zip.hpp>
 #include <set>
-#include <vcf2multialign/graph/variant_graph.hh>
+#include <vcf2multialign/variant_graph/variant_graph.hh>
 #include "cmdline.h"
 
 

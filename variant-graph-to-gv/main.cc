@@ -11,7 +11,7 @@
 #include <range/v3/view/sliding.hpp>
 #include <range/v3/view/zip.hpp>
 #include <unistd.h>
-#include <vcf2multialign/graph/variant_graph.hh>
+#include <vcf2multialign/variant_graph/variant_graph.hh>
 #include <vcf2multialign/utility/read_single_fasta_seq.hh>
 #include "cmdline.h"
 

@@ -3,7 +3,7 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#include <vcf2multialign/graph/variant_graph_builder.hh>
+#include <vcf2multialign/variant_graph/variant_graph_builder.hh>
 
 namespace rsv	= ranges::view;
 namespace v2m	= vcf2multialign;

@@ -14,7 +14,7 @@
 #include <ostream>
 #include <queue>
 #include <string>
-#include <vcf2multialign/graph/variant_graph.hh>
+#include <vcf2multialign/variant_graph/variant_graph.hh>
 #include <vcf2multialign/preprocess/path_sorted_variant.hh>
 #include <vcf2multialign/preprocess/sample_indexer.hh>
 #include <vcf2multialign/preprocess/sample_sorter.hh>

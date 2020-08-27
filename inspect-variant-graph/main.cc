@@ -5,7 +5,7 @@
 
 #include <cereal/archives/portable_binary.hpp>
 #include <charconv>
-#include <vcf2multialign/graph/variant_graph.hh>
+#include <vcf2multialign/variant_graph/variant_graph.hh>
 #include <vcf2multialign/utility/read_single_fasta_seq.hh>
 #include "cmdline.h"
 

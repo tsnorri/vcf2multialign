@@ -5,7 +5,7 @@
 
 #include <cereal/archives/portable_binary.hpp>
 #include <libbio/progress_indicator.hh>
-#include <vcf2multialign/graph/variant_graph_generator.hh>
+#include <vcf2multialign/variant_graph/variant_graph_generator.hh>
 #include <vcf2multialign/preprocess/preprocess_logger.hh>
 #include <vcf2multialign/preprocess/variant_partitioner.hh>
 #include <vcf2multialign/utility/check_ploidy.hh>

@@ -4,8 +4,8 @@
  */
 
 #include <catch2/catch.hpp>
-#include <vcf2multialign/graph/variant_graph.hh>
-#include <vcf2multialign/graph/variant_graph_generator.hh>
+#include <vcf2multialign/variant_graph/variant_graph.hh>
+#include <vcf2multialign/variant_graph/variant_graph_generator.hh>
 #include <vcf2multialign/utility/check_ploidy.hh>
 #include <vcf2multialign/utility/read_single_fasta_seq.hh>
 #include <vcf2multialign/variant_format.hh>

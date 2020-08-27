@@ -7,7 +7,7 @@
 #define VCF2MULTIALIGN_GRAPH_VARIANT_VARIANT_GRAPH_BUILDER_HH
 
 #include <string>
-#include <vcf2multialign/graph/variant_graph.hh>
+#include <vcf2multialign/variant_graph/variant_graph.hh>
 #include <vector>
 
 
