@@ -221,12 +221,14 @@ namespace {
 			
 			if (found_lhs && found_rhs)
 			{
+				--founders_available;
 				m_substrings_available_lhs.erase(lhs_it);	// Erases one.
 				substrings_available_rhs.erase(rhs_it);		// Erases one.
 				edges.emplace_back(item.lhs_idx, item.rhs_idx);
 			}
 			else if (found_lhs && slots_available_rhs)
 			{
+				--founders_available;
 				m_substrings_available_lhs.erase(lhs_it); // Erases one.
 				--slots_available_rhs;
 				new_substrings_available_rhs.insert(item.rhs_idx);
@@ -234,6 +236,7 @@ namespace {
 			}
 			else if (found_rhs && m_slots_available_lhs)
 			{
+				--founders_available;
 				substrings_available_rhs.erase(rhs_it); // Erases one.
 				--m_slots_available_lhs;
 				substrings_added_to_lhs.push_back(item.lhs_idx);
@@ -241,6 +244,7 @@ namespace {
 			}
 			else if (m_slots_available_lhs && slots_available_rhs)
 			{
+				--founders_available;
 				--m_slots_available_lhs;
 				--slots_available_rhs;
 				substrings_added_to_lhs.push_back(item.lhs_idx);
@@ -249,7 +253,6 @@ namespace {
 			}
 			
 			// Stop if founder count has been reached.
-			--founders_available;
 			if (0 == founders_available)
 			{
 				libbio_assert_eq(0, m_slots_available_lhs);
