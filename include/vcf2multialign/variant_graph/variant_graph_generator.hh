@@ -3,8 +3,8 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#ifndef VCF2MULTIALIGN_GRAPH_VARIANT_PREPROCESSOR_HH
-#define VCF2MULTIALIGN_GRAPH_VARIANT_PREPROCESSOR_HH
+#ifndef VCF2MULTIALIGN_VARIANT_GRAPH_VARIANT_GRAPH_GENERATOR_HH
+#define VCF2MULTIALIGN_VARIANT_GRAPH_VARIANT_GRAPH_GENERATOR_HH
 
 #include <libbio/copyable_atomic.hh>
 #include <libbio/int_matrix.hh>
