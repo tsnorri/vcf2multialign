@@ -4,11 +4,13 @@ include ../common.mk
 OBJECTS =	can_handle_variant_alts.o \
 			check_ploidy.o \
 			log_assertion_failure.o \
+			path_mapper.o \
 			path_sorted_variant.o \
 			preprocess_logger.o \
 			progress_indicator_manager.o \
 			read_single_fasta_seq.o \
 			sample_sorter.o \
+			segment_connector.o \
 			variant_format.o \
 			variant_graph.o \
 			variant_graph_builder.o \
