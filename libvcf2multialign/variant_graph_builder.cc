@@ -27,10 +27,10 @@ namespace {
 }
 
 
-namespace vcf2multialign {
+namespace vcf2multialign { namespace variant_graphs {
 
 	variant_graph variant_graph_builder::build_graph(
-		std::vector <variant_graph_builder::node_description> const &nodes,
+		std::vector <builder_node_description> const &nodes,
 		std::vector <std::string> const &src_sample_names
 	)
 	{
@@ -109,4 +109,4 @@ namespace vcf2multialign {
 		
 		return retval;
 	}
-}
+}}

@@ -17,6 +17,7 @@
 
 namespace lb	= libbio;
 namespace v2m	= vcf2multialign;
+namespace vgs	= vcf2multialign::variant_graphs;
 
 
 namespace vcf2multialign {
@@ -107,8 +108,8 @@ namespace vcf2multialign {
 		auto const &aln_positions(m_graph.aligned_ref_positions());
 		
 		{
-			typedef v2m::variant_graph::sample_path_vector	sample_paths_type;
-			typedef v2m::variant_graph::path_edge_matrix	path_edges_type;
+			typedef vgs::variant_graph::sample_path_vector	sample_paths_type;
+			typedef vgs::variant_graph::path_edge_matrix	path_edges_type;
 			
 			auto handler(this->make_alt_edge_handler(reference_sv, m_graph, output_files));
 			auto const &subgraph_start_positions(m_graph.subgraph_start_positions());

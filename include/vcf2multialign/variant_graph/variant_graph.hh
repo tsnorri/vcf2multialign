@@ -18,7 +18,7 @@
 #include <vector>
 
 
-namespace vcf2multialign {
+namespace vcf2multialign { namespace variant_graphs {
 	
 	class variant_graph
 	{
@@ -241,6 +241,6 @@ namespace vcf2multialign {
 		auto const rhs_ref_pos(m_ref_positions[1 + rhs_node]);
 		return std::string_view(ref.data() + lhs_ref_pos, rhs_ref_pos - lhs_ref_pos);
 	}
-}
+}}
 
 #endif

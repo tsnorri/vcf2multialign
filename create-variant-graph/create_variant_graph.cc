@@ -18,6 +18,7 @@
 namespace lb	= libbio;
 namespace vcf	= libbio::vcf;
 namespace v2m	= vcf2multialign;
+namespace vgs	= vcf2multialign::variant_graphs;
 
 
 namespace vcf2multialign {
@@ -30,12 +31,12 @@ namespace {
 	class progress_indicator_delegate final : public lb::progress_indicator_delegate
 	{
 	protected:
-		v2m::variant_graph_generator const * const	m_generator{};
+		vgs::variant_graph_generator const * const	m_generator{};
 		std::size_t									m_progress_step_max{};
 		
 	public:
 		progress_indicator_delegate(
-			v2m::variant_graph_generator const &generator,
+			vgs::variant_graph_generator const &generator,
 			std::size_t const progress_step_max
 		):
 			m_generator(&generator),
@@ -56,7 +57,7 @@ namespace vcf2multialign {
 									public output_stream_controller,
 									public reference_controller,
 									public progress_indicator_manager,
-									public virtual variant_graph_generator_delegate
+									public virtual vgs::variant_graph_generator_delegate
 	{
 		friend progress_indicator_delegate;
 		
@@ -66,7 +67,7 @@ namespace vcf2multialign {
 	public:
 		variant_graph_context() = default;
 		
-		virtual class variant_graph_generator &variant_graph_generator() = 0;
+		virtual vgs::variant_graph_generator &variant_graph_generator() = 0;
 		void process_and_output();
 		void variant_graph_generator_will_handle_subgraph(vcf::variant const &, std::size_t const, std::size_t const);
 		
@@ -80,12 +81,12 @@ namespace vcf2multialign {
 	class variant_graph_precalculated_context final : public variant_graph_context
 	{
 	protected:
-		variant_graph_precalculated_generator	m_generator;
+		vgs::variant_graph_precalculated_generator	m_generator;
 		
 	public:
 		variant_graph_precalculated_context() = default;
 		
-		class variant_graph_precalculated_generator &variant_graph_generator() override { return m_generator; }
+		vgs::variant_graph_precalculated_generator &variant_graph_generator() override { return m_generator; }
 		void open_preprocessing_result_file(char const *path);
 		void prepare_generator();
 		
@@ -97,14 +98,14 @@ namespace vcf2multialign {
 	
 	
 	class variant_graph_single_pass_context final : public variant_graph_context,
-													public virtual variant_graph_single_pass_generator_delegate,
+													public virtual vgs::variant_graph_single_pass_generator_delegate,
 													public preprocess_logger // For the case in which preprocessing was not done.
 	{
 	protected:
-		std::string								m_chromosome_name;
-		std::vector <std::string>				m_field_names_for_filter_if_set;
-		variant_graph_single_pass_generator		m_generator;
-		std::size_t								m_minimum_bridge_length{};
+		std::string									m_chromosome_name;
+		std::vector <std::string>					m_field_names_for_filter_if_set;
+		vgs::variant_graph_single_pass_generator	m_generator;
+		std::size_t									m_minimum_bridge_length{};
 		
 	public:
 		variant_graph_single_pass_context(
@@ -118,7 +119,7 @@ namespace vcf2multialign {
 		{
 		}
 		
-		class variant_graph_single_pass_generator &variant_graph_generator() override { return m_generator; }
+		vgs::variant_graph_single_pass_generator &variant_graph_generator() override { return m_generator; }
 		std::tuple <std::size_t, std::uint8_t> check_ploidy_from_vcf();
 		void prepare_generator();
 		
@@ -183,7 +184,7 @@ namespace vcf2multialign {
 	
 	void variant_graph_precalculated_context::prepare_generator()
 	{
-		m_generator = variant_graph_precalculated_generator(*this, this->m_vcf_reader, this->m_reference, m_preprocessing_result);
+		m_generator = vgs::variant_graph_precalculated_generator(*this, this->m_vcf_reader, this->m_reference, m_preprocessing_result);
 		m_generator.sample_sorter().set_sample_indexer(m_generator.sample_indexer()); // Fix the pointer. FIXME: should be done in variant_graph_generator’s move assignment operator.
 	}
 	
@@ -191,7 +192,7 @@ namespace vcf2multialign {
 	void variant_graph_single_pass_context::prepare_generator()
 	{
 		auto const [donor_count, chr_count] = check_ploidy_from_vcf();
-		m_generator = variant_graph_single_pass_generator(
+		m_generator = vgs::variant_graph_single_pass_generator(
 			*this,
 			this->m_vcf_reader,
 			this->m_reference,

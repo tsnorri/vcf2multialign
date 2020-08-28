@@ -57,7 +57,7 @@ namespace {
 }
 
 
-namespace vcf2multialign {
+namespace vcf2multialign { namespace variant_graphs {
 	
 	void variant_graph_generator::update_sample_names()
 	{
@@ -395,7 +395,7 @@ namespace vcf2multialign {
 		{
 			auto const ref_pos(var.zero_based_pos());
 			auto const handled_alt_count(ranges::count_if(var.alts(), [](auto const &alt){ return can_handle_variant_alt(alt); }));
-			auto const it(ranges::partition_point(m_sorted_nodes, [ref_pos](detail::node_description const &node){
+			auto const it(ranges::partition_point(m_sorted_nodes, [ref_pos](detail::generator_node_description const &node){
 				return node.ref_position < ref_pos;
 			}));
 	
@@ -574,4 +574,4 @@ namespace vcf2multialign {
 			aln_positions.back() = prev_aln_pos + length;
 		}
 	}
-}
+}}

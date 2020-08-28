@@ -13,6 +13,7 @@
 namespace lb	= libbio;
 namespace rsv	= ranges::view;
 namespace v2m	= vcf2multialign;
+namespace vgs	= vcf2multialign::variant_graphs;
 
 
 namespace {
@@ -151,10 +152,10 @@ namespace {
 	{
 	protected:
 		std::string_view			m_reference;
-		v2m::variant_graph const	*m_graph{};
+		vgs::variant_graph const	*m_graph{};
 		
 	public:
-		sequence_writer(v2m::variant_graph const &graph, v2m::vector_type const &reference):
+		sequence_writer(vgs::variant_graph const &graph, v2m::vector_type const &reference):
 			m_reference(reference.data(), reference.size()),
 			m_graph(&graph)
 		{

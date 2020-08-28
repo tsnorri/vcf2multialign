@@ -26,7 +26,7 @@
 #include <vector>
 
 
-namespace vcf2multialign {
+namespace vcf2multialign {  namespace variant_graphs {
 	class variant_graph_generator; // Fwd.
 	
 	struct variant_graph_generator_delegate
@@ -39,37 +39,37 @@ namespace vcf2multialign {
 															public virtual variant_processor_delegate // For the case where processing was not done.
 	{
 	};
-}
+}}
 
 
-namespace vcf2multialign { namespace detail {
+namespace vcf2multialign { namespace variant_graphs { namespace detail {
 	
-	struct node_description
+	struct generator_node_description
 	{
 		std::size_t node_index{};
 		std::size_t ref_position{};
 		std::size_t alt_edge_start{};
 		std::size_t alt_edge_count{};
 	
-		node_description() = default;
+		generator_node_description() = default;
 	
-		explicit node_description(std::size_t ref_position_):
+		explicit generator_node_description(std::size_t ref_position_):
 			ref_position(ref_position_)
 		{
 		}
 	};
-}}
+}}}
 
 
-namespace vcf2multialign {
+namespace vcf2multialign { namespace variant_graphs {
 	
 	// Generate a variant graph from a set of VCF records.
 	class variant_graph_generator :	public sample_sorter_delegate
 	{
 	protected:
-		typedef std::vector <libbio::vcf::variant>		variant_vector;
-		typedef std::vector <detail::node_description>	node_description_vector;
-		typedef std::vector <std::size_t>				position_vector;
+		typedef std::vector <libbio::vcf::variant>					variant_vector;
+		typedef std::vector <detail::generator_node_description>	node_description_vector;
+		typedef std::vector <std::size_t>							position_vector;
 	
 	protected:
 		libbio::vcf::info_field_end const				*m_end_field{};
@@ -196,6 +196,6 @@ namespace vcf2multialign {
 			bool const should_start_from_current_variant
 		);
 	};
-}
+}}
 
 #endif

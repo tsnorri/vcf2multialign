@@ -10,7 +10,7 @@
 namespace lb	= libbio;
 
 
-namespace vcf2multialign {
+namespace vcf2multialign { namespace variant_graphs {
 	
 	void variant_graph::clear()
 	{
@@ -193,4 +193,4 @@ namespace vcf2multialign {
 		
 		return state::NODE;
 	}
-}
+}}

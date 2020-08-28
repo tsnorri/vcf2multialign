@@ -16,6 +16,7 @@
 
 namespace lb	= libbio;
 namespace v2m	= vcf2multialign;
+namespace vgs	= vcf2multialign::variant_graphs;
 
 
 namespace {
@@ -71,7 +72,7 @@ namespace {
 		
 		std::unique_ptr <v2m::alt_edge_handler_base> make_alt_edge_handler(
 			std::string_view const &reference_sv,
-			v2m::variant_graph const &graph,
+			vgs::variant_graph const &graph,
 			output_stream_vector &output_files
 		) const override
 		{
@@ -101,7 +102,7 @@ namespace {
 		
 		std::unique_ptr <v2m::alt_edge_handler_base> make_alt_edge_handler(
 			std::string_view const &reference_sv,
-			v2m::variant_graph const &graph,
+			vgs::variant_graph const &graph,
 			output_stream_vector &output_files
 		) const override
 		{

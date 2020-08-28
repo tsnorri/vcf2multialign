@@ -19,6 +19,7 @@
 namespace lb	= libbio;
 namespace rsv	= ranges::view;
 namespace v2m	= vcf2multialign;
+namespace vgs	= vcf2multialign::variant_graphs;
 
 
 namespace {
@@ -33,7 +34,7 @@ namespace {
 	)
 	{
 		v2m::vector_type reference;
-		v2m::variant_graph graph;
+		vgs::variant_graph graph;
 		lb::file_ostream output_graph_stream;
 
 		{
