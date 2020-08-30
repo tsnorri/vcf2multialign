@@ -37,7 +37,7 @@ LDFLAGS			+= $(SYSTEM_LDFLAGS) ../lib/libbio/src/libbio.a $(BOOST_LIBS)
 
 ifeq ($(shell uname -s),Linux)
 	CPPFLAGS	+= -I../lib/swift-corelibs-libdispatch
-	LDFLAGS		+= ../lib/swift-corelibs-libdispatch/build/src/libdispatch.a ../lib/swift-corelibs-libdispatch/build/libBlocksRuntime.a /usr/lib/x86_64-linux-gnu/libbsd.a -lpthread -lz
+	LDFLAGS		+= ../lib/swift-corelibs-libdispatch/build/src/libdispatch.a ../lib/swift-corelibs-libdispatch/build/src/BlocksRuntime/libBlocksRuntime.a /usr/lib/x86_64-linux-gnu/libbsd.a -lpthread -lz
 endif
 
 
