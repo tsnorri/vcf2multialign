@@ -81,6 +81,8 @@ namespace vcf2multialign { namespace variant_graphs {
 		node_description_vector							m_sorted_nodes;
 		position_vector									m_start_positions;
 		position_vector									m_end_positions;
+		position_vector									m_end_positions_by_sample;
+		std::vector <bool>								m_can_handle_alt;
 		std::vector <std::uint16_t>						m_unhandled_alt_csum;
 		std::size_t										m_output_lineno{};
 		libbio::copyable_atomic <std::size_t>			m_processed_count{};
@@ -122,6 +124,7 @@ namespace vcf2multialign { namespace variant_graphs {
 		void update_sample_names();
 		void process_subgraph(std::size_t const prev_overlap_end);
 		void combine_subgraph_variants_by_pos_and_ref();
+		void reset_genotype_values_for_samples_with_overlapping_variants();
 		std::tuple <std::size_t, std::size_t> create_subgraph_and_nodes();
 		void generate_graph_setup();
 		void finalize_graph();

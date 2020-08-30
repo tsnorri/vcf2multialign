@@ -82,6 +82,9 @@ namespace vcf2multialign { namespace variant_graphs {
 		
 		m_processed_count.store(0, std::memory_order_relaxed);
 		reader.set_parsed_fields(vcf::field::ALL);
+		
+		m_end_positions_by_sample.clear();
+		m_end_positions_by_sample.resize(m_sample_indexer.total_samples(), 0);
 	}
 	
 	
@@ -314,6 +317,64 @@ namespace vcf2multialign { namespace variant_graphs {
 	}
 	
 	
+	void variant_graph_generator::reset_genotype_values_for_samples_with_overlapping_variants()
+	{
+		// Check each sample for overlapping variants and set GT to zero if necessary.
+		// Also zero ALT indices that cannot be handled, as well as null alleles.
+		
+		auto const total_samples(m_sample_indexer.total_samples());
+		for (auto &var : m_subgraph_variants)
+		{
+			auto const pos(var.zero_based_pos());
+			auto const end_pos(vcf::variant_end_pos(var, *m_end_field));
+			auto const &alts(var.alts());
+			auto &samples(var.samples());
+			auto const *gt_field(get_variant_format(var).gt);
+			
+			// Determine which ALTs can be handled.
+			m_can_handle_alt.clear();
+			m_can_handle_alt.resize(alts.size(), 0);
+			for (auto const &[i, alt] : rsv::enumerate(var.alts()))
+				m_can_handle_alt[i] = can_handle_variant_alt(alt);
+			
+			// Check the samples.
+			for (auto const sample_idx : rsv::iota(total_samples))
+			{
+				libbio_assert_lt(sample_idx, m_end_positions_by_sample.size());
+				auto const [donor_idx, chr_idx] = m_sample_indexer.donor_and_chr_idx(sample_idx);
+				
+				auto &sample(samples[donor_idx]);
+				auto &gt((*gt_field)(sample));
+				auto const alt_idx(gt[chr_idx].alt); // bit-field.
+				
+				if (vcf::sample_genotype::NULL_ALLELE != alt_idx)
+					gt[chr_idx].alt = 0;
+				else if (alt_idx)
+				{
+					if (m_can_handle_alt[alt_idx - 1])
+					{
+						// ALT can be handled. Check the position.
+						if (m_end_positions_by_sample[sample_idx] <= pos)
+							m_end_positions_by_sample[sample_idx] = end_pos;
+						else
+						{
+							// Sample has overlapping variants.
+							// For 1000G variants setting GT to zero is ok b.c. the samples
+							// do not have variant probabilities.
+							gt[chr_idx].alt = 0;
+						}
+					}
+					else
+					{
+						// ALT cannot be handled, set to zero.
+						gt[chr_idx].alt = 0;
+					}
+				}
+			}
+		}
+	}
+	
+	
 	std::tuple <std::size_t, std::size_t> variant_graph_generator::create_subgraph_and_nodes()
 	{
 		auto const nodes_with_alts(ranges::count_if(m_sorted_nodes, [](auto const &node){ return 0 < node.alt_edge_count; }));
@@ -360,6 +421,9 @@ namespace vcf2multialign { namespace variant_graphs {
 		// Slow path: possibly overlapping variants.
 		// Combine variants that have matching POS and REF.
 		combine_subgraph_variants_by_pos_and_ref();
+		
+		// Fix bad overlaps, i.e. for overlapping variants a and b, sample s has both a and b.
+		reset_genotype_values_for_samples_with_overlapping_variants();
 	
 		m_sample_sorter.prepare_for_next_subgraph();
 	
@@ -423,7 +487,7 @@ namespace vcf2multialign { namespace variant_graphs {
 			auto &alt_edge_labels(m_graph.alt_edge_labels());
 			auto node_it(m_sorted_nodes.begin());
 			auto const node_end(m_sorted_nodes.end());
-			std::size_t var_idx_distinct_pos(0); // Index variants that have handled ALTs. (Using filter and enumerate on m_subgraph_variants would be an alternative.) Count only distinct positions.
+			std::size_t var_idx_distinct_pos(0); // Index variants that have handled ALTs within a subgraph. (Using filter and enumerate on m_subgraph_variants would be an alternative.) Count only distinct positions.
 			std::size_t node_alt_edge_start(m_sorted_nodes.front().alt_edge_start); // Index of the first ALT edge for the current node.
 			auto var_alt_edge_start(node_alt_edge_start); // Index of the first ALT edge for the current pair of variant and node.
 			auto alt_edge_index(node_alt_edge_start); // Index of the current ALT edge.
@@ -434,7 +498,7 @@ namespace vcf2multialign { namespace variant_graphs {
 			psv.reserve_memory_for_representatives(m_sample_sorter.path_count());
 			psv.determine_representatives_for_each_sample();
 			auto &dst_path_edges(m_graph.path_edges()[subgraph_idx]);
-		
+			
 			auto prev_ref_pos(m_subgraph_variants.front().zero_based_pos());
 			for (auto const &var : m_subgraph_variants)
 			{
@@ -537,6 +601,7 @@ namespace vcf2multialign { namespace variant_graphs {
 							(alt_edge_count_csum[1 + node_idx] - alt_edge_count_csum[node_idx]),
 							". Variant line number: ", var.lineno(), ", original ALT index: ", alt_idx
 						);
+						libbio_assert_eq(0, dst_path_edges(var_idx_distinct_pos, path_idx));
 						dst_path_edges(var_idx_distinct_pos, path_idx) |= fixed_alt_idx;
 					}
 				}
