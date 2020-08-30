@@ -101,7 +101,11 @@ namespace {
 					{
 						auto const alt_idx(alt_edge_start + edge - 1);
 						expected_node_idx = alt_edge_targets[alt_idx];
-						libbio_assert_lte(expected_node_idx, subgraph_end);
+						libbio_assert_lte_msg(
+							expected_node_idx, subgraph_end,
+							"Node ", node_idx, " alt edge ", alt_idx, ": target node is ",
+							alt_edge_targets[alt_idx], " but subgraph end is at node ", subgraph_end
+						);
 						output_alt(node_idx, expected_node_idx, alt_idx, os);
 					}
 				}
