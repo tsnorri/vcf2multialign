@@ -17,11 +17,12 @@
 namespace lb	= libbio;
 namespace rsv	= ranges::view;
 namespace v2m	= vcf2multialign;
+namespace vgs	= vcf2multialign::variant_graphs;
 
 
 namespace {
 	
-	void output_substring_counts(char const *input_path, v2m::variant_graph const &graph, bool const output_summary_only)
+	void output_substring_counts(char const *input_path, vgs::variant_graph const &graph, bool const output_summary_only)
 	{
 		auto const &ref_positions(graph.ref_positions()); // 1-based.
 		auto const &aln_positions(graph.aligned_ref_positions()); // 1-based.
@@ -63,7 +64,7 @@ namespace {
 	}
 	
 	
-	void output_substring_combination_counts(char const *input_path, v2m::variant_graph const &graph, bool const output_summary_only)
+	void output_substring_combination_counts(char const *input_path, vgs::variant_graph const &graph, bool const output_summary_only)
 	{
 		auto const &sample_paths(graph.sample_paths()); // Sample path numbers by sample and subgraph number, vector of matrices.
 		
@@ -111,7 +112,7 @@ namespace {
 	}
 
 
-	void output_alt_label_counts(v2m::variant_graph const &graph)
+	void output_alt_label_counts(vgs::variant_graph const &graph)
 	{
 		auto const &alt_labels(graph.alt_edge_labels());
 		std::map <std::string, std::size_t> counts;
@@ -124,7 +125,7 @@ namespace {
 	}
 
 
-	void output_subgraph_lengths(v2m::variant_graph const &graph)
+	void output_subgraph_lengths(vgs::variant_graph const &graph)
 	{
 		auto const &subgraph_start_positions(graph.subgraph_start_positions());
 		auto const &ref_positions(graph.ref_positions());
@@ -153,7 +154,7 @@ namespace {
 	}
 	
 	
-	void output_sample_paths(v2m::variant_graph const &graph)
+	void output_sample_paths(vgs::variant_graph const &graph)
 	{
 		std::cout << "SUBGRAPH_INDEX\tSAMPLE\tPATH\n";
 		auto const &sample_paths(graph.sample_paths());
@@ -165,7 +166,7 @@ namespace {
 	}
 	
 	
-	void output_path_edges(v2m::variant_graph const &graph)
+	void output_path_edges(vgs::variant_graph const &graph)
 	{
 		std::cout << "SUBGRAPH_INDEX\tPATHS\n";
 		auto const &path_edges(graph.path_edges());
@@ -198,7 +199,7 @@ int main(int argc, char **argv)
 	std::ios_base::sync_with_stdio(false);	// Don't use C style IO after calling cmdline_parser.
 	std::cin.tie(nullptr);					// We don't require any input from the user.
 	
-	v2m::variant_graph graph;
+	vgs::variant_graph graph;
 	
 	{
 		lb::file_istream input_graph_stream;
