@@ -347,7 +347,7 @@ namespace vcf2multialign { namespace variant_graphs {
 				auto &gt((*gt_field)(sample));
 				auto const alt_idx(gt[chr_idx].alt); // bit-field, cannot be referenced.
 				
-				if (vcf::sample_genotype::NULL_ALLELE != alt_idx)
+				if (vcf::sample_genotype::NULL_ALLELE == alt_idx)
 					gt[chr_idx].alt = 0;
 				else if (alt_idx)
 				{
