@@ -338,14 +338,14 @@ namespace vcf2multialign { namespace variant_graphs {
 				m_can_handle_alt[i] = can_handle_variant_alt(alt);
 			
 			// Check the samples.
-			for (auto const sample_idx : rsv::iota(total_samples))
+			for (auto const sample_idx : rsv::iota(0U, total_samples))
 			{
-				libbio_assert_lt(sample_idx, m_end_positions_by_sample.size());
+				libbio_assert_lt_msg(sample_idx, m_end_positions_by_sample.size(), "sample_idx: ", sample_idx, " m_end_positions_by_sample.size(): ", m_end_positions_by_sample.size());
 				auto const [donor_idx, chr_idx] = m_sample_indexer.donor_and_chr_idx(sample_idx);
 				
 				auto &sample(samples[donor_idx]);
 				auto &gt((*gt_field)(sample));
-				auto const alt_idx(gt[chr_idx].alt); // bit-field.
+				auto const alt_idx(gt[chr_idx].alt); // bit-field, cannot be referenced.
 				
 				if (vcf::sample_genotype::NULL_ALLELE != alt_idx)
 					gt[chr_idx].alt = 0;
