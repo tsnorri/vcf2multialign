@@ -25,9 +25,9 @@ namespace vcf2multialign {
 				case vcf::sv_type::NONE:
 				case vcf::sv_type::DEL:
 				case vcf::sv_type::DEL_ME:
-				case vcf::sv_type::UNKNOWN:
 					return true;
 					
+				case vcf::sv_type::UNKNOWN:
 				case vcf::sv_type::INS:
 				case vcf::sv_type::DUP:
 				case vcf::sv_type::INV:
@@ -52,9 +52,9 @@ namespace vcf2multialign {
 			case vcf::sv_type::NONE:
 			case vcf::sv_type::DEL:
 			case vcf::sv_type::DEL_ME:
-			case vcf::sv_type::UNKNOWN:
 				return true;
 				
+			case vcf::sv_type::UNKNOWN:
 			case vcf::sv_type::INS:
 			case vcf::sv_type::DUP:
 			case vcf::sv_type::INV:
