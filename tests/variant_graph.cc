@@ -14,11 +14,12 @@ namespace gen	= Catch::Generators;
 namespace lb	= libbio;
 namespace rsv	= ranges::view;
 namespace v2m	= vcf2multialign;
+namespace vgs	= vcf2multialign::variant_graphs;
 
 
 namespace {
 	
-	struct variant_graph_generator_delegate final : public v2m::variant_graph_single_pass_generator_delegate
+	struct variant_graph_generator_delegate final : public vgs::variant_graph_single_pass_generator_delegate
 	{
 		virtual void variant_graph_generator_will_handle_subgraph(
 			lb::vcf::variant const &first_var,
@@ -69,7 +70,7 @@ namespace {
 	};
 
 
-	bool operator==(v2m::variant_graph::alt_edge const &lhs_edge, alt_edge const &rhs_edge)
+	bool operator==(vgs::variant_graph::alt_edge const &lhs_edge, alt_edge const &rhs_edge)
 	{
 		return lhs_edge.target_node == rhs_edge.target_node && lhs_edge.label == rhs_edge.label;
 	}
@@ -118,11 +119,11 @@ namespace {
 		{
 		}
 		
-		void check_graph(v2m::variant_graph const &graph, v2m::vector_type const &reference)
+		void check_graph(vgs::variant_graph const &graph, v2m::vector_type const &reference)
 		{
 			// FIXME: path checks.
 			
-			v2m::variant_graph_walker walker(graph, reference);
+			vgs::variant_graph_walker walker(graph, reference);
 			walker.setup();
 			
 			auto it(m_node_descriptions.begin());
@@ -133,14 +134,14 @@ namespace {
 				auto const state(walker.advance_and_track_subgraph());
 				switch (state)
 				{
-					case v2m::variant_graph_walker::state::NODE:
+					case vgs::variant_graph_walker::state::NODE:
 						break;
 					
-					case v2m::variant_graph_walker::state::SUBGRAPH_START_NODE:
+					case vgs::variant_graph_walker::state::SUBGRAPH_START_NODE:
 						current_node_begins_subgraph = true;
 						break;
 					
-					case v2m::variant_graph_walker::state::END:
+					case vgs::variant_graph_walker::state::END:
 						goto finish;
 				}
 				
@@ -206,7 +207,7 @@ namespace {
 		auto const chr_count(ploidy_map.begin()->second);
 		
 		variant_graph_generator_delegate delegate;
-		v2m::variant_graph_single_pass_generator generator(
+		vgs::variant_graph_single_pass_generator generator(
 			delegate,
 			vcf_reader,
 			reference_seq,
