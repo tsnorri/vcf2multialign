@@ -44,6 +44,12 @@ namespace vcf2multialign { namespace path_mapping {
 	{
 		return lhs.to_tuple() < rhs.to_tuple();
 	}
+
+	inline std::ostream &operator<<(std::ostream &os, edge const &edge)
+	{
+		os << '(' << edge.lhs_idx << ", " << edge.rhs_idx << ')';
+		return os;
+	}
 }}
 
 #endif
