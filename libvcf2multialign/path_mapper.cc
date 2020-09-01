@@ -89,8 +89,7 @@ namespace vcf2multialign { namespace path_mapping {
 						"Expected edge_range.size() to be equal to founder_idxs_lhs.size(), got ",
 						edge_range.size(),
 						" and ",
-						founder_idxs_lhs.size(),
-						"."
+						founder_idxs_lhs.size()
 					);
 				
 					for (auto const &[founder_idx, edge] : rsv::zip(founder_idxs_lhs, edge_range))
