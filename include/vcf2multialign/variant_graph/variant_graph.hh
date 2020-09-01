@@ -59,6 +59,8 @@ namespace vcf2multialign { namespace variant_graphs {
 		// Variants correspond to nodes that do have ALT edges.
 		
 	public:
+		std::size_t node_count() const { return m_ref_positions.size() - 1; }
+		
 		inline std::size_t ref_position_for_node(std::size_t const node_idx) const;
 		inline std::size_t aligned_position_for_node(std::size_t const node_idx) const;
 		inline std::string_view ref_label(std::size_t const lhs_node, std::size_t const rhs_node, vector_type const &ref) const;
@@ -175,6 +177,11 @@ namespace vcf2multialign { namespace variant_graphs {
 		
 	public:
 		variant_graph_walker() = default;
+
+		variant_graph_walker(variant_graph const &graph):
+			m_graph(&graph)
+		{
+		}
 		
 		variant_graph_walker(variant_graph const &graph, vector_type const &reference):
 			m_reference(reference),
@@ -191,12 +198,18 @@ namespace vcf2multialign { namespace variant_graphs {
 		std::size_t aligned_position() const { return m_graph->aligned_position_for_node(m_node_1 - 1); }
 		std::string_view ref_label() const { return ref_label_(m_node_1); }
 		std::string_view ref_label(std::size_t const rhs_node) const { libbio_assert_lte(m_node_1 - 1, rhs_node); return ref_label_(rhs_node); }
+		std::size_t ref_length() const { return ref_length_(m_node_1); }
+		std::size_t ref_length(std::size_t const rhs_node) const { libbio_assert_lte(m_node_1 - 1, rhs_node); return ref_length_(rhs_node); }
+		std::size_t aligned_length() const { return aligned_length_(m_node_1); }
+		std::size_t aligned_length(std::size_t const rhs_node) const { libbio_assert_lte(m_node_1 - 1, rhs_node); return aligned_length_(rhs_node); }
 		auto alt_edge_labels() const { return m_graph->alt_edge_labels(m_node_1 - 1); }
 		auto alt_edge_targets() const { return m_graph->alt_edge_targets(m_node_1 - 1); }
 		auto alt_edges() const { return m_graph->alt_edges(m_node_1 - 1); }
 		
 	protected:
 		std::string_view ref_label_(std::size_t const rhs_node) const { return m_graph->ref_label(m_node_1 - 1, rhs_node, m_reference); }
+		inline std::size_t ref_length_(std::size_t const rhs_node) const;
+		inline std::size_t aligned_length_(std::size_t const rhs_node) const;
 	};
 	
 	
@@ -240,6 +253,18 @@ namespace vcf2multialign { namespace variant_graphs {
 		auto const lhs_ref_pos(m_ref_positions[1 + lhs_node]);
 		auto const rhs_ref_pos(m_ref_positions[1 + rhs_node]);
 		return std::string_view(ref.data() + lhs_ref_pos, rhs_ref_pos - lhs_ref_pos);
+	}
+
+
+	std::size_t variant_graph_walker::ref_length_(std::size_t const rhs_node) const
+	{
+		return m_graph->ref_position_for_node(rhs_node) - m_graph->ref_position_for_node(m_node_1 - 1);
+	}
+
+
+	std::size_t variant_graph_walker::aligned_length_(std::size_t const rhs_node) const
+	{
+		return m_graph->aligned_position_for_node(rhs_node) - m_graph->aligned_position_for_node(m_node_1 - 1);
 	}
 }}
 
