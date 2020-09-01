@@ -252,78 +252,92 @@ namespace vcf2multialign {
 		// Handle the segment pairs.
 		for (auto const &[lhs_subgraph_idx, pair] : rsv::zip(rsv::ints(0), sample_paths | rsv::sliding(2)))
 		{
-			// Initialize for the current iteration.
-			path_counts.clear();
-			edges.clear();
-			substrings_added_to_lhs.clear();
-			
-			// Destructure the pair.
-			auto const &lhs_substring_numbers(pair[0]);
-			auto const &rhs_substring_numbers(pair[1]);
-			libbio_always_assert_eq(lhs_substring_numbers.size(), rhs_substring_numbers.size()); // Verify that the input is valid.
-			
-			// Iterate over the pairs of paths and count.
-			pm::substring_index_type max_rhs_substring_idx(0);
-			for (auto const &[lhs_substring_idx, rhs_substring_idx] : rsv::zip(lhs_substring_numbers, rhs_substring_numbers))
+			try
 			{
-				// Try to find an existing path pair.
-				auto const res(std::equal_range(path_counts.begin(), path_counts.end(), pm::path_item(lhs_substring_idx, rhs_substring_idx)));
-				if (res.first == res.second)
+				// Initialize for the current iteration.
+				path_counts.clear();
+				edges.clear();
+				substrings_added_to_lhs.clear();
+				
+				// Destructure the pair.
+				auto const &lhs_substring_numbers(pair[0]);
+				auto const &rhs_substring_numbers(pair[1]);
+				libbio_always_assert_eq(lhs_substring_numbers.size(), rhs_substring_numbers.size()); // Verify that the input is valid.
+				
+				// Iterate over the pairs of paths and count.
+				pm::substring_index_type max_rhs_substring_idx(0);
+				for (auto const &[lhs_substring_idx, rhs_substring_idx] : rsv::zip(lhs_substring_numbers, rhs_substring_numbers))
 				{
-					// Not found (since there were no not-less-than elements). Append to the end and rotate the greater-than range.
-					auto const first_greater_than_idx(std::distance(path_counts.begin(), res.second)); // Index of the first greater-than element.
-					path_counts.emplace_back(lhs_substring_idx, rhs_substring_idx, 1); // Invalidates iterators.
+					// Try to find an existing path pair.
+					auto const res(std::equal_range(path_counts.begin(), path_counts.end(), pm::path_item(lhs_substring_idx, rhs_substring_idx)));
+					if (res.first == res.second)
+					{
+						// Not found (since there were no not-less-than elements). Append to the end and rotate the greater-than range.
+						auto const first_greater_than_idx(std::distance(path_counts.begin(), res.second)); // Index of the first greater-than element.
+						path_counts.emplace_back(lhs_substring_idx, rhs_substring_idx, 1); // Invalidates iterators.
+						
+						libbio_assert_lt(first_greater_than_idx, path_counts.size());
+						auto const begin(path_counts.begin() + first_greater_than_idx);
+						auto const end(path_counts.end());
+						std::rotate(begin, end - 1, end); // There is at least one element b.c. we just emplace_back’d one.
+					}
+					else
+					{
+						// Found.
+						libbio_assert_eq(1, std::distance(res.first, res.second)); // Check that there is in fact only one matching item.
+						res.first->count += 1;
+					}
 					
-					auto const begin(path_counts.begin() + first_greater_than_idx);
-					auto const end(path_counts.end());
-					std::rotate(begin, end - 1, end); // There is at least one element b.c. we just emplace_back’d one.
-				}
-				else
-				{
-					// Found.
-					libbio_assert_eq(1, std::distance(res.first, res.second)); // Check that there is in fact only one matching item.
-					res.first->count += 1;
+					max_rhs_substring_idx = lb::max_ct(max_rhs_substring_idx, rhs_substring_idx);
 				}
 				
-				max_rhs_substring_idx = lb::max_ct(max_rhs_substring_idx, rhs_substring_idx);
+				libbio_assert(std::is_sorted(path_counts.begin(), path_counts.end()));
+				libbio_always_assert_lt_msg(max_rhs_substring_idx, m_founder_count, "Given founder count (", m_founder_count, ") is less than the number of distinct substrings in subgraph ", lhs_subgraph_idx, " (", 1 + max_rhs_substring_idx, ").");
+				
+				// Sort by count and add edges in descending count order.
+				std::sort(path_counts.begin(), path_counts.end(), [](auto const &lhs, auto const &rhs) -> bool {
+					return lhs.count < rhs.count;
+				});
+				sc.make_edges(path_counts, 1 + max_rhs_substring_idx, edges, substrings_added_to_lhs);
+				
+				// Associate the edges with the founders i.e. output streams.
+				// assign_edges_to_founders requires the edges to be sorted by lhs_idx.
+				std::sort(edges.begin(), edges.end());
+				pm.add_substrings(substrings_added_to_lhs);
+				pm.assign_edges_to_founders(edges);
+				pm.update_string_indices();
+				
+				// Output the founders.
+				for (auto const &[founder_idx, substring_idx] : rsv::enumerate(pm.string_indices_by_founder()))
+				{
+					auto &os(output_files[founder_idx]);
+					if (pm::UNASSIGNED_INDEX == substring_idx)
+						sw.output_n_for_subgraph(lhs_subgraph_idx, os);
+					else
+						sw.output_subgraph_path(lhs_subgraph_idx, substring_idx, os);
+				}
+				
+				if (m_output_reference)
+				{
+					auto &os(output_files.back());
+					sw.output_ref_for_subgraph(lhs_subgraph_idx, os);
+				}
+				
+				pm.end_subgraph();
+				progress_delegate.advance();
+				max_lhs_substring_idx = max_rhs_substring_idx;
 			}
-			
-			libbio_always_assert_lt_msg(max_rhs_substring_idx, m_founder_count, "Given founder count (", m_founder_count, ") is less than the number of distinct substrings in subgraph ", 1 + lhs_subgraph_idx, " (", 1 + max_rhs_substring_idx, ").");
-			
-			// Sort by count and add edges in descending count order.
-			std::sort(path_counts.begin(), path_counts.end(), [](auto const &lhs, auto const &rhs) -> bool {
-				return lhs.count < rhs.count;
-			});
-			sc.make_edges(path_counts, 1 + max_rhs_substring_idx, edges, substrings_added_to_lhs);
-			
-			// Associate the edges with the founders i.e. output streams.
-			// assign_edges_to_founders requires the edges to be sorted by lhs_idx.
-			std::sort(edges.begin(), edges.end());
-			pm.add_substrings(substrings_added_to_lhs);
-			pm.assign_edges_to_founders(edges);
-			pm.update_string_indices();
-			
-			// Output the founders.
-			for (auto const &[founder_idx, substring_idx] : rsv::enumerate(pm.string_indices_by_founder()))
+			catch (lb::assertion_failure_exception const &)
 			{
-				auto &os(output_files[founder_idx]);
-				if (pm::UNASSIGNED_INDEX == substring_idx)
-					sw.output_n_for_subgraph(lhs_subgraph_idx, os);
-				else
-					sw.output_subgraph_path(lhs_subgraph_idx, substring_idx, os);
+				std::cerr << "Assertion failure in subgraph " << lhs_subgraph_idx << ":\n";
+				std::cerr << "substrings_added_to_lhs:";
+				for (auto const substring_idx : substrings_added_to_lhs)
+					std::cerr << ' ' << substring_idx;
+				std::cerr << '\n';
+				throw;
 			}
-			
-			if (m_output_reference)
-			{
-				auto &os(output_files.back());
-				sw.output_ref_for_subgraph(lhs_subgraph_idx, os);
-			}
-			
-			pm.end_subgraph();
-			progress_delegate.advance();
-			max_lhs_substring_idx = max_rhs_substring_idx;
 		}
-		
+
 		// Handle the last subgraph and output the founders.
 		{
 			pm.update_string_indices();

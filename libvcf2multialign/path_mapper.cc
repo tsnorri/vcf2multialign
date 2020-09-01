@@ -9,6 +9,7 @@
 #include <range/v3/view/zip.hpp>
 #include <vcf2multialign/path_mapping/path_mapper.hh>
 
+namespace lb	= libbio;
 namespace rsv	= ranges::view;
 
 
@@ -16,6 +17,7 @@ namespace vcf2multialign { namespace path_mapping {
 	
 	void path_mapper::setup(std::size_t const initial_lhs_count)
 	{
+		libbio_assert_lte(initial_lhs_count, m_idxs_by_substring_lhs.size());
 		for (std::size_t i(0); i < initial_lhs_count; ++i)
 			m_idxs_by_substring_lhs[i].push_back(i);
 		
@@ -33,6 +35,7 @@ namespace vcf2multialign { namespace path_mapping {
 		{
 			auto const founder_idx(m_idxs_available_lhs.back());
 			m_idxs_available_lhs.pop_back();
+			libbio_assert_lt(substring_idx, m_idxs_by_substring_lhs.size());
 			m_idxs_by_substring_lhs[substring_idx].push_back(founder_idx);
 		}
 	}
@@ -65,43 +68,86 @@ namespace vcf2multialign { namespace path_mapping {
 				}));
 				
 				auto const edge_range(ranges::subrange(edge_range_begin, edge_range_end));
-				if (UNASSIGNED_INDEX == current_lhs_substring_idx)
+
+				try
 				{
-					// Lhs index is unassigned. This means that the rhs index can be assigned to any founder.
-					// This range should be handled last, so the remaining founders may be used.
-					libbio_assert_eq(edges.end(), edge_range_end);
-					for (auto const &edge : edge_range)
+					if (UNASSIGNED_INDEX == current_lhs_substring_idx)
 					{
-						libbio_assert_neq(UNASSIGNED_INDEX, edge.rhs_idx);
-						libbio_assert(!m_idxs_available_rhs.empty());
-						auto const it(m_idxs_available_rhs.begin());
-						auto const founder_idx(*it);
-						m_idxs_by_substring_rhs[edge.rhs_idx].push_back(founder_idx);
-						m_idxs_available_rhs.erase(it);
-					}
-				}
-				else
-				{
-					auto const &founder_idxs_lhs(m_idxs_by_substring_lhs[current_lhs_substring_idx]);
-					libbio_assert_eq_msg(
-						edge_range.size(),
-						founder_idxs_lhs.size(),
-						"Expected edge_range.size() to be equal to founder_idxs_lhs.size(), got ",
-						edge_range.size(),
-						" and ",
-						founder_idxs_lhs.size()
-					);
-				
-					for (auto const &[founder_idx, edge] : rsv::zip(founder_idxs_lhs, edge_range))
-					{
-						if (UNASSIGNED_INDEX != edge.rhs_idx)
+						// Lhs index is unassigned. This means that the rhs index can be assigned to any founder.
+						// This range should be handled last, so the remaining founders may be used.
+						libbio_assert_eq(edges.end(), edge_range_end);
+						for (auto const &edge : edge_range)
 						{
-							auto const it(m_idxs_available_rhs.find(founder_idx));
-							libbio_assert_neq(it, m_idxs_available_rhs.end());
+							libbio_assert_neq(UNASSIGNED_INDEX, edge.rhs_idx);
+							libbio_assert(!m_idxs_available_rhs.empty());
+							auto const it(m_idxs_available_rhs.begin());
+							auto const founder_idx(*it);
+							libbio_assert_lt(edge.rhs_idx, m_idxs_by_substring_rhs.size());
 							m_idxs_by_substring_rhs[edge.rhs_idx].push_back(founder_idx);
 							m_idxs_available_rhs.erase(it);
 						}
 					}
+					else
+					{
+						libbio_assert_lt(current_lhs_substring_idx, m_idxs_by_substring_lhs.size());
+						auto const &founder_idxs_lhs(m_idxs_by_substring_lhs[current_lhs_substring_idx]);
+						try
+						{
+							libbio_assert_lte_msg(
+								edge_range.size(),
+								founder_idxs_lhs.size(),
+								"Expected edge_range.size() to be less than or equal to founder_idxs_lhs.size(), got ",
+								edge_range.size(),
+								" and ",
+								founder_idxs_lhs.size()
+							);
+						
+							for (auto const &[founder_idx, edge] : rsv::zip(founder_idxs_lhs, edge_range))
+							{
+								if (UNASSIGNED_INDEX != edge.rhs_idx)
+								{
+									auto const it(m_idxs_available_rhs.find(founder_idx));
+									libbio_assert_neq(it, m_idxs_available_rhs.end());
+									libbio_assert_lt(edge.rhs_idx, m_idxs_by_substring_rhs.size());
+									m_idxs_by_substring_rhs[edge.rhs_idx].push_back(founder_idx);
+									m_idxs_available_rhs.erase(it);
+								}
+							}
+						}
+						catch (lb::assertion_failure_exception const &)
+						{
+							std::cerr << "founder_idxs_lhs:";
+							for (auto const idx : founder_idxs_lhs)
+								std::cerr << ' ' << idx;
+							std::cerr << '\n';
+							throw;
+						}
+					}
+				}
+				catch (lb::assertion_failure_exception const &)
+				{
+					std::cerr << "current_lhs_substring_idx: " << current_lhs_substring_idx << '\n';
+					std::cerr << "edge_range:\n";
+					for (auto const &edge : edge_range)
+						std::cerr << edge << '\n';
+					std::cerr << "edges:\n";
+					for (auto const &edge : edges)
+						std::cerr << edge << '\n';
+#ifndef NDEBUG
+					std::cerr << "prev_edges:\n";
+					for (auto const &edge : m_prev_edges)
+						std::cerr << edge << '\n';
+#endif
+					std::cerr << "m_idxs_by_substring_lhs:\n";
+					for (auto const &[idx, vec] : rsv::enumerate(m_idxs_by_substring_lhs))
+					{
+						std::cerr << idx << ':';
+						for (auto const founder_idx : vec)
+							std::cerr << ' ' << founder_idx;
+						std::cerr << '\n';
+					}
+
+					throw;
 				}
 				
 				if (edges.end() == edge_range_end)
@@ -110,6 +156,10 @@ namespace vcf2multialign { namespace path_mapping {
 				edge_range_begin = edge_range_end;
 			}
 		}
+
+#ifndef NDEBUG
+		m_prev_edges = edges;
+#endif
 	}
 	
 	
@@ -121,7 +171,10 @@ namespace vcf2multialign { namespace path_mapping {
 		for (auto const &[substring_idx, founder_idx_vec] : rsv::enumerate(m_idxs_by_substring_lhs))
 		{
 			for (auto const founder_idx : founder_idx_vec)
+			{
+				libbio_assert_lt(founder_idx, m_string_idxs_by_founder_lhs.size());
 				m_string_idxs_by_founder_lhs[founder_idx] = substring_idx;
+			}
 		}
 	}
 	

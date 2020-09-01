@@ -148,5 +148,7 @@ namespace vcf2multialign { namespace path_mapping {
 		
 		using std::swap;
 		swap(m_substrings_available_lhs, new_substrings_available_rhs);
+
+		libbio_assert_lte(edges.size(), m_founder_count);
 	}
 }}

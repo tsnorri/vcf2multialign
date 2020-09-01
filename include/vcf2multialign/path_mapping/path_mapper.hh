@@ -53,6 +53,9 @@ namespace vcf2multialign { namespace path_mapping {
 		substring_index_vector		m_idxs_available_lhs{};			// Founder (output stream) indices available.
 		substring_index_set			m_idxs_available_rhs{};			// Founder (output stream) indices available.
 		substring_index_vector		m_string_idxs_by_founder_lhs{};	// Substring indices by founder index.
+#ifndef NDEBUG
+		edge_vector					m_prev_edges;
+#endif
 		std::size_t					m_founder_count{};
 		
 	public:
