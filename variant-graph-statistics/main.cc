@@ -24,33 +24,37 @@ namespace {
 	
 	void output_substring_counts(char const *input_path, vgs::variant_graph const &graph, bool const output_summary_only)
 	{
-		auto const &ref_positions(graph.ref_positions()); // 1-based.
-		auto const &aln_positions(graph.aligned_ref_positions()); // 1-based.
-		auto const &subgraph_start_positions(graph.subgraph_start_positions());
-		auto const &path_edges(graph.path_edges());
-		libbio_always_assert_eq(subgraph_start_positions.size(), path_edges.size());
-		
 		std::size_t max_substrings(0), min_substrings(SIZE_MAX);
+		auto const &path_edges(graph.path_edges());
 		
 		if (!output_summary_only)
 			std::cout << "SUBGRAPH\tSTART_POSITION\tALIGNED_START_POSITION\tREF_LENGTH\tALIGNED_LENGTH\tPATHS\n";
-		auto const view(rsv::zip(rsv::ints(0), subgraph_start_positions, path_edges));
-		for (auto const &[subgraph_idx, start_pos_idx, path_edges] : view)
+
+		for (auto const &[sg_idx, pair] : rsv::enumerate(rsv::concat(graph.subgraph_start_positions(), rsv::single(graph.node_count() - 1)) | rsv::sliding(2)))
 		{
-			auto const end_pos_idx(2 + start_pos_idx);
-			auto const ref_pos(ref_positions[1 + start_pos_idx]);
-			auto const aln_pos(aln_positions[1 + start_pos_idx]);
-			auto const ref_end(end_pos_idx < ref_positions.size() ? ref_positions[end_pos_idx] : ref_positions.back());
-			auto const aln_end(end_pos_idx < aln_positions.size() ? aln_positions[end_pos_idx] : aln_positions.back());
-			auto const substring_count(path_edges.number_of_columns());
-			
-			if (!output_summary_only)
-				std::cout << subgraph_idx << '\t' << ref_pos << '\t' << aln_pos << '\t' << (ref_end - ref_pos) << '\t' << (aln_end - aln_pos) << '\t' << substring_count << '\n';
-			
+			auto const lhs_node(pair[0]);
+			auto const rhs_node(pair[1]);
+			auto const lhs_ref_pos(graph.ref_position_for_node(lhs_node));
+			auto const rhs_ref_pos(graph.ref_position_for_node(rhs_node));
+			auto const lhs_aln_pos(graph.aligned_position_for_node(lhs_node));
+			auto const rhs_aln_pos(graph.aligned_position_for_node(rhs_node));
+			auto const substring_count(path_edges[sg_idx].number_of_columns());
+
 			max_substrings = std::max(max_substrings, substring_count);
 			min_substrings = std::min(min_substrings, substring_count);
+
+			if (!output_summary_only)
+			{
+				std::cout
+					<< sg_idx << '\t'
+					<< lhs_ref_pos << '\t'
+					<< lhs_aln_pos << '\t'
+					<< (rhs_ref_pos - lhs_ref_pos) << '\t'
+					<< (rhs_aln_pos - lhs_aln_pos) << '\t'
+					<< substring_count << '\n';
+			}
 		}
-		
+
 		if (output_summary_only)
 		{
 			// Input path, max substrings, min substrings, sample count.
