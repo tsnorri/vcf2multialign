@@ -101,7 +101,7 @@ namespace {
 
 			auto const range(
 				rsv::zip(
-					rsv::ints(0),
+					rsv::ints(pos_slice_start - 1), // Convert back to 0-based.
 					ref_positions | rsv::slice(pos_slice_start, pos_slice_end),
 					aligned_ref_positions | rsv::slice(pos_slice_start, pos_slice_end)
 				)
@@ -114,11 +114,11 @@ namespace {
 				if (i == next_subgraph_start_idx)
 				{
 					next_subgraph_start_idx = (sg_it == sg_end ? SIZE_MAX : *sg_it++);
-					output_graph_stream << '\t' << aligned_ref_pos << " [shape = Mrecord, label = \"" << ref_pos << " | " << aligned_ref_pos << "\", style = filled, fillcolor = grey95];\n";
+					output_graph_stream << '\t' << aligned_ref_pos << " [shape = Mrecord, label = \"" << i << " | " << ref_pos << " | " << aligned_ref_pos << "\", style = filled, fillcolor = grey95];\n";
 				}
 				else
 				{
-					output_graph_stream << '\t' << aligned_ref_pos << " [shape = Mrecord, label = \"" << ref_pos << " | " << aligned_ref_pos << "\"];\n";
+					output_graph_stream << '\t' << aligned_ref_pos << " [shape = Mrecord, label = \"" << i << " | " << ref_pos << " | " << aligned_ref_pos << "\"];\n";
 				}
 			}
 		}
