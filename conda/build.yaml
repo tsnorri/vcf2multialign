@@ -1,0 +1,4 @@
+channels:
+- anaconda
+dependencies:
+- conda-build >= 3.20.2
