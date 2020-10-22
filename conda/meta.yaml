@@ -26,5 +26,5 @@ requirements:
 
 about:
   home: https://github.com/tsnorri/vcf2multialign
-  licence: MIT
-  summary: "Create a set of reference-guided multiple-aligned predicted or founder sequences from a variant call file and a reference sequence."
+  license: MIT
+  description: "Create a set of reference-guided multiple-aligned predicted or founder sequences from a variant call file and a reference sequence."
