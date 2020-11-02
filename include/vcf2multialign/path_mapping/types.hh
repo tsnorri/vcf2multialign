@@ -6,6 +6,7 @@
 #ifndef VCF2MULTIALIGN_PATH_MAPPING_TYPES_HH
 #define VCF2MULTIALIGN_PATH_MAPPING_TYPES_HH
 
+#include <ostream>
 #include <vector>
 
 
