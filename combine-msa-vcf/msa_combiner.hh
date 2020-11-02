@@ -9,8 +9,10 @@
 #include <array>
 #include <vcf2multialign/types.hh>
 #include <vector>
+#include "mnv_combiner.hh"
 #include "msa_data_source.hh"
 #include "overlap_counter.hh"
+#include "variant_filter.hh"
 #include "variant_writer.hh"
 #include "vcf_record_generator.hh"
 #include "types.hh"
@@ -24,7 +26,12 @@ namespace vcf2multialign {
 		
 	protected:
 		msa_data_source						m_data_source;
+		
+		// Output handling
 		variant_writer						m_variant_writer;
+		mnv_combiner						m_mnv_combiner;
+		variant_filter						m_variant_filter;
+		
 		std::uint16_t						m_ploidy{1};
 	
 	public:
@@ -33,6 +40,8 @@ namespace vcf2multialign {
 		msa_combiner(std::string output_chr_id, std::uint16_t const ploidy, std::ostream &os, bool const logs_status):
 			m_data_source(ploidy, logs_status),
 			m_variant_writer(os, std::move(output_chr_id)),
+			m_mnv_combiner(m_variant_writer),
+			m_variant_filter(m_mnv_combiner),
 			m_ploidy(ploidy)
 		{
 		}

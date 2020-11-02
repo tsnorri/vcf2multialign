@@ -5,11 +5,13 @@ OBJECTS				=	cmdline.o \
 						main.o
 						
 LIBRARY_OBJECTS		=	combine_msa.o \
+						mnv_combiner.o \
 						msa_combiner.o \
 						msa_data_source.o \
 						msa_data_source_parse_msa.o \
 						overlap_counter.o \
 						utility.o \
+						variant_filter.o \
 						variant_writer.o \
 						vcf_record_generator.o
 

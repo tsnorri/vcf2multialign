@@ -428,6 +428,11 @@ SCENARIO("MSA combiner can merge sequences with mixed-type segemnts (miscellaneo
 
 SCENARIO("MSA combiner can merge sequences and variants")
 {
+	GIVEN("A MSA with a deletion")
+	{
+		test_msa_vcf_merge("msa-del", "the resulting VCF will have the expected variants (the one deduced from MSA removed)", "ref.fa", "alt.fa", "vars.vcf", "expected-2.vcf");
+	}
+	
 	GIVEN("A MSA with insertions and deletions and a VCF with insertions and SNPs")
 	{
 		test_msa_vcf_merge("msa-indels-vcf-insertions-snps", "the resulting VCF will have the expected variants", "ref.fa", "alt.fa", "vars.vcf", "expected-2.vcf");

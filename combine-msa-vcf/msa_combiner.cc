@@ -75,7 +75,7 @@ namespace vcf2multialign {
 				for (auto const &oc : overlap_range)
 				{
 					auto const end_idx(std::min(alt_sv.size(), std::size_t(oc.position - seg.alt.position)));
-					auto const &desc(m_variant_writer.emplace_back(
+					auto const &desc(m_variant_filter.handle_variant_description(
 						variant_description(
 							seg.ref.position + begin_idx,
 							ref_sv.substr(begin_idx, end_idx - begin_idx),
@@ -93,7 +93,7 @@ namespace vcf2multialign {
 				
 				if (begin_idx < alt_sv.size())
 				{
-					auto const &desc(m_variant_writer.emplace_back(
+					auto const &desc(m_variant_filter.handle_variant_description(
 						variant_description(
 							seg.ref.position + begin_idx,
 							ref_sv.substr(begin_idx),
@@ -111,7 +111,7 @@ namespace vcf2multialign {
 			case segment_type::DELETION:
 			{
 				libbio_assert_eq(overlap_it, overlap_end);
-				auto const &desc(m_variant_writer.emplace_back(
+				auto const &desc(m_variant_filter.handle_variant_description(
 					variant_description(
 						seg.ref.position,
 						seg.ref.string,
@@ -136,7 +136,7 @@ namespace vcf2multialign {
 					: ranges::max(overlap_range | rsv::transform([](auto const &oc){ return oc.running_sum; }))
 				);
 				auto const max_overlaps(std::max(overlap_count, max_overlaps_in_range));
-				auto const &desc(m_variant_writer.emplace_back(
+				auto const &desc(m_variant_filter.handle_variant_description(
 					variant_description(
 						seg.ref.position,
 						seg.ref.string,
@@ -173,7 +173,7 @@ namespace vcf2multialign {
 		auto const first_seg_alt_end_pos(first_seg.alt_end());
 		auto overlap_it(overlap_counter.find_initial(first_seg_alt_pos));
 		
-		// Add the variants from the MSA to m_variant_writer.
+		// Add the variants from the MSA to m_variant_filter.
 		// This will result in two partitions of sorted variants.
 		std::size_t handled_count(0);
 		while (seg_it != seg_end)
@@ -284,7 +284,7 @@ namespace vcf2multialign {
 				std::size_t var_alt_characters_remaining(var_alt.alt.size());
 				std::size_t total_alt_characters_consumed{};
 
-				auto &desc(m_variant_writer.emplace_back(variant_description(m_ploidy, gt_count, variant_origin::VC)));
+				auto &desc(m_variant_filter.handle_variant_description(variant_description(m_ploidy, gt_count, variant_origin::VC)));
 				desc.overlap_count = max_overlaps - 1;
 				std::string_view const var_alt_sv(var_alt.alt);
 				
@@ -408,7 +408,7 @@ namespace vcf2multialign {
 		// reported by the VC. The number of overlapping variants affects the GT values that are set to them.
 		
 		segmentation.overlap_counter.update_running_sums();
-		auto const initial_variant_count(m_variant_writer.size());
+		auto const initial_variant_count(m_variant_filter.size());
 		if (segmentation.overlapping_variants.empty())
 		{
 			// Handle MSA only.
@@ -426,8 +426,8 @@ namespace vcf2multialign {
 				segmentation.overlapping_segments.begin() + handled_count
 			);
 			
-			m_variant_writer.merge_output_variants(initial_variant_count);
-			m_variant_writer.filter_processed_variants_and_output(SIZE_MAX);
+			m_variant_filter.merge_output_variants(initial_variant_count);
+			m_variant_filter.filter_processed_variants_and_output(SIZE_MAX);
 		}
 		else
 		{
@@ -501,9 +501,9 @@ namespace vcf2multialign {
 				var.is_skipped = false;
 			
 			// Maintain the sorted order.
-			m_variant_writer.merge_output_variants(initial_variant_count);
+			m_variant_filter.merge_output_variants(initial_variant_count);
 			
-			auto const new_variant_count(m_variant_writer.size());
+			auto const new_variant_count(m_variant_filter.size());
 			auto const handled_count(
 				process_variants_msa(
 					min_unhandled_alt_pos,
@@ -520,9 +520,9 @@ namespace vcf2multialign {
 			libbio_assert(segmentation.overlapping_variants.empty() || !segmentation.overlapping_segments.empty());
 			
 			// Maintain the sorted order.
-			m_variant_writer.merge_output_variants(new_variant_count);
+			m_variant_filter.merge_output_variants(new_variant_count);
 			// Output.
-			m_variant_writer.filter_processed_variants_and_output(min_unhandled_ref_pos);
+			m_variant_filter.filter_processed_variants_and_output(min_unhandled_ref_pos);
 		}
 		segmentation.overlap_counter.clean_up_counts(
 			segmentation.overlapping_variants.empty()
@@ -537,5 +537,9 @@ namespace vcf2multialign {
 	{
 		m_variant_writer.output_vcf_header();
 		m_data_source.process_msa(ref, alt, var_rec_gen, *this); // Calls process_variants().
+		
+		// Finish.
+		m_variant_filter.filter_processed_variants_and_output(SIZE_MAX);
+		m_mnv_combiner.finish();
 	}
 }
