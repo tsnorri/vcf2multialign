@@ -22,11 +22,13 @@ namespace vcf2multialign {
 		
 	protected:
 		std::size_t									m_founder_count{};
+		bool										m_replace_duplicates_with_n{};
 		
 	public:
 		founder_sequence_greedy_generator(
 			std::size_t const founder_count,
 			bool const output_reference,
+			bool const replace_duplicates_with_n,
 			bool const may_overwrite
 		):
 			sequence_generator_base(output_reference, may_overwrite),

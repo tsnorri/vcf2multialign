@@ -312,7 +312,7 @@ namespace vcf2multialign {
 				{
 					libbio_assert_msg(!m_output_reference || founder_idx != output_files.size() - 1, "Expected founder sequence not to be output to the reference file");
 					auto &os(output_files[founder_idx]);
-					if (pm::UNASSIGNED_INDEX == substring_idx)
+					if (m_replace_duplicates_with_n && pm::UNASSIGNED_INDEX == substring_idx)
 						sw.output_n_for_subgraph(lhs_subgraph_idx, os);
 					else
 						sw.output_subgraph_path(lhs_subgraph_idx, substring_idx, os);
@@ -346,7 +346,7 @@ namespace vcf2multialign {
 			for (auto const &[founder_idx, substring_idx] : rsv::enumerate(pm.string_indices_by_founder()))
 			{
 				auto &os(output_files[founder_idx]);
-				if (pm::UNASSIGNED_INDEX == substring_idx)
+				if (m_replace_duplicates_with_n && pm::UNASSIGNED_INDEX == substring_idx)
 					sw.output_n_for_subgraph(last_subgraph_idx, os);
 				else
 					sw.output_subgraph_path(last_subgraph_idx, substring_idx, os);

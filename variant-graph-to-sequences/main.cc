@@ -179,6 +179,7 @@ void process(gengetopt_args_info &args_info)
 			auto gen_ptr(std::make_unique <v2m::founder_sequence_greedy_generator>(
 				args_info.founder_count_arg,
 				(args_info.omit_reference_output_flag ? false : true),
+				(args_info.output_duplicates_flag ? false : true),
 				args_info.overwrite_flag
 			));
 			prepare(*gen_ptr, args_info);

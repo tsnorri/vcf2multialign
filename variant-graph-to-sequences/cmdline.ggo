@@ -22,3 +22,4 @@ modeoption	"output-founders"			F	"Output founders"																					mode = "O
 defmode "Output founders with greedy matching"		modedesc = "Output a reference-guided multiple alignment of the founder sequences generated from the samples. The segments will be matched greedily."
 modeoption	"output-founders-greedy"	G	"Output founders with greedy matching"																mode = "Output founders with greedy matching"		required
 modeoption	"founder-count"				-	"Number of sequences to be generated excluding the reference"							long		mode = "Output founders with greedy matching"		required
+modeoption	"output-duplicates"			-	"Output duplicate substrings instead of sequences of N’s"								flag	off	mode = "Output founders with greedy matching"
