@@ -148,7 +148,10 @@ namespace {
 			}
 		}
 		
-		libbio_assert_eq(os.tellp(), aln_positions[1 + subgraph_end]);
+		libbio_assert_eq_msg(
+			os.tellp(), aln_positions[1 + subgraph_end],
+			"Expected stream position to be equal to the current aligned position, got ", os.tellp(), ", and ", aln_positions[1 + subgraph_end], "."
+		);
 	}
 	
 	
@@ -246,10 +249,7 @@ namespace {
 		libbio_assert_lte(alt_str.size(), aln_len);
 		auto const gap_count(aln_len - alt_str.size());
 		
-		bool const retval(output_part(alt_str, gap_count, should_remove_mid, os));
-		std::fill_n(std::ostream_iterator <char>(os), gap_count, '-');
-		
-		return retval;
+		return output_part(alt_str, gap_count, should_remove_mid, os);
 	}
 	
 	
@@ -266,8 +266,9 @@ namespace {
 			auto const tail(part.substr(part.size() - m_tail_length));
 			auto const mid_len(part.size() - 2 * m_tail_length);
 			os << head;
-			std::fill_n(std::ostream_iterator <char>(os), mid_len, '-');
+			std::fill_n(std::ostream_iterator <char>(os), mid_len, 'N');
 			os << tail;
+			std::fill_n(std::ostream_iterator <char>(os), gap_count, '-');
 			return true;
 		}
 		else
