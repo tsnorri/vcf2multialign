@@ -25,25 +25,30 @@ namespace {
 	{
 	protected:
 		std::string_view			m_reference;
+		lb::int_vector <1>			m_seen_edges;
 		vgs::variant_graph const	*m_graph{};
+		std::size_t					m_tail_length{};
 		
 	public:
-		sequence_writer(vgs::variant_graph const &graph, v2m::vector_type const &reference):
+		sequence_writer(vgs::variant_graph const &graph, v2m::vector_type const &reference, std::size_t const tail_length):
 			m_reference(reference.data(), reference.size()),
-			m_graph(&graph)
+			m_graph(&graph),
+			m_tail_length(tail_length)
 		{
 		}
 		
-		void output_ref(std::size_t const node_idx, std::ostream &os) const { output_ref(node_idx, 1 + node_idx, os); }
+		void output_ref(std::size_t const node_idx, std::ostream &os, bool const should_remove_mid) const { output_ref(node_idx, 1 + node_idx, os, should_remove_mid); }
 		void output_subgraph_path(std::size_t const subgraph_idx, pm::substring_index_type const path_idx, std::ostream &os) const;
-		void output_ref_for_subgraph(std::size_t const subgraph_idx, std::ostream &os) const;
+		void output_ref_for_subgraph(std::size_t const subgraph_idx, std::ostream &os, bool const should_remove_mid) const;
 		void output_gaps_for_subgraph(std::size_t const subgraph_idx, std::ostream &os) const { output_char_for_subgraph(subgraph_idx, '-', os); }
 		void output_n_for_subgraph(std::size_t const subgraph_idx, std::ostream &os) const { output_char_for_subgraph(subgraph_idx, 'N', os); }
 		
 	protected:
 		void output_char_for_subgraph(std::size_t const subgraph_idx, char const c, std::ostream &os) const;
-		void output_ref(pm::substring_index_type const node_idx, pm::substring_index_type const next_node_idx, std::ostream &os) const;
-		void output_alt(pm::substring_index_type const node_idx, pm::substring_index_type const next_node_idx, std::size_t const alt_idx, std::ostream &os) const;
+		void output_ref(pm::substring_index_type const node_idx, pm::substring_index_type const next_node_idx, std::ostream &os, bool const should_remove_mid) const;
+		void output_alt(pm::substring_index_type const node_idx, pm::substring_index_type const next_node_idx, std::size_t const alt_idx, std::ostream &os, bool const should_remove_mid) const;
+		
+		void output_part(std::string_view const &part, std::size_t const gap_count, bool const should_remove_mid, std::ostream &os) const;
 	};
 	
 	
@@ -73,6 +78,8 @@ namespace {
 		auto expected_node_idx(subgraph_begin);
 		for (auto node_idx(subgraph_begin); node_idx < subgraph_end; ++node_idx)
 		{
+			std::fill(m_seen_edges.word_begin(), m_seen_edges.word_end(), 0);
+			
 			libbio_assert_lt(1 + node_idx, alt_edge_count_csum.size());
 			auto const alt_edge_start(alt_edge_count_csum[node_idx]);
 			auto const alt_edge_limit(alt_edge_count_csum[1 + node_idx]);
@@ -83,7 +90,7 @@ namespace {
 				if (node_idx == expected_node_idx)
 				{
 					++expected_node_idx;
-					output_ref(node_idx, expected_node_idx, os);
+					output_ref(node_idx, expected_node_idx, os, m_should_remove_mid);
 				}
 			}
 			else
@@ -95,7 +102,7 @@ namespace {
 					if (0 == edge)
 					{
 						++expected_node_idx;
-						output_ref(node_idx, expected_node_idx, os);
+						output_ref(node_idx, expected_node_idx, os, m_should_remove_mid);
 					}
 					else
 					{
@@ -106,7 +113,12 @@ namespace {
 							"Subgraph ", subgraph_idx, ", node ", node_idx, ", alt edge ", edge, ": target node is ",
 							alt_edge_targets[alt_idx], " but subgraph end is at node ", subgraph_end
 						);
-						output_alt(node_idx, expected_node_idx, alt_idx, os);
+							
+						if (! (alt_idx < m_seen_edges.size()))
+							m_seen_edges.resize(1 + alt_idx, 0x0);
+						
+						output_alt(node_idx, expected_node_idx, alt_idx, os, m_should_remove_mid && !m_seen_edges[alt_idx]);
+						m_seen_edges[alt_idx] |= 0x1;
 					}
 				}
 				++variant_idx;
@@ -117,7 +129,7 @@ namespace {
 	}
 	
 	
-	void sequence_writer::output_ref_for_subgraph(std::size_t const subgraph_idx, std::ostream &os) const
+	void sequence_writer::output_ref_for_subgraph(std::size_t const subgraph_idx, std::ostream &os, bool const should_remove_mid) const
 	{
 		auto const &ref_positions(m_graph->ref_positions());
 		auto const &subgraph_start_positions(m_graph->subgraph_start_positions());	// Subgraph starting node numbers by subgraph number.
@@ -132,7 +144,7 @@ namespace {
 		
 		libbio_assert_eq(os.tellp(), m_graph->aligned_ref_positions()[1 + subgraph_begin]);
 		for (auto i(subgraph_begin); i < subgraph_end; ++i)
-			output_ref(i, 1 + i, os);
+			output_ref(i, 1 + i, os, should_remove_mid);
 		libbio_assert_eq(os.tellp(), m_graph->aligned_ref_positions()[1 + subgraph_end]);
 	}
 	
@@ -161,7 +173,12 @@ namespace {
 	}
 	
 	
-	void sequence_writer::output_ref(pm::substring_index_type const node_idx, pm::substring_index_type const next_node_idx, std::ostream &os) const
+	void sequence_writer::output_ref(
+		pm::substring_index_type const node_idx,
+		pm::substring_index_type const next_node_idx,
+		std::ostream &os,
+		bool const should_remove_mid
+	) const
 	{
 		auto const &ref_positions(m_graph->ref_positions());
 		auto const &aln_positions(m_graph->aligned_ref_positions());
@@ -176,8 +193,8 @@ namespace {
 		libbio_assert_lte(ref_len, aln_len);
 		auto const gap_count(aln_len - ref_len);
 		auto const ref_sub(m_reference.substr(lhs_ref_pos, ref_len));
-		os << ref_sub;
-		std::fill_n(std::ostream_iterator <char>(os), gap_count, '-');
+		
+		output_part(ref_sub, gap_count, should_remove_mid, os);
 	}
 	
 	
@@ -192,8 +209,28 @@ namespace {
 		auto const aln_len(rhs_aln_pos - lhs_aln_pos);
 		libbio_assert_lte(alt_str.size(), aln_len);
 		auto const gap_count(aln_len - alt_str.size());
-		os << alt_str;
+		
+		output_part(alt_str, gap_count, should_remove_mid, os);
 		std::fill_n(std::ostream_iterator <char>(os), gap_count, '-');
+	}
+	
+	
+	void sequence_writer::output_part(std::string_view const &part, std::size_t const gap_count, bool const should_remove_mid, std::ostream &os) const
+	{
+		if (should_remove_mid && 2 * m_tail_length <= part.size())
+		{
+			auto const head(part.substr(0, m_tail_length));
+			auto const tail(part.substr(part.size() - m_tail_length));
+			auto const mid_len(part.size() - 2 * m_tail_length);
+			os << head;
+			std::fill_n(std::ostream_iterator <char>(os), mid_len, '-');
+			os << tail;
+		}
+		else
+		{
+			os << part;
+			std::fill_n(std::ostream_iterator <char>(os), gap_count, '-');
+		}
 	}
 }
 
@@ -220,7 +257,7 @@ namespace vcf2multialign {
 		if (subgraph_start_positions.empty())
 			return;
 		
-		sequence_writer sw(m_graph, m_reference);
+		sequence_writer sw(m_graph, m_reference, m_tail_length);
 		
 		bool const first_subgraph_starts_from_zero(0 == subgraph_start_positions.front());
 		if (!first_subgraph_starts_from_zero)
@@ -314,10 +351,10 @@ namespace vcf2multialign {
 					auto &os(output_files[founder_idx]);
 					if (pm::UNASSIGNED_INDEX == substring_idx)
 					{
-						if (m_replace_duplicates_with_n)
-							sw.output_n_for_subgraph(lhs_subgraph_idx, os);
+						if (m_fill_unassigned_with_ref)
+							sw.output_ref_for_subgraph(lhs_subgraph_idx, os, m_should_remove_mid);
 						else
-							sw.output_ref_for_subgraph(lhs_subgraph_idx, os);
+							sw.output_n_for_subgraph(lhs_subgraph_idx, os);
 					}
 					else
 					{
@@ -328,7 +365,7 @@ namespace vcf2multialign {
 				if (m_output_reference)
 				{
 					auto &os(output_files.back());
-					sw.output_ref_for_subgraph(lhs_subgraph_idx, os);
+					sw.output_ref_for_subgraph(lhs_subgraph_idx, os, false);
 				}
 				
 				pm.end_subgraph();
@@ -355,10 +392,10 @@ namespace vcf2multialign {
 				auto &os(output_files[founder_idx]);
 				if (pm::UNASSIGNED_INDEX == substring_idx)
 				{
-					if (m_replace_duplicates_with_n)
-						sw.output_n_for_subgraph(last_subgraph_idx, os);
+					if (m_fill_unassigned_with_ref)
+						sw.output_ref_for_subgraph(last_subgraph_idx, os, m_should_remove_mid);
 					else
-						sw.output_ref_for_subgraph(last_subgraph_idx, os);
+						sw.output_n_for_subgraph(last_subgraph_idx, os);
 				}
 				else
 				{
@@ -370,7 +407,7 @@ namespace vcf2multialign {
 			if (m_output_reference)
 			{
 				auto &os(output_files.back());
-				sw.output_ref_for_subgraph(last_subgraph_idx, os);
+				sw.output_ref_for_subgraph(last_subgraph_idx, os, m_should_remove_mid);
 				os << std::flush;
 			}
 		}

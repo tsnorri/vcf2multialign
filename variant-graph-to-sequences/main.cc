@@ -176,10 +176,21 @@ void process(gengetopt_args_info &args_info)
 		}
 		else if (args_info.output_founders_greedy_given)
 		{
+			founder_sequence_greedy_generator(
+				std::size_t const founder_count,
+				std::size_t const tail_length,
+				bool const output_reference,
+				bool const replace_duplicates_with_n,
+				bool const should_remove_mid,
+				bool const may_overwrite
+			):
+			
 			auto gen_ptr(std::make_unique <v2m::founder_sequence_greedy_generator>(
 				args_info.founder_count_arg,
+				args_info.tail_length_arg,
 				(args_info.omit_reference_output_flag ? false : true),
-				(args_info.output_duplicates_flag ? false : true),
+				args_info.fill_unassigned_with_ref_flag,
+				args_info.remove_mid_from_duplicates_flag,
 				args_info.overwrite_flag
 			));
 			prepare(*gen_ptr, args_info);
@@ -240,6 +251,12 @@ int main(int argc, char **argv)
 	if (args_info.founder_count_arg < 1)
 	{
 		std::cerr << "Founder count must be positive." << std::endl;
+		std::exit(EXIT_FAILURE);
+	}
+	
+	if (args_info.tail_length_arg < 0)
+	{
+		std::cerr << "Tail length must be non-negative." << std::endl;
 		std::exit(EXIT_FAILURE);
 	}
 	

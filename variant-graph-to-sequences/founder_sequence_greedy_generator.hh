@@ -22,17 +22,24 @@ namespace vcf2multialign {
 		
 	protected:
 		std::size_t									m_founder_count{};
-		bool										m_replace_duplicates_with_n{};
+		std::size_t									m_tail_length{};
+		bool										m_fill_unassigned_with_ref{};
+		bool										m_should_remove_mid{};
 		
 	public:
 		founder_sequence_greedy_generator(
 			std::size_t const founder_count,
+			std::size_t const tail_length,
 			bool const output_reference,
-			bool const replace_duplicates_with_n,
+			bool const fill_unassigned_with_ref,
+			bool const should_remove_mid,
 			bool const may_overwrite
 		):
 			sequence_generator_base(output_reference, may_overwrite),
-			m_founder_count(founder_count)
+			m_founder_count(founder_count),
+			m_tail_length(tail_length),
+			m_fill_unassigned_with_ref(fill_unassigned_with_ref),
+			m_should_remove_mid(should_remove_mid)
 		{
 		}
 		
