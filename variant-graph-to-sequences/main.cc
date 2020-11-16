@@ -176,15 +176,6 @@ void process(gengetopt_args_info &args_info)
 		}
 		else if (args_info.output_founders_greedy_given)
 		{
-			founder_sequence_greedy_generator(
-				std::size_t const founder_count,
-				std::size_t const tail_length,
-				bool const output_reference,
-				bool const replace_duplicates_with_n,
-				bool const should_remove_mid,
-				bool const may_overwrite
-			):
-			
 			auto gen_ptr(std::make_unique <v2m::founder_sequence_greedy_generator>(
 				args_info.founder_count_arg,
 				args_info.tail_length_arg,
