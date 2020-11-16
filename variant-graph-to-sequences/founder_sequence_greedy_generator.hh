@@ -19,6 +19,7 @@ namespace vcf2multialign {
 	public:
 		typedef sequence_generator_base::output_stream_vector	output_stream_vector;
 		typedef sequence_generator_base::stream_position_list	stream_position_list;
+		typedef std::map <std::size_t, std::size_t>				removed_count_map;
 		
 	protected:
 		std::size_t									m_founder_count{};
@@ -46,7 +47,11 @@ namespace vcf2multialign {
 		void output_sequences() override;
 		
 	protected:
-		void process_graph_and_output(output_stream_vector &output_files, progress_indicator_delegate &progress_delegate) const;
+		void process_graph_and_output(
+			output_stream_vector &output_files,
+			removed_count_map &removed_counts,
+			progress_indicator_delegate &progress_delegate
+		) const;
 	};
 }
 

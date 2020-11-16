@@ -23,16 +23,26 @@ namespace {
 	
 	class sequence_writer
 	{
+	public:
+		typedef v2m::founder_sequence_greedy_generator::removed_count_map	removed_count_map;
+		
 	protected:
-		std::string_view			m_reference;
-		lb::int_vector <1>			m_seen_edges;
-		vgs::variant_graph const	*m_graph{};
-		std::size_t					m_tail_length{};
+		std::string_view					m_reference;
+		lb::int_vector <1>					m_seen_edges;
+		vgs::variant_graph const			*m_graph{};
+		removed_count_map					*m_removed_counts{};
+		std::size_t							m_tail_length{};
 		
 	public:
-		sequence_writer(vgs::variant_graph const &graph, v2m::vector_type const &reference, std::size_t const tail_length):
+		sequence_writer(
+			vgs::variant_graph const &graph,
+			v2m::vector_type const &reference,
+			removed_count_map &removed_counts,
+			std::size_t const tail_length
+		):
 			m_reference(reference.data(), reference.size()),
 			m_graph(&graph),
+			m_removed_counts(&removed_counts),
 			m_tail_length(tail_length)
 		{
 		}
@@ -45,10 +55,14 @@ namespace {
 		
 	protected:
 		void output_char_for_subgraph(std::size_t const subgraph_idx, char const c, std::ostream &os) const;
-		void output_ref(pm::substring_index_type const node_idx, pm::substring_index_type const next_node_idx, bool const should_remove_mid, std::ostream &os) const;
-		void output_alt(pm::substring_index_type const node_idx, pm::substring_index_type const next_node_idx, std::size_t const alt_idx, bool const should_remove_mid, std::ostream &os) const;
 		
-		void output_part(std::string_view const &part, std::size_t const gap_count, bool const should_remove_mid, std::ostream &os) const;
+		// Return true if middle part was removed.
+		bool output_ref(pm::substring_index_type const node_idx, pm::substring_index_type const next_node_idx, bool const should_remove_mid, std::ostream &os) const;
+		bool output_alt(pm::substring_index_type const node_idx, pm::substring_index_type const next_node_idx, std::size_t const alt_idx, bool const should_remove_mid, std::ostream &os) const;
+		bool output_part(std::string_view const &part, std::size_t const gap_count, bool const should_remove_mid, std::ostream &os) const;
+		
+		// (Ab)use the fact that m_removed_counts is a pointer, which is not modified.
+		void mark_middle_part_removed(std::size_t const node_idx, bool const is_ref) const { ++(*m_removed_counts)[node_idx]; }
 	};
 	
 	
@@ -95,7 +109,8 @@ namespace {
 				if (node_idx == expected_node_idx)
 				{
 					++expected_node_idx;
-					output_ref(node_idx, expected_node_idx, should_remove_mid, os);
+					if (output_ref(node_idx, expected_node_idx, should_remove_mid, os))
+						mark_middle_part_removed(node_idx, true);
 				}
 			}
 			else
@@ -107,7 +122,8 @@ namespace {
 					if (0 == edge)
 					{
 						++expected_node_idx;
-						output_ref(node_idx, expected_node_idx, should_remove_mid, os);
+						if (output_ref(node_idx, expected_node_idx, should_remove_mid, os))
+							mark_middle_part_removed(node_idx, true);
 					}
 					else
 					{
@@ -122,8 +138,10 @@ namespace {
 						if (! (alt_idx < m_seen_edges.size()))
 							m_seen_edges.resize(1 + alt_idx, 0x0);
 						
-						output_alt(node_idx, expected_node_idx, alt_idx, should_remove_mid && !m_seen_edges[alt_idx], os);
-						m_seen_edges[alt_idx] |= 0x1;
+						if (output_alt(node_idx, expected_node_idx, alt_idx, should_remove_mid && !m_seen_edges[alt_idx], os))
+							mark_middle_part_removed(node_idx, false);
+						else
+							m_seen_edges[alt_idx] |= 0x1;
 					}
 				}
 				++variant_idx;
@@ -153,7 +171,10 @@ namespace {
 		
 		libbio_assert_eq(os.tellp(), m_graph->aligned_ref_positions()[1 + subgraph_begin]);
 		for (auto i(subgraph_begin); i < subgraph_end; ++i)
-			output_ref(i, 1 + i, should_remove_mid, os);
+		{
+			if (output_ref(i, 1 + i, should_remove_mid, os))
+				mark_middle_part_removed(i, true);
+		}
 		libbio_assert_eq(os.tellp(), m_graph->aligned_ref_positions()[1 + subgraph_end]);
 	}
 	
@@ -182,7 +203,7 @@ namespace {
 	}
 	
 	
-	void sequence_writer::output_ref(
+	bool sequence_writer::output_ref(
 		pm::substring_index_type const node_idx,
 		pm::substring_index_type const next_node_idx,
 		bool const should_remove_mid,
@@ -203,11 +224,11 @@ namespace {
 		auto const gap_count(aln_len - ref_len);
 		auto const ref_sub(m_reference.substr(lhs_ref_pos, ref_len));
 		
-		output_part(ref_sub, gap_count, should_remove_mid, os);
+		return output_part(ref_sub, gap_count, should_remove_mid, os);
 	}
 	
 	
-	void sequence_writer::output_alt(
+	bool sequence_writer::output_alt(
 		pm::substring_index_type const node_idx,
 		pm::substring_index_type const next_node_idx,
 		std::size_t const alt_idx,
@@ -225,12 +246,14 @@ namespace {
 		libbio_assert_lte(alt_str.size(), aln_len);
 		auto const gap_count(aln_len - alt_str.size());
 		
-		output_part(alt_str, gap_count, should_remove_mid, os);
+		bool const retval(output_part(alt_str, gap_count, should_remove_mid, os));
 		std::fill_n(std::ostream_iterator <char>(os), gap_count, '-');
+		
+		return retval;
 	}
 	
 	
-	void sequence_writer::output_part(
+	bool sequence_writer::output_part(
 		std::string_view const &part,
 		std::size_t const gap_count,
 		bool const should_remove_mid,
@@ -245,11 +268,13 @@ namespace {
 			os << head;
 			std::fill_n(std::ostream_iterator <char>(os), mid_len, '-');
 			os << tail;
+			return true;
 		}
 		else
 		{
 			os << part;
 			std::fill_n(std::ostream_iterator <char>(os), gap_count, '-');
+			return false;
 		}
 	}
 }
@@ -257,7 +282,11 @@ namespace {
 
 namespace vcf2multialign {
 	
-	void founder_sequence_greedy_generator::process_graph_and_output(output_stream_vector &output_files, progress_indicator_delegate &progress_delegate) const
+	void founder_sequence_greedy_generator::process_graph_and_output(
+		output_stream_vector &output_files,
+		removed_count_map &removed_counts,
+		progress_indicator_delegate &progress_delegate
+	) const
 	{
 		// Greedy matching is done as follows:
 		// 1. Initially, occurring substring numbers in the first segment are assigned to each slot (i.e. output stream).
@@ -277,7 +306,7 @@ namespace vcf2multialign {
 		if (subgraph_start_positions.empty())
 			return;
 		
-		sequence_writer sw(m_graph, m_reference, m_tail_length);
+		sequence_writer sw(m_graph, m_reference, removed_counts, m_tail_length);
 		
 		bool const first_subgraph_starts_from_zero(0 == subgraph_start_positions.front());
 		if (!first_subgraph_starts_from_zero)
@@ -466,12 +495,22 @@ namespace vcf2multialign {
 			if (m_output_reference)
 				lb::open_file_for_writing("REF", output_files.back(), mode);
 			
+			removed_count_map removed_counts;
+			
 			// Generate the sequences.
-			process_graph_and_output(output_files, progress_delegate);
+			process_graph_and_output(output_files, removed_counts, progress_delegate);
 			
 			dispatch_async(dispatch_get_main_queue(), ^{
+				std::cerr << '\n';
 				lb::log_time(std::cerr);
-				std::cerr << "Done.\n"; // FIXME: log statistics?
+				std::cerr << "Done.\n";
+				
+				{
+					std::cout << "# Nodes having edge labels the middle part of which was removed:\n";
+					for (auto const &[node_idx, removed_count] : removed_counts)
+						std::cout << node_idx << '\t' << removed_count << '\n';
+				}
+				
 				this->finish_mt();
 			});
 		}
