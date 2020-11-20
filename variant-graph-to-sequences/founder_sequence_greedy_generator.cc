@@ -478,7 +478,7 @@ namespace vcf2multialign {
 			std::string_view const reference_sv(m_reference.data(), m_reference.size());
 			
 			auto const output_count(m_founder_count + m_output_reference);
-			dispatch_async_main(^{ lb::log_time(std::cerr); std::cerr << m_founder_count << " sequences will be written.\n"; });
+			dispatch_async_main(^{ lb::log_time(std::cerr); std::cerr << output_count << " sequences will be written.\n"; });
 			
 			// Don’t use chunks for now b.c. that would complicate things too much and not writing everything simultaneously
 			// is more useful with predicted sequences (not founders).
