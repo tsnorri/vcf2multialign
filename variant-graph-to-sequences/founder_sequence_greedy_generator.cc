@@ -360,6 +360,14 @@ namespace {
 		// Input: all substring indices in one segment.
 		// Output: substring counts by index and substring indices chosen for the founders.
 		count_substrings(substring_indices, substring_counts);
+		libbio_assert(std::is_sorted(substring_counts.begin(), substring_counts.end()));
+		
+		// Sort by count.
+		std::sort(substring_counts.begin(), substring_counts.end(), [](auto const &lhs, auto const &rhs) -> bool {
+			return lhs.count < rhs.count;
+		});
+		
+		// Copy the substring indices.
 		ranges::copy(
 			substring_counts
 			| rsv::reverse
@@ -460,13 +468,15 @@ namespace vcf2multialign {
 				auto const max_rhs_substring_idx(count_paths(lhs_substring_numbers, rhs_substring_numbers, path_counts));
 				libbio_assert(std::is_sorted(path_counts.begin(), path_counts.end()));
 				
-				// Prepare the path mapper.
-				pm.set_rhs_subgraph_size(1 + max_rhs_substring_idx);
-				
-				// Sort by count and add edges in descending count order.
+				// Sort by count.
 				std::sort(path_counts.begin(), path_counts.end(), [](auto const &lhs, auto const &rhs) -> bool {
 					return lhs.count < rhs.count;
 				});
+				
+				// Prepare the path mapper.
+				pm.set_rhs_subgraph_size(1 + max_rhs_substring_idx);
+				
+				// Add edges in descending count order.
 				if (m_output_all_substrings)
 				{
 					libbio_always_assert_lt_msg(max_rhs_substring_idx, m_founder_count, "Given founder count (", m_founder_count, ") is less than the number of distinct substrings in subgraph ", lhs_subgraph_idx, " (", 1 + max_rhs_substring_idx, ").");
@@ -475,7 +485,7 @@ namespace vcf2multialign {
 				else
 				{
 					// Select the substrings for the founders in the rhs segment.
-					pm::substring_index_multiset selected_substrings;
+					pm::substring_index_multiset selected_substrings; // For rhs
 					select_substrings(rhs_substring_numbers, m_founder_count, substring_counts, selected_substrings);
 					sc.make_edges_using_specific_substrings(path_counts, std::move(selected_substrings), edges, substrings_added_to_lhs);
 				}

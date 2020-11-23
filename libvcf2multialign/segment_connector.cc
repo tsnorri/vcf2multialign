@@ -145,20 +145,18 @@ namespace vcf2multialign { namespace path_mapping {
 		libbio_assert_lte(m_slots_available_lhs, founders_available);
 		libbio_assert_lte(slots_available_rhs, founders_available);
 		
-		while (m_slots_available_lhs && !m_substrings_available_lhs.empty())
+		while (!m_substrings_available_lhs.empty())
 		{
 			auto const lhs_begin(m_substrings_available_lhs.begin());
 			edges.emplace_back(*lhs_begin, UNASSIGNED_INDEX);
 			m_substrings_available_lhs.erase(lhs_begin);
-			--m_slots_available_lhs;
 		}
 		
-		while (slots_available_rhs && !substrings_available_rhs.empty())
+		while (!substrings_available_rhs.empty())
 		{
 			auto const rhs_begin(substrings_available_rhs.begin());
 			edges.emplace_back(UNASSIGNED_INDEX, *rhs_begin);
 			substrings_available_rhs.erase(rhs_begin);
-			--slots_available_rhs;
 		}
 		
 	end:
