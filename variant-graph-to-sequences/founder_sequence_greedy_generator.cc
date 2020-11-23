@@ -278,6 +278,96 @@ namespace {
 			return false;
 		}
 	}
+	
+	
+	template <typename t_vector>
+	pm::substring_index_type count_paths(
+		t_vector const &lhs_substring_numbers,
+		t_vector const &rhs_substring_numbers,
+		pm::path_item_vector &path_counts
+	)
+	{
+		pm::substring_index_type max_rhs_substring_idx(0);
+		for (auto const &[lhs_substring_idx, rhs_substring_idx] : rsv::zip(lhs_substring_numbers, rhs_substring_numbers))
+		{
+			// Try to find an existing path pair.
+			auto const res(std::equal_range(path_counts.begin(), path_counts.end(), pm::path_item(lhs_substring_idx, rhs_substring_idx)));
+			if (res.first == res.second)
+			{
+				// Not found (since there were no not-less-than elements). Append to the end and rotate the greater-than range.
+				auto const first_greater_than_idx(std::distance(path_counts.begin(), res.second)); // Index of the first greater-than element.
+				path_counts.emplace_back(lhs_substring_idx, rhs_substring_idx, 1); // Invalidates iterators.
+				
+				libbio_assert_lt(first_greater_than_idx, path_counts.size());
+				auto const begin(path_counts.begin() + first_greater_than_idx);
+				auto const end(path_counts.end());
+				std::rotate(begin, end - 1, end); // There is at least one element b.c. we just emplace_back’d one.
+			}
+			else
+			{
+				// Found.
+				libbio_assert_eq(1, std::distance(res.first, res.second)); // Check that there is in fact only one matching item.
+				res.first->count += 1;
+			}
+			
+			max_rhs_substring_idx = lb::max_ct(max_rhs_substring_idx, rhs_substring_idx);
+		}
+		
+		return max_rhs_substring_idx;
+	}
+	
+	
+	// FIXME: try to combine this with the function above.
+	template <typename t_vector>
+	void count_substrings(
+		t_vector const &substring_numbers,
+		pm::substring_item_vector &substring_counts
+	)
+	{
+		for (auto const &substring_idx : substring_numbers)
+		{
+			// FIXME: try to generalize this. The same thing is done in count_paths().
+			auto const res(std::equal_range(substring_counts.begin(), substring_counts.end(), pm::substring_item(substring_idx)));
+			if (res.first == res.second)
+			{
+				// Not found (since there were no not-less-than elements). Append to the end and rotate the greater-than range.
+				auto const first_greater_than_idx(std::distance(substring_counts.begin(), res.second)); // Index of the first greater-than element.
+				substring_counts.emplace_back(substring_idx, 1); // Invalidates iterators.
+				
+				libbio_assert_lt(first_greater_than_idx, substring_counts.size());
+				auto const begin(substring_counts.begin() + first_greater_than_idx);
+				auto const end(substring_counts.end());
+				std::rotate(begin, end - 1, end); // There is at least one element b.c. we just emplace_back’d one.
+			}
+			else
+			{
+				// Found.
+				libbio_assert_eq(1, std::distance(res.first, res.second)); // Check that there is in fact only one matching item.
+				res.first->count += 1;
+			}
+		}
+	}
+	
+	
+	template <typename t_vector>
+	void select_substrings(
+		t_vector const &substring_indices,
+		std::size_t const founder_count,
+		pm::substring_item_vector &substring_counts,
+		pm::substring_index_multiset &selected_substrings
+	)
+	{
+		// Input: all substring indices in one segment.
+		// Output: substring counts by index and substring indices chosen for the founders.
+		count_substrings(substring_indices, substring_counts);
+		ranges::copy(
+			substring_counts
+			| rsv::reverse
+			| rsv::take(founder_count)
+			| rsv::transform([](pm::substring_item const &item){ return item.substring_idx; }),
+			ranges::inserter(selected_substrings, selected_substrings.begin())
+		);
+	}
 }
 
 
@@ -330,11 +420,25 @@ namespace vcf2multialign {
 		pm::segment_connector sc(m_founder_count);
 		pm::path_mapper pm(m_founder_count);
 		
+		pm::substring_item_vector substring_counts;			// For use when not outputting all substrings.
+		
 		// Mark the indices in the first segment as assigned for greedy matching.
 		std::size_t max_lhs_substring_idx(all_path_edges.front().number_of_columns() - 1);
 		libbio_always_assert_lt_msg(max_lhs_substring_idx, m_founder_count, "Given founder count (", m_founder_count, ") is less than the number of distinct substrings in subgraph 1 (", 1 + max_lhs_substring_idx, ").");
-		sc.setup(1 + max_lhs_substring_idx);
-		pm.setup(1 + max_lhs_substring_idx);
+		
+		if (m_output_all_substrings)
+		{
+			pm.setup_with_complete_segment(1 + max_lhs_substring_idx);
+			sc.setup_with_complete_segment(1 + max_lhs_substring_idx);
+		}
+		else
+		{
+			// Select the substrings for the founders in the first segment.
+			pm::substring_index_multiset selected_substrings;
+			select_substrings(sample_paths.front(), m_founder_count, substring_counts, selected_substrings);
+			pm.setup_with_selected_substrings(selected_substrings);
+			sc.setup_with_selected_substrings(std::move(selected_substrings));
+		}
 		
 		// Handle the segment pairs.
 		for (auto const &[lhs_subgraph_idx, pair] : rsv::zip(rsv::ints(0), sample_paths | rsv::sliding(2)))
@@ -345,6 +449,7 @@ namespace vcf2multialign {
 				path_counts.clear();
 				edges.clear();
 				substrings_added_to_lhs.clear();
+				substring_counts.clear();
 				
 				// Destructure the pair.
 				auto const &lhs_substring_numbers(pair[0]);
@@ -352,31 +457,7 @@ namespace vcf2multialign {
 				libbio_always_assert_eq(lhs_substring_numbers.size(), rhs_substring_numbers.size()); // Verify that the input is valid.
 				
 				// Iterate over the pairs of paths and count.
-				pm::substring_index_type max_rhs_substring_idx(0);
-				for (auto const &[lhs_substring_idx, rhs_substring_idx] : rsv::zip(lhs_substring_numbers, rhs_substring_numbers))
-				{
-					// Try to find an existing path pair.
-					auto const res(std::equal_range(path_counts.begin(), path_counts.end(), pm::path_item(lhs_substring_idx, rhs_substring_idx)));
-					if (res.first == res.second)
-					{
-						// Not found (since there were no not-less-than elements). Append to the end and rotate the greater-than range.
-						auto const first_greater_than_idx(std::distance(path_counts.begin(), res.second)); // Index of the first greater-than element.
-						path_counts.emplace_back(lhs_substring_idx, rhs_substring_idx, 1); // Invalidates iterators.
-						
-						libbio_assert_lt(first_greater_than_idx, path_counts.size());
-						auto const begin(path_counts.begin() + first_greater_than_idx);
-						auto const end(path_counts.end());
-						std::rotate(begin, end - 1, end); // There is at least one element b.c. we just emplace_back’d one.
-					}
-					else
-					{
-						// Found.
-						libbio_assert_eq(1, std::distance(res.first, res.second)); // Check that there is in fact only one matching item.
-						res.first->count += 1;
-					}
-					
-					max_rhs_substring_idx = lb::max_ct(max_rhs_substring_idx, rhs_substring_idx);
-				}
+				auto const max_rhs_substring_idx(count_paths(lhs_substring_numbers, rhs_substring_numbers, path_counts));
 				
 				libbio_assert(std::is_sorted(path_counts.begin(), path_counts.end()));
 				libbio_always_assert_lt_msg(max_rhs_substring_idx, m_founder_count, "Given founder count (", m_founder_count, ") is less than the number of distinct substrings in subgraph ", lhs_subgraph_idx, " (", 1 + max_rhs_substring_idx, ").");
@@ -385,7 +466,15 @@ namespace vcf2multialign {
 				std::sort(path_counts.begin(), path_counts.end(), [](auto const &lhs, auto const &rhs) -> bool {
 					return lhs.count < rhs.count;
 				});
-				sc.make_edges(path_counts, 1 + max_rhs_substring_idx, edges, substrings_added_to_lhs);
+				if (m_output_all_substrings)
+					sc.make_edges(path_counts, 1 + max_rhs_substring_idx, edges, substrings_added_to_lhs);
+				else
+				{
+					// Select the substrings for the founders in the rhs segment.
+					pm::substring_index_multiset selected_substrings;
+					select_substrings(rhs_substring_numbers, m_founder_count, substring_counts, selected_substrings);
+					sc.make_edges_using_specific_substrings(path_counts, std::move(selected_substrings), edges, substrings_added_to_lhs);
+				}
 				
 				// Associate the edges with the founders i.e. output streams.
 				// assign_edges_to_founders requires the edges to be sorted by lhs_idx.

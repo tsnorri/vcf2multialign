@@ -24,7 +24,7 @@ namespace {
 
 namespace vcf2multialign { namespace path_mapping {
 	
-	void segment_connector::setup(std::size_t const initial_lhs_count)
+	void segment_connector::setup_with_complete_segment(std::size_t const initial_lhs_count)
 	{
 		m_slots_available_lhs = m_founder_count - initial_lhs_count;
 		
@@ -33,9 +33,32 @@ namespace vcf2multialign { namespace path_mapping {
 	}
 	
 	
+	void segment_connector::setup_with_selected_substrings(substring_index_multiset &&substrings_available_lhs)
+	{
+		using std::swap;
+		swap(m_substrings_available_lhs, substrings_available_lhs);
+	}
+	
+	
 	void segment_connector::make_edges(
 		path_item_vector const &path_counts,
 		std::size_t const substring_count_rhs,
+		edge_vector &edges,
+		substring_index_vector &substrings_added_to_lhs
+	)
+	{
+		substring_index_multiset substrings_available_rhs;	// Substrings available in the rhs segment.
+		// Fill with the existing string indices.
+		for (substring_index_type i(0); i < substring_count_rhs; ++i)
+			substrings_available_rhs.insert(i);
+		
+		make_edges_using_specific_substrings(path_counts, std::move(substrings_available_rhs), edges, substrings_added_to_lhs);
+	}
+	
+	
+	void segment_connector::make_edges_using_specific_substrings(
+		path_item_vector const &path_counts,
+		substring_index_multiset &&substrings_available_rhs,
 		edge_vector &edges,
 		substring_index_vector &substrings_added_to_lhs
 	)
@@ -52,12 +75,8 @@ namespace vcf2multialign { namespace path_mapping {
 		edges.clear();
 		substrings_added_to_lhs.clear();
 		
-		std::multiset <substring_index_type> substrings_available_rhs;	// Substrings available in the rhs segment.
-		// Fill with the existing string indices.
-		for (substring_index_type i(0); i < substring_count_rhs; ++i)
-			substrings_available_rhs.insert(i);
-		
 		auto new_substrings_available_rhs(substrings_available_rhs); // Copy the existing string indices b.c. they are needed during the next iteration.
+		auto const substring_count_rhs(substrings_available_rhs.size());
 		std::size_t slots_available_rhs(m_founder_count - substring_count_rhs); // “Slots” are founders that have not been assigned a substring.
 		auto founders_available(m_founder_count);
 		

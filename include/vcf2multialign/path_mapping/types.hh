@@ -15,11 +15,15 @@ namespace vcf2multialign { namespace path_mapping {
 	typedef std::uint32_t							substring_index_type;
 	typedef substring_index_type					substring_count_type;
 	typedef std::vector <substring_index_type>		substring_index_vector;
+	typedef std::multiset <substring_index_type>	substring_index_multiset;
 	
 	enum { UNASSIGNED_INDEX = std::numeric_limits <substring_index_type>::max() };
 	
 	struct edge; // Fwd.
 	typedef std::vector <edge>		edge_vector;
+	
+	struct substring_item; // Fwd.
+	typedef std::vector <substring_item> substring_item_vector;
 	
 	struct path_item; // Fwd.
 	typedef std::vector <path_item>	path_item_vector;

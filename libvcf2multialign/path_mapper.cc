@@ -15,7 +15,7 @@ namespace rsv	= ranges::view;
 
 namespace vcf2multialign { namespace path_mapping {
 	
-	void path_mapper::setup(std::size_t const initial_lhs_count)
+	void path_mapper::setup_with_complete_segment(std::size_t const initial_lhs_count)
 	{
 		libbio_assert_lte(initial_lhs_count, m_idxs_by_substring_lhs.size());
 		for (std::size_t i(0); i < initial_lhs_count; ++i)
@@ -23,6 +23,18 @@ namespace vcf2multialign { namespace path_mapping {
 		
 		// Mark the streams that are not associated with a founder sequence available.
 		for (std::size_t i(initial_lhs_count); i < m_founder_count; ++i)
+			m_idxs_available_lhs.push_back(i);
+	}
+	
+	
+	void path_mapper::setup_with_selected_substrings(substring_index_multiset const &selected_substrings)
+	{
+		for (auto const [founder_idx, substring_idx] : rsv::enumerate(selected_substrings))
+			m_idxs_by_substring_lhs[substring_idx].push_back(founder_idx);
+		
+		// Mark the streams that are not associated with a founder sequence available.
+		auto const initial_substring_count(selected_substrings.size());
+		for (std::size_t i(initial_substring_count); i < m_founder_count; ++i)
 			m_idxs_available_lhs.push_back(i);
 	}
 	
@@ -50,7 +62,7 @@ namespace vcf2multialign { namespace path_mapping {
 		// Here we determine the founder indices to which the lhs substrings have been assigned and assign them the rhs substrings.
 		// Thus, the precondition is that each founder has an lhs substring. The postcondition is that each founder has an rhs substring, too.
 		
-		// Update m_idxs_by_substring_lhs s.t. each substring has one or more founder sequences associated with it.
+		// Update m_idxs_by_substring_lhs s.t. each selected substring has one or more founder sequences associated with it.
 		if (!edges.empty())
 		{
 			m_idxs_available_rhs.clear();
@@ -89,6 +101,7 @@ namespace vcf2multialign { namespace path_mapping {
 					}
 					else
 					{
+						// Lhs index is assigned.
 						libbio_assert_lt(current_lhs_substring_idx, m_idxs_by_substring_lhs.size());
 						auto const &founder_idxs_lhs(m_idxs_by_substring_lhs[current_lhs_substring_idx]);
 						try
@@ -104,6 +117,8 @@ namespace vcf2multialign { namespace path_mapping {
 						
 							for (auto const &[founder_idx, edge] : rsv::zip(founder_idxs_lhs, edge_range))
 							{
+								// Consume an rhs index in case the edge is connected, i.e.
+								// rhs_idx is not unassigned.
 								if (UNASSIGNED_INDEX != edge.rhs_idx)
 								{
 									auto const it(m_idxs_available_rhs.find(founder_idx));
@@ -189,6 +204,7 @@ namespace vcf2multialign { namespace path_mapping {
 			idx_vec.clear();
 		
 		// Copy the available founder indices.
+		// FIXME: these could probably be just swapped b.c. m_idxs_available_rhs is only used here and in assign_edges_to_founders() where it is re-initialized.
 		m_idxs_available_lhs.clear();
 		std::copy(m_idxs_available_rhs.begin(), m_idxs_available_rhs.end(), std::back_inserter(m_idxs_available_lhs));
 	}

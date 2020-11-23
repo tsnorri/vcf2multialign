@@ -191,12 +191,11 @@ void process(gengetopt_args_info &args_info)
 				if (args_info.founder_count_arg < max_paths_in_subgraph)
 				{
 					std::cerr
-						<< "ERROR: There are at most "
+						<< "NOTE: There are at most "
 						<< max_paths_in_subgraph
 						<< " paths in a subgraph, which is more than the specified number of founder sequences to be generated, "
 						<< args_info.founder_count_arg
 						<< ".\n";
-					std::exit(EXIT_FAILURE);
 				}
 			}
 			

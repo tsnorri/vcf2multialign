@@ -12,6 +12,31 @@
 
 namespace vcf2multialign { namespace path_mapping {
 	
+	struct substring_item
+	{
+		substring_index_type substring_idx{};
+		substring_count_type count{};
+		
+		substring_item() = default;
+		
+		substring_item(substring_index_type substring_idx_, substring_count_type count_):
+			substring_idx(substring_idx_),
+			count(count_)
+		{
+		}
+		
+		explicit substring_item(substring_index_type substring_idx_):
+			substring_item(substring_idx_, 0)
+		{
+		}
+	};
+	
+	inline bool operator<(substring_item const &lhs, substring_item const &rhs)
+	{
+		return lhs.substring_idx < rhs.substring_idx;
+	}
+	
+	
 	struct path_item
 	{
 		substring_index_type lhs_idx{};
@@ -67,7 +92,8 @@ namespace vcf2multialign { namespace path_mapping {
 		{
 		}
 		
-		void setup(std::size_t const initial_lhs_count);
+		void setup_with_complete_segment(std::size_t const initial_lhs_count);
+		void setup_with_selected_substrings(substring_index_multiset const &selected_substrings);
 		
 		void add_substrings(substring_index_vector const &substrings_added_to_lhs);
 		void assign_edges_to_founders(edge_vector const &edges);

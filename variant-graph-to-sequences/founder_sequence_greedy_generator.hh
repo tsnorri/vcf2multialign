@@ -24,6 +24,7 @@ namespace vcf2multialign {
 	protected:
 		std::size_t									m_founder_count{};
 		std::size_t									m_tail_length{};
+		bool										m_output_all_substrings{};		// Can be used to select the algorithm for choosing the substrings. For now, the greedy algorithm (that does not guarantee choosing all the substrings) is always enabled.
 		bool										m_fill_unassigned_with_ref{};
 		bool										m_should_remove_mid{};
 		
