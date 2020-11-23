@@ -458,16 +458,17 @@ namespace vcf2multialign {
 				
 				// Iterate over the pairs of paths and count.
 				auto const max_rhs_substring_idx(count_paths(lhs_substring_numbers, rhs_substring_numbers, path_counts));
-				
 				libbio_assert(std::is_sorted(path_counts.begin(), path_counts.end()));
-				libbio_always_assert_lt_msg(max_rhs_substring_idx, m_founder_count, "Given founder count (", m_founder_count, ") is less than the number of distinct substrings in subgraph ", lhs_subgraph_idx, " (", 1 + max_rhs_substring_idx, ").");
 				
 				// Sort by count and add edges in descending count order.
 				std::sort(path_counts.begin(), path_counts.end(), [](auto const &lhs, auto const &rhs) -> bool {
 					return lhs.count < rhs.count;
 				});
 				if (m_output_all_substrings)
+				{
+					libbio_always_assert_lt_msg(max_rhs_substring_idx, m_founder_count, "Given founder count (", m_founder_count, ") is less than the number of distinct substrings in subgraph ", lhs_subgraph_idx, " (", 1 + max_rhs_substring_idx, ").");
 					sc.make_edges(path_counts, 1 + max_rhs_substring_idx, edges, substrings_added_to_lhs);
+				}
 				else
 				{
 					// Select the substrings for the founders in the rhs segment.
