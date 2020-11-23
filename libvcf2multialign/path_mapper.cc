@@ -39,6 +39,16 @@ namespace vcf2multialign { namespace path_mapping {
 	}
 	
 	
+	void path_mapper::set_rhs_subgraph_size(std::size_t const count)
+	{
+		// As a vector, m_idxs_by_substring_rhs’s capacity does not change
+		// when shrinking it with resize(). However, since the elements are
+		// vectors, they likely get freed. Hence we check the size before resizing.
+		if (m_idxs_by_substring_rhs.size() < count)
+			m_idxs_by_substring_rhs.resize(count);
+	}
+	
+	
 	void path_mapper::add_substrings(substring_index_vector const &substrings_added_to_lhs)
 	{
 		// Additional substrings (copies) may be assigned to lhs before assign_edges_to_founders is called.

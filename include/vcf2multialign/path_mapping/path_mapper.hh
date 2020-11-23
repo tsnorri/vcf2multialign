@@ -84,9 +84,10 @@ namespace vcf2multialign { namespace path_mapping {
 		std::size_t					m_founder_count{};
 		
 	public:
-		path_mapper(std::size_t founder_count):
-			m_idxs_by_substring_lhs(founder_count), // Distinct substring count ≤ founder_count.
-			m_idxs_by_substring_rhs(founder_count),
+		// first_subgraph_size equals the number of paths in the first subgraph.
+		path_mapper(std::size_t first_subgraph_size, std::size_t founder_count):
+			m_idxs_by_substring_lhs(first_subgraph_size),
+			m_idxs_by_substring_rhs(first_subgraph_size),
 			m_string_idxs_by_founder_lhs(founder_count),
 			m_founder_count(founder_count)
 		{
@@ -95,6 +96,7 @@ namespace vcf2multialign { namespace path_mapping {
 		void setup_with_complete_segment(std::size_t const initial_lhs_count);
 		void setup_with_selected_substrings(substring_index_multiset const &selected_substrings);
 		
+		void set_rhs_subgraph_size(std::size_t const count);
 		void add_substrings(substring_index_vector const &substrings_added_to_lhs);
 		void assign_edges_to_founders(edge_vector const &edges);
 		void update_string_indices();

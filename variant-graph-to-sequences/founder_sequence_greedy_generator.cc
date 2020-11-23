@@ -414,17 +414,17 @@ namespace vcf2multialign {
 		// Count the distinct pairs of paths.
 		// A vector is used b.c. we would like to sort by different keys.
 		
+		// Mark the indices in the first segment as assigned for greedy matching.
+		std::size_t max_lhs_substring_idx(all_path_edges.front().number_of_columns() - 1);
+		libbio_always_assert_lt_msg(max_lhs_substring_idx, m_founder_count, "Given founder count (", m_founder_count, ") is less than the number of distinct substrings in subgraph 1 (", 1 + max_lhs_substring_idx, ").");
+		
 		pm::path_item_vector path_counts;					// Existing edges in the graph, to be sorted by occurrence count.
 		pm::edge_vector edges;								// Edges to be drawn in the founders.
 		pm::substring_index_vector substrings_added_to_lhs;	// Substrings added to the lhs segment in the current iteration.
 		pm::segment_connector sc(m_founder_count);
-		pm::path_mapper pm(m_founder_count);
-		
+		pm::path_mapper pm(1 + max_lhs_substring_idx, m_founder_count);
+
 		pm::substring_item_vector substring_counts;			// For use when not outputting all substrings.
-		
-		// Mark the indices in the first segment as assigned for greedy matching.
-		std::size_t max_lhs_substring_idx(all_path_edges.front().number_of_columns() - 1);
-		libbio_always_assert_lt_msg(max_lhs_substring_idx, m_founder_count, "Given founder count (", m_founder_count, ") is less than the number of distinct substrings in subgraph 1 (", 1 + max_lhs_substring_idx, ").");
 		
 		if (m_output_all_substrings)
 		{
@@ -459,6 +459,9 @@ namespace vcf2multialign {
 				// Iterate over the pairs of paths and count.
 				auto const max_rhs_substring_idx(count_paths(lhs_substring_numbers, rhs_substring_numbers, path_counts));
 				libbio_assert(std::is_sorted(path_counts.begin(), path_counts.end()));
+				
+				// Prepare the path mapper.
+				pm.set_rhs_subgraph_size(1 + max_rhs_substring_idx);
 				
 				// Sort by count and add edges in descending count order.
 				std::sort(path_counts.begin(), path_counts.end(), [](auto const &lhs, auto const &rhs) -> bool {
