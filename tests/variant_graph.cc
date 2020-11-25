@@ -256,7 +256,7 @@ SCENARIO("Variant graph can be created correctly from a set of miscellaneous var
 		node_comparator cmp{
 			{
 				{0,		0,	0,	false,	"AAAA",	{}},
-				{1,		4,	4,	true,	"A",	{{2, ""}, {2, "G"}}},
+				{1,		4,	4,	true,	"A",	{{2, "G"}}},
 				{2,		5,	5,	false,	"A",	{}},
 				{3,		6,	6,	true,	"A",	{{4, "T"}, {4, "CC"}}},
 				{4,		7,	8,	true,	"A",	{{5, "T"}, {5, "GGGG"}}},
