@@ -169,7 +169,7 @@ namespace vcf2multialign { namespace variant_graphs {
 		};
 		
 	protected:
-		vector_type			m_reference;
+		vector_type const	*m_reference{};
 		variant_graph const	*m_graph{};
 		std::size_t			m_node_1{};							// 1-based.
 		std::size_t			m_subgraph{};
@@ -184,7 +184,7 @@ namespace vcf2multialign { namespace variant_graphs {
 		}
 		
 		variant_graph_walker(variant_graph const &graph, vector_type const &reference):
-			m_reference(reference),
+			m_reference(&reference),
 			m_graph(&graph)
 		{
 		}
@@ -207,7 +207,7 @@ namespace vcf2multialign { namespace variant_graphs {
 		auto alt_edges() const { return m_graph->alt_edges(m_node_1 - 1); }
 		
 	protected:
-		std::string_view ref_label_(std::size_t const rhs_node) const { return m_graph->ref_label(m_node_1 - 1, rhs_node, m_reference); }
+		std::string_view ref_label_(std::size_t const rhs_node) const { return m_graph->ref_label(m_node_1 - 1, rhs_node, *m_reference); }
 		inline std::size_t ref_length_(std::size_t const rhs_node) const;
 		inline std::size_t aligned_length_(std::size_t const rhs_node) const;
 	};
