@@ -554,14 +554,14 @@ namespace vcf2multialign {
 				{
 					sw.output_subgraph_path(last_subgraph_idx, substring_idx, m_should_remove_mid, os);
 				}
-				os << std::flush;
+				os.flush();
 			}
 			
 			if (m_output_reference)
 			{
 				auto &os(output_files.back());
 				sw.output_ref_for_subgraph(last_subgraph_idx, false, os);
-				os << std::flush;
+				os.flush();
 			}
 		}
 		progress_delegate.advance();

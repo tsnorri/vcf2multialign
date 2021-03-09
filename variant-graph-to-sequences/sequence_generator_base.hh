@@ -31,7 +31,8 @@ namespace vcf2multialign {
 									public progress_indicator_manager
 	{
 	public:
-		typedef std::vector <libbio::file_ostream>	output_stream_vector;
+		typedef libbio::file_ostream				output_stream_type;
+		typedef std::vector <output_stream_type>	output_stream_vector;
 		typedef std::list <stream_position>			stream_position_list;
 		
 	protected:
@@ -88,7 +89,8 @@ namespace vcf2multialign {
 			output_stream_vector &output_files
 		) const = 0;
 		
-		virtual void open_output_file(std::size_t const idx, libbio::file_ostream &of, libbio::writing_open_mode const mode) const = 0;
+		void open_output_file(char const *path, output_stream_type &of, libbio::writing_open_mode const mode) const;
+		virtual void open_output_file(std::size_t const idx, output_stream_type &of, libbio::writing_open_mode const mode) const = 0;
 		
 		void output_chunk(std::string_view const &reference_sv, output_stream_vector &output_files);
 	};

@@ -22,6 +22,12 @@ namespace vgs	= vcf2multialign::variant_graphs;
 
 namespace vcf2multialign {
 	
+	void direct_matching_sequence_generator::open_output_file(char const *path, lb::file_ostream &of, lb::writing_open_mode const mode) const
+	{
+		lb::open_file_for_writing("REF", of, mode);
+	}
+	
+	
 	void sequence_generator_base::read_variant_graph(char const *input_graph_path)
 	{
 		lb::file_istream input_graph_stream;
@@ -64,7 +70,7 @@ namespace vcf2multialign {
 				// The last stream will be REF.
 				if (m_output_reference && rhsc == stream_count)
 				{
-					lb::open_file_for_writing("REF", output_files.back(), mode);
+					open_output_file("REF", output_files.back(), mode);
 					for (auto &&[i, of] : ranges::view::zip(ranges::view::iota(lhsc, rhsc), output_files) | ranges::view::drop_last(1))
 						open_output_file(i, of, mode);
 				}
