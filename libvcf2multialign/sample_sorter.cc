@@ -67,8 +67,11 @@ namespace vcf2multialign {
 		auto const *gt_field(get_variant_format(var).gt);
 		
 		// Reset variant-specific state.
-		for (auto &word : m_branches_by_path_index.word_range() | ranges::view::take(1 + m_path_counter / branch_vector::ELEMENT_COUNT))
-			word.store(0, std::memory_order_release);
+		{
+			auto word_range(m_branches_by_path_index.word_range());
+			for (auto &word : word_range | ranges::view::take(1 + m_path_counter / branch_vector::ELEMENT_COUNT))
+				word.store(0, std::memory_order_release);
+		}
 	
 		// Check which paths branch by setting a bit mask in m_branches_by_path_index.
 		// The branching ones will have 0x3 in the end.
