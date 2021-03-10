@@ -22,7 +22,7 @@ namespace vgs	= vcf2multialign::variant_graphs;
 
 namespace vcf2multialign {
 	
-	void direct_matching_sequence_generator::open_output_file(char const *path, lb::file_ostream &of, lb::writing_open_mode const mode) const
+	void direct_matching_sequence_generator::open_output_file(char const *path, output_stream_type &of, lb::writing_open_mode const mode) const
 	{
 		lb::open_file_for_writing("REF", of, mode);
 	}
@@ -243,7 +243,8 @@ namespace vcf2multialign {
 				auto const ref_begin(ref_positions[1 + sp.node]);
 				auto const ref_sub(reference_sv.substr(ref_begin, ref_end - ref_begin));
 				auto &stream(output_files[sp.stream_number]);
-				stream << ref_sub << std::flush;
+				stream << ref_sub;
+				stream.flush();
 				
 				progress_delegate.advance();
 			}

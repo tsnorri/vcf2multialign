@@ -34,7 +34,6 @@ namespace {
 			auto const subgraph_paths(m_edges_by_path_and_variant->number_of_columns());
 			for (auto &sp : files_waiting)
 			{
-				auto &stream((*m_output_files)[sp.stream_number]);
 				std::size_t const edge_number(sp.stream_number < subgraph_paths ? (*m_edges_by_path_and_variant)(subgraph_variant_idx, sp.stream_number) : 0);
 				this->handle_edge(sp, edge_number);
 			}
@@ -54,7 +53,6 @@ namespace {
 			this->handle_edge(files_waiting.back(), 0); // REF
 			for (auto &sp : files_waiting | ranges::view::drop_last(1))
 			{
-				auto &stream((*m_output_files)[sp.stream_number]);
 				auto const path_number((*m_sample_paths)[sp.stream_number]);
 				auto const edge_number((*m_edges_by_path_and_variant)(subgraph_variant_idx, path_number));
 				this->handle_edge(sp, edge_number);
@@ -86,7 +84,7 @@ namespace {
 		}
 		
 	protected:
-		void open_output_file(std::size_t const idx, lb::file_ostream &of, lb::writing_open_mode const mode) const override
+		void open_output_file(std::size_t const idx, output_stream_type &of, lb::writing_open_mode const mode) const override
 		{
 			v2m::open_founder_output_file(idx, of, mode);
 		}
@@ -115,7 +113,7 @@ namespace {
 		}
 		
 	protected:
-		void open_output_file(std::size_t const idx, lb::file_ostream &of, lb::writing_open_mode const mode) const override
+		void open_output_file(std::size_t const idx, output_stream_type &of, lb::writing_open_mode const mode) const override
 		{
 			auto const &name(m_graph.sample_names()[idx]);
 			lb::open_file_for_writing(name, of, mode);

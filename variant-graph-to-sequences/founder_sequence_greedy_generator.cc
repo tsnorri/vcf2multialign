@@ -21,6 +21,9 @@ namespace vgs	= vcf2multialign::variant_graphs;
 
 namespace {
 	
+	typedef std::ostream output_stream_type;
+	
+	
 	class sequence_writer
 	{
 	public:
@@ -47,19 +50,19 @@ namespace {
 		{
 		}
 		
-		void output_ref(std::size_t const node_idx, bool const should_remove_mid, std::ostream &os) const { output_ref(node_idx, 1 + node_idx, should_remove_mid, os); }
-		void output_subgraph_path(std::size_t const subgraph_idx, pm::substring_index_type const path_idx, bool const should_remove_mid, std::ostream &os);
-		void output_ref_for_subgraph(std::size_t const subgraph_idx, bool const should_remove_mid, std::ostream &os) const;
-		void output_gaps_for_subgraph(std::size_t const subgraph_idx, std::ostream &os) const { output_char_for_subgraph(subgraph_idx, '-', os); }
-		void output_n_for_subgraph(std::size_t const subgraph_idx, std::ostream &os) const { output_char_for_subgraph(subgraph_idx, 'N', os); }
+		void output_ref(std::size_t const node_idx, bool const should_remove_mid, output_stream_type &os) const { output_ref(node_idx, 1 + node_idx, should_remove_mid, os); }
+		void output_subgraph_path(std::size_t const subgraph_idx, pm::substring_index_type const path_idx, bool const should_remove_mid, output_stream_type &os);
+		void output_ref_for_subgraph(std::size_t const subgraph_idx, bool const should_remove_mid, output_stream_type &os) const;
+		void output_gaps_for_subgraph(std::size_t const subgraph_idx, output_stream_type &os) const { output_char_for_subgraph(subgraph_idx, '-', os); }
+		void output_n_for_subgraph(std::size_t const subgraph_idx, output_stream_type &os) const { output_char_for_subgraph(subgraph_idx, 'N', os); }
 		
 	protected:
-		void output_char_for_subgraph(std::size_t const subgraph_idx, char const c, std::ostream &os) const;
+		void output_char_for_subgraph(std::size_t const subgraph_idx, char const c, output_stream_type &os) const;
 		
 		// Return true if middle part was removed.
-		bool output_ref(pm::substring_index_type const node_idx, pm::substring_index_type const next_node_idx, bool const should_remove_mid, std::ostream &os) const;
-		bool output_alt(pm::substring_index_type const node_idx, pm::substring_index_type const next_node_idx, std::size_t const alt_idx, bool const should_remove_mid, std::ostream &os) const;
-		bool output_part(std::string_view const &part, std::size_t const gap_count, bool const should_remove_mid, std::ostream &os) const;
+		bool output_ref(pm::substring_index_type const node_idx, pm::substring_index_type const next_node_idx, bool const should_remove_mid, output_stream_type &os) const;
+		bool output_alt(pm::substring_index_type const node_idx, pm::substring_index_type const next_node_idx, std::size_t const alt_idx, bool const should_remove_mid, output_stream_type &os) const;
+		bool output_part(std::string_view const &part, std::size_t const gap_count, bool const should_remove_mid, output_stream_type &os) const;
 		
 		// (Ab)use the fact that m_removed_counts is a pointer, which is not modified.
 		void mark_middle_part_removed(std::size_t const node_idx, bool const is_ref) const { ++(*m_removed_counts)[node_idx]; }
@@ -70,7 +73,7 @@ namespace {
 		std::size_t const subgraph_idx,
 		pm::substring_index_type const path_idx,
 		bool const should_remove_mid,
-		std::ostream &os
+		output_stream_type &os
 	)
 	{
 		auto const &ref_positions(m_graph->ref_positions());						// REF positions (0-based) by node number. We use 1-based indexing in order to make summing easier.
@@ -158,7 +161,7 @@ namespace {
 	void sequence_writer::output_ref_for_subgraph(
 		std::size_t const subgraph_idx,
 		bool const should_remove_mid,
-		std::ostream &os
+		output_stream_type &os
 	) const
 	{
 		auto const &ref_positions(m_graph->ref_positions());
@@ -182,7 +185,7 @@ namespace {
 	}
 	
 	
-	void sequence_writer::output_char_for_subgraph(std::size_t const subgraph_idx, char const cc, std::ostream &os) const
+	void sequence_writer::output_char_for_subgraph(std::size_t const subgraph_idx, char const cc, output_stream_type &os) const
 	{
 		auto const &subgraph_start_positions(m_graph->subgraph_start_positions());	// Subgraph starting node numbers by subgraph number.
 		auto const &ref_positions(m_graph->ref_positions());
@@ -210,7 +213,7 @@ namespace {
 		pm::substring_index_type const node_idx,
 		pm::substring_index_type const next_node_idx,
 		bool const should_remove_mid,
-		std::ostream &os
+		output_stream_type &os
 	) const
 	{
 		auto const &ref_positions(m_graph->ref_positions());
@@ -236,7 +239,7 @@ namespace {
 		pm::substring_index_type const next_node_idx,
 		std::size_t const alt_idx,
 		bool const should_remove_mid,
-		std::ostream &os
+		output_stream_type &os
 	) const
 	{
 		auto const &aln_positions(m_graph->aligned_ref_positions());
@@ -257,7 +260,7 @@ namespace {
 		std::string_view const &part,
 		std::size_t const gap_count,
 		bool const should_remove_mid,
-		std::ostream &os
+		output_stream_type &os
 	) const
 	{
 		if (should_remove_mid && 2 * m_tail_length <= part.size())
