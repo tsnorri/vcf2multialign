@@ -7,6 +7,7 @@
 #define VCF2MULTIALIGN_VARIANT_GRAPH_TO_SEQUENCES_FILE_HANDLING_HH
 
 #include <libbio/buffered_writer/dispatch_io_channel_buffered_writer.hh>
+#include <libbio/file_handle.hh>
 #include <libbio/file_handling.hh>
 
 
@@ -18,12 +19,9 @@ namespace vcf2multialign {
 	inline void open_output_file(char const *path, output_stream_type &of, libbio::writing_open_mode const mode)
 	{
 		namespace lb = libbio;
-		auto const flags(
-			O_WRONLY |
-			(mode & lb::writing_open_mode::CREATE		? O_CREAT : 0) |	// Create if requested.
-			(mode & lb::writing_open_mode::OVERWRITE	? O_TRUNC : O_EXCL)	// Truncate if OVERWRITE given, otherwise require that the file does not exist.
-		);
-		of = lb::dispatch_io_channel_buffered_writer(path, flags, S_IRUSR | S_IWUSR, 512 * 1024, dispatch_get_main_queue());
+		lb::file_handle temp_handle(lb::open_file_for_writing(path, mode));
+		of = lb::dispatch_io_channel_buffered_writer(temp_handle.get(), 512 * 1024, dispatch_get_main_queue());
+		temp_handle.release();
 	}
 	
 	
