@@ -116,7 +116,7 @@ namespace {
 		void open_output_file(std::size_t const idx, output_stream_type &of, lb::writing_open_mode const mode) const override
 		{
 			auto const &name(m_graph.sample_names()[idx]);
-			lb::open_file_for_writing(name, of, mode);
+			v2m::open_output_file(name, of, mode);
 		}
 	};
 	

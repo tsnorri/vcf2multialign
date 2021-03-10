@@ -6,11 +6,11 @@
 #ifndef VCF2MULTIALIGN_SEQUENCE_GENERATOR_BASE_HH
 #define VCF2MULTIALIGN_SEQUENCE_GENERATOR_BASE_HH
 
-#include <libbio/file_handling.hh>
 #include <list>
 #include <vcf2multialign/variant_graph/variant_graph.hh>
 #include <vcf2multialign/utility/progress_indicator_manager.hh>
 #include <vcf2multialign/vcf_processor.hh>
+#include "file_handling.hh"
 
 
 namespace vcf2multialign {
@@ -31,7 +31,7 @@ namespace vcf2multialign {
 									public progress_indicator_manager
 	{
 	public:
-		typedef libbio::file_ostream				output_stream_type;
+		typedef vcf2multialign::output_stream_type	output_stream_type;
 		typedef std::vector <output_stream_type>	output_stream_vector;
 		typedef std::list <stream_position>			stream_position_list;
 		
@@ -154,12 +154,6 @@ namespace vcf2multialign {
 	protected:
 		void handle_edge(stream_position &sp, std::size_t const edge_number) const;
 	};
-	
-	
-	inline void open_founder_output_file(std::size_t const idx, libbio::file_ostream &of, libbio::writing_open_mode const mode)
-	{
-		libbio::open_file_for_writing(std::to_string(1 + idx), of, mode);
-	}
 	
 	
 	void alt_edge_handler_base::set_subgraph_samples_and_edges(

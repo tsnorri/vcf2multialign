@@ -8,6 +8,7 @@
 #include <vcf2multialign/path_mapping/path_mapper.hh>
 #include <vcf2multialign/path_mapping/segment_connector.hh>
 #include "founder_sequence_greedy_generator.hh"
+#include "file_handling.hh"
 #include "utility.hh"
 
 // Substring refers here to a labelled graph path through one subgraph whereas path refers to a graph path through two consecutive subgraphs.
@@ -21,13 +22,11 @@ namespace vgs	= vcf2multialign::variant_graphs;
 
 namespace {
 	
-	typedef std::ostream output_stream_type;
-	
-	
 	class sequence_writer
 	{
 	public:
 		typedef v2m::founder_sequence_greedy_generator::removed_count_map	removed_count_map;
+		typedef v2m::output_stream_type										output_stream_type;
 		
 	protected:
 		std::string_view					m_reference;
@@ -204,7 +203,7 @@ namespace {
 		libbio_assert_lte(lhs_aln_pos, rhs_aln_pos);
 		auto const gap_count(rhs_aln_pos - lhs_aln_pos);
 		libbio_assert_eq(os.tellp(), lhs_aln_pos);
-		std::fill_n(std::ostream_iterator <char>(os), gap_count, cc);
+		os << lb::character_count(cc, gap_count);
 		libbio_assert_eq(os.tellp(), rhs_aln_pos);
 	}
 	
@@ -269,15 +268,15 @@ namespace {
 			auto const tail(part.substr(part.size() - m_tail_length));
 			auto const mid_len(part.size() - 2 * m_tail_length);
 			os << head;
-			std::fill_n(std::ostream_iterator <char>(os), mid_len, 'N');
+			os << lb::character_count('N', mid_len);
 			os << tail;
-			std::fill_n(std::ostream_iterator <char>(os), gap_count, '-');
+			os << lb::character_count('-', gap_count);
 			return true;
 		}
 		else
 		{
 			os << part;
-			std::fill_n(std::ostream_iterator <char>(os), gap_count, '-');
+			os << lb::character_count('-', gap_count);
 			return false;
 		}
 	}
@@ -600,7 +599,7 @@ namespace vcf2multialign {
 				open_founder_output_file(i, output_files[i], mode);
 			
 			if (m_output_reference)
-				lb::open_file_for_writing("REF", output_files.back(), mode);
+				open_output_file("REF", output_files.back(), mode);
 			
 			removed_count_map removed_counts;
 			

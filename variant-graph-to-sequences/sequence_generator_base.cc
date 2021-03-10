@@ -24,7 +24,7 @@ namespace vcf2multialign {
 	
 	void direct_matching_sequence_generator::open_output_file(char const *path, output_stream_type &of, lb::writing_open_mode const mode) const
 	{
-		lb::open_file_for_writing("REF", of, mode);
+		v2m::open_output_file("REF", of, mode);
 	}
 	
 	
@@ -204,7 +204,7 @@ namespace vcf2multialign {
 							libbio_assert_eq(lhs, sp.node);
 							libbio_assert_eq(aln_lhs, stream.tellp());
 							stream << ref_sub;
-							std::fill_n(std::ostream_iterator <char>(stream), aln_len - ref_len, '-');
+							stream << lb::character_count('-', aln_len - ref_len);
 							libbio_assert_eq(aln_rhs, stream.tellp());
 							sp.node = rhs;
 						}
@@ -269,7 +269,7 @@ namespace vcf2multialign {
 			auto const ref_sub(m_reference_sv->substr(m_ref_lhs, ref_len));
 			libbio_assert_lte(ref_len, aln_len);
 			stream << ref_sub;
-			std::fill_n(std::ostream_iterator <char>(stream), aln_len - ref_len, '-');
+			stream << lb::character_count('-', aln_len - ref_len);
 			libbio_assert_eq(m_aln_rhs, stream.tellp());
 			sp.node = m_rhs;
 		}
@@ -289,7 +289,7 @@ namespace vcf2multialign {
 			libbio_always_assert_lte(alt.size(), aln_len);
 				
 			stream << alt;
-			std::fill_n(std::ostream_iterator <char>(stream), aln_len - alt.size(), '-');
+			stream << lb::character_count('-', aln_len - alt.size());
 			libbio_assert_eq(aln_rhs, stream.tellp());
 			sp.node = target_node;
 		}
