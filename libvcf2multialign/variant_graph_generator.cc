@@ -61,12 +61,7 @@ namespace vcf2multialign { namespace variant_graphs {
 	
 	void variant_graph_generator::update_sample_names()
 	{
-		// XXX I don’t remember why vcf_reader outputs the sample names as a map with names as keys and positions as indices but it should be fixed unless a good reason is found not to.
-		auto &reader(this->vcf_reader());
-		auto const &sample_name_map(reader.sample_names());
-		m_sample_names.resize(sample_name_map.size());
-		for (auto const &[sample_name, idx1] : sample_name_map)
-			m_sample_names[idx1 - 1] = sample_name; // Copy.
+		m_sample_names = this->vcf_reader().sample_names_by_index();
 	}
 	
 	
