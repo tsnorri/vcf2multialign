@@ -21,7 +21,7 @@ namespace vcf2multialign {
 		vcf_reader.parse([&vcf_reader, &out_ploidy, &handled_variant](vcf::transient_variant const &var) -> bool {
 			handled_variant = true;
 			auto const *gt_field(get_variant_format(var).gt);
-			for (auto const &kv : vcf_reader.sample_names())
+			for (auto const &kv : vcf_reader.sample_indices_by_name()) // FIXME: use sample_names_by_index instead.
 			{
 				auto const sample_no(kv.second);
 				libbio_assert_lt(0, sample_no);
