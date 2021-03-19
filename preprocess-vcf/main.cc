@@ -16,6 +16,29 @@ namespace lb	= libbio;
 namespace v2m	= vcf2multialign;
 
 
+namespace {
+
+	void __attribute__((noinline)) do_process(gengetopt_args_info &args_info)
+	{
+		std::vector <std::string> field_names_for_filter_if_set(args_info.filter_fields_set_given);
+		for (std::size_t i(0); i < args_info.filter_fields_set_given; ++i)
+			field_names_for_filter_if_set[i] = args_info.filter_fields_set_arg[i];
+		
+		v2m::preprocess_vcf(
+			args_info.reference_arg,
+			args_info.variants_arg,
+			args_info.output_arg,
+			args_info.log_arg,
+			args_info.reference_sequence_given ? args_info.reference_sequence_arg : nullptr,
+			args_info.chromosome_given ? args_info.chromosome_arg : nullptr,
+			std::move(field_names_for_filter_if_set),
+			args_info.minimum_subgraph_distance_arg,
+			args_info.overwrite_flag
+		);
+	}
+}
+
+
 int main(int argc, char **argv)
 {
 #ifndef NDEBUG
@@ -40,22 +63,10 @@ int main(int argc, char **argv)
 		std::cerr << "Minimum subgraph distance must be less than or equal to " << SIZE_MAX << ".\n";
 		std::exit(EXIT_FAILURE);
 	}
-	
-	std::vector <std::string> field_names_for_filter_if_set(args_info.filter_fields_set_given);
-	for (std::size_t i(0); i < args_info.filter_fields_set_given; ++i)
-		field_names_for_filter_if_set[i] = args_info.filter_fields_set_arg[i];
-	
-	v2m::preprocess_vcf(
-		args_info.reference_arg,
-		args_info.variants_arg,
-		args_info.output_arg,
-		args_info.log_arg,
-		args_info.reference_sequence_given ? args_info.reference_sequence_arg : nullptr,
-		args_info.chromosome_given ? args_info.chromosome_arg : nullptr,
-		std::move(field_names_for_filter_if_set),
-		args_info.minimum_subgraph_distance_arg,
-		args_info.overwrite_flag
-	);
+
+	// Having the function calls in the same function as the call to dispatch_main()
+	// causes an error message “terminate called without an active exception” with Clang 13.
+	do_process(args_info);
 	
 	dispatch_main();
 	// Not reached.
