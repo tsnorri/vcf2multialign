@@ -99,8 +99,6 @@ namespace {
 		auto expected_node_idx(subgraph_begin);
 		for (auto node_idx(subgraph_begin); node_idx < subgraph_end; ++node_idx)
 		{
-			std::fill(m_seen_edges.word_begin(), m_seen_edges.word_end(), 0);
-			
 			libbio_assert_lt(1 + node_idx, alt_edge_count_csum.size());
 			auto const alt_edge_start(alt_edge_count_csum[node_idx]);
 			auto const alt_edge_limit(alt_edge_count_csum[1 + node_idx]);
@@ -137,13 +135,21 @@ namespace {
 							alt_edge_targets[alt_idx], " but subgraph end is at node ", subgraph_end
 						);
 							
-						if (! (alt_idx < m_seen_edges.size()))
-							m_seen_edges.resize(1 + alt_idx, 0x0);
-						
-						if (output_alt(node_idx, expected_node_idx, alt_idx, should_remove_mid && !m_seen_edges[alt_idx], os))
-							mark_middle_part_removed(node_idx, false);
+						// Check for seen ALT edges if their middle parts are to be removed.
+						if (should_remove_mid)
+						{
+							if (! (alt_idx < m_seen_edges.size()))
+								m_seen_edges.resize(1 + alt_idx, 0x0);
+
+							if (output_alt(node_idx, expected_node_idx, alt_idx, !m_seen_edges[alt_idx], os))
+								mark_middle_part_removed(node_idx, false);
+							else
+								m_seen_edges[alt_idx] |= 0x1;
+						}
 						else
-							m_seen_edges[alt_idx] |= 0x1;
+						{
+							output_alt(node_idx, expected_node_idx, alt_idx, false, os);
+						}
 					}
 				}
 				++variant_idx;
