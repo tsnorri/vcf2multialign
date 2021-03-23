@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Tuukka Norri
+ * Copyright (c) 2019–2021 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -8,6 +8,7 @@
 #include <libbio/assert.hh>
 #include <libbio/dispatch.hh>
 #include <unistd.h>
+#include <vcf2multialign/utility/log_assertion_failure.hh>
 #include "cmdline.h"
 #include "create_variant_graph.hh"
 
@@ -71,10 +72,7 @@ namespace {
 		}
 		catch (lb::assertion_failure_exception const &exc)
 		{
-			std::cerr << "Assertion failure: " << exc.what() << '\n';
-			boost::stacktrace::stacktrace const *st(boost::get_error_info <lb::traced>(exc));
-			if (st)
-				std::cerr << "Stack trace:\n" << *st << '\n';
+			v2m::log_assertion_failure_exception(exc);
 			throw exc;
 		}
 	}

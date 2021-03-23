@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Tuukka Norri
+ * Copyright (c) 2019–2021 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -38,69 +38,50 @@ namespace vcf2multialign {
 	}
 	
 	
-	void direct_matching_sequence_generator::output_sequences()
+	void direct_matching_sequence_generator::do_work()
 	{
-		try
-		{
-			// Setup the progress indicator.
-			this->install_progress_indicator();
-			
-			// Create a string view from the reference.
-			std::string_view const reference_sv(m_reference.data(), m_reference.size());
+		// Create a string view from the reference.
+		std::string_view const reference_sv(m_reference.data(), m_reference.size());
 		
-			// Output in chunks.
-			auto const mode(lb::make_writing_open_mode({
-				lb::writing_open_mode::CREATE,
-				(m_may_overwrite ? lb::writing_open_mode::OVERWRITE : lb::writing_open_mode::NONE)
-			}));
+		// Output in chunks.
+		auto const mode(lb::make_writing_open_mode({
+			lb::writing_open_mode::CREATE,
+			(m_may_overwrite ? lb::writing_open_mode::OVERWRITE : lb::writing_open_mode::NONE)
+		}));
+		
+		auto const stream_count(this->get_stream_count());
+		dispatch_async_main(^{ lb::log_time(std::cerr); std::cerr << stream_count << " sequences will be written.\n"; });
+		std::size_t const chunk_count(std::ceil(1.0 * stream_count / m_chunk_size));
+		for (auto const &pair : ranges::view::closed_iota(std::size_t(0), chunk_count) | ranges::view::sliding(2))
+		{
+			auto const lhs(pair[0]);
+			auto const rhs(pair[1]);
+			auto const lhsc(m_chunk_size * lhs);
+			auto const rhsc(std::min(stream_count, m_chunk_size * rhs));
+			dispatch_async_main(^{ lb::log_time(std::cerr); std::cerr << "Processing chunk " << rhs << '/' << chunk_count << "…\n"; });
+			output_stream_vector output_files(rhsc - lhsc); // Cannot reuse b.c. lb::file_ostream has a deleted copy constructor.
 			
-			auto const stream_count(this->get_stream_count());
-			dispatch_async_main(^{ lb::log_time(std::cerr); std::cerr << stream_count << " sequences will be written.\n"; });
-			std::size_t const chunk_count(std::ceil(1.0 * stream_count / m_chunk_size));
-			for (auto const &pair : ranges::view::closed_iota(std::size_t(0), chunk_count) | ranges::view::sliding(2))
+			// Open the output files.
+			// The last stream will be REF.
+			if (m_output_reference && rhsc == stream_count)
 			{
-				auto const lhs(pair[0]);
-				auto const rhs(pair[1]);
-				auto const lhsc(m_chunk_size * lhs);
-				auto const rhsc(std::min(stream_count, m_chunk_size * rhs));
-				dispatch_async_main(^{ lb::log_time(std::cerr); std::cerr << "Processing chunk " << rhs << '/' << chunk_count << "…\n"; });
-				output_stream_vector output_files(rhsc - lhsc); // Cannot reuse b.c. lb::file_ostream has a deleted copy constructor.
-				
-				// Open the output files.
-				// The last stream will be REF.
-				if (m_output_reference && rhsc == stream_count)
-				{
-					open_output_file("REF", output_files.back(), mode);
-					for (auto &&[i, of] : ranges::view::zip(ranges::view::iota(lhsc, rhsc), output_files) | ranges::view::drop_last(1))
-						open_output_file(i, of, mode);
-				}
-				else
-				{
-					for (auto &&[i, of] : ranges::view::zip(ranges::view::iota(lhsc, rhsc), output_files))
-						open_output_file(i, of, mode);
-				}
-				
-				output_chunk(reference_sv, output_files);
+				open_output_file("REF", output_files.back(), mode);
+				for (auto &&[i, of] : ranges::view::zip(ranges::view::iota(lhsc, rhsc), output_files) | ranges::view::drop_last(1))
+					open_output_file(i, of, mode);
+			}
+			else
+			{
+				for (auto &&[i, of] : ranges::view::zip(ranges::view::iota(lhsc, rhsc), output_files))
+					open_output_file(i, of, mode);
 			}
 			
-			dispatch_async(dispatch_get_main_queue(), ^{
-				lb::log_time(std::cerr);
-				std::cerr << "Done.\n"; // FIXME: log statistics?
-				this->finish_mt();
-			});
+			output_chunk(reference_sv, output_files);
 		}
-		catch (lb::assertion_failure_exception const &exc)
-		{
-			this->log_assertion_failure_and_exit(exc);
-		}
-		catch (std::exception const &exc)
-		{
-			this->log_exception_and_exit(exc);
-		}
-		catch (...)
-		{
-			this->log_unknown_exception_and_exit();
-		}
+		
+		dispatch_async(dispatch_get_main_queue(), ^{
+			lb::log_time(std::cerr);
+			std::cerr << "Done.\n"; // FIXME: log statistics?
+		});
 	}
 	
 	

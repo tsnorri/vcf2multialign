@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Tuukka Norri
+ * Copyright (c) 2019–2021 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -12,6 +12,7 @@
 #include <range/v3/view/zip.hpp>
 #include <unistd.h>
 #include <vcf2multialign/variant_graph/variant_graph.hh>
+#include <vcf2multialign/utility/log_assertion_failure.hh>
 #include <vcf2multialign/utility/read_single_fasta_seq.hh>
 #include "cmdline.h"
 
@@ -242,10 +243,7 @@ int main(int argc, char **argv)
 	}
 	catch (lb::assertion_failure_exception const &exc)
 	{
-		std::cerr << "Assertion failure: " << exc.what() << '\n';
-		boost::stacktrace::stacktrace const *st(boost::get_error_info <lb::traced>(exc));
-		if (st)
-			std::cerr << "Stack trace:\n" << *st << '\n';
+		v2m::log_assertion_failure_exception(exc);
 		throw exc;
 	}
 

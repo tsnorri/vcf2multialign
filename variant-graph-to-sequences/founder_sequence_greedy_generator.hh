@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Tuukka Norri
+ * Copyright (c) 2020–2021 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -45,9 +45,9 @@ namespace vcf2multialign {
 		{
 		}
 		
-		void output_sequences() override;
-		
 	protected:
+		void do_work() override;
+		
 		void process_graph_and_output(
 			output_stream_vector &output_files,
 			removed_count_map &removed_counts,

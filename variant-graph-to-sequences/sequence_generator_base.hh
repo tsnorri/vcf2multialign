@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Tuukka Norri
+ * Copyright (c) 2019–2021 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -8,7 +8,7 @@
 
 #include <list>
 #include <vcf2multialign/variant_graph/variant_graph.hh>
-#include <vcf2multialign/utility/progress_indicator_manager.hh>
+#include <vcf2multialign/utility/dispatch_cli_runner.hh>
 #include <vcf2multialign/vcf_processor.hh>
 #include "file_handling.hh"
 
@@ -27,8 +27,8 @@ namespace vcf2multialign {
 	class alt_edge_handler_base;
 	
 	
-	class sequence_generator_base :	public reference_controller,
-									public progress_indicator_manager
+	class sequence_generator_base :	public dispatch_cli_runner,
+									public reference_controller
 	{
 	public:
 		typedef vcf2multialign::output_stream_type	output_stream_type;
@@ -53,7 +53,6 @@ namespace vcf2multialign {
 		virtual ~sequence_generator_base() {}
 		
 		void read_variant_graph(char const *variant_graph_path);
-		virtual void output_sequences() = 0;
 		variant_graphs::variant_graph const &variant_graph() const { return m_graph; }
 	};
 	
@@ -78,9 +77,9 @@ namespace vcf2multialign {
 		{
 		}
 		
-		void output_sequences() override;
-		
 	protected:
+		void do_work() override;
+		
 		virtual std::size_t const get_stream_count() const = 0;
 		
 		virtual std::unique_ptr <alt_edge_handler_base> make_alt_edge_handler(

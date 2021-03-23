@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Tuukka Norri
+ * Copyright (c) 2019–2021 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -9,8 +9,9 @@
 #include <vcf2multialign/preprocess/preprocess_logger.hh>
 #include <vcf2multialign/preprocess/variant_partitioner.hh>
 #include <vcf2multialign/utility/check_ploidy.hh>
+#include <vcf2multialign/utility/dispatch_cli_runner.hh>
+#include <vcf2multialign/utility/dispatch_exit_guard.hh>
 #include <vcf2multialign/utility/log_assertion_failure.hh>
-#include <vcf2multialign/utility/progress_indicator_manager.hh>
 #include <vcf2multialign/vcf_processor.hh>
 #include "create_variant_graph.hh"
 
@@ -53,11 +54,11 @@ namespace {
 
 namespace vcf2multialign {
 	
-	class variant_graph_context :	public vcf_processor,
+	class variant_graph_context :	public virtual vgs::variant_graph_generator_delegate, // Is constructed first b.c. of virtual.
+									public dispatch_cli_runner,
+									public vcf_processor,
 									public output_stream_controller,
-									public reference_controller,
-									public progress_indicator_manager,
-									public virtual vgs::variant_graph_generator_delegate
+									public reference_controller
 	{
 		friend progress_indicator_delegate;
 		
@@ -68,10 +69,10 @@ namespace vcf2multialign {
 		variant_graph_context() = default;
 		
 		virtual vgs::variant_graph_generator &variant_graph_generator() = 0;
-		void process_and_output();
-		void variant_graph_generator_will_handle_subgraph(vcf::variant const &, std::size_t const, std::size_t const);
+		void variant_graph_generator_will_handle_subgraph(vcf::variant const &, std::size_t const, std::size_t const) override;
 		
 	protected:
+		void do_work() override;
 		virtual std::size_t progress_step_max() const = 0;
 		virtual void generate_variant_graph(progress_indicator_delegate &indicator_delegate) = 0;
 		virtual void log_statistics() const = 0;
@@ -232,37 +233,19 @@ namespace vcf2multialign {
 	}
 	
 	
-	void variant_graph_context::process_and_output()
+	void variant_graph_context::do_work()
 	{
-		try
-		{
-			// Partition.
-			progress_indicator_delegate indicator_delegate(this->variant_graph_generator(), this->progress_step_max());
-			this->install_progress_indicator();
-			this->generate_variant_graph(indicator_delegate);
-			this->end_logging();
-			this->uninstall_progress_indicator();
-			this->log_statistics();
-			
-			// Output.
-			cereal::PortableBinaryOutputArchive archive(this->m_output_stream);
-			archive(this->variant_graph_generator().variant_graph());
-			this->m_output_stream << std::flush;
-			
-			this->finish();
-		}
-		catch (lb::assertion_failure_exception const &exc)
-		{
-			this->log_assertion_failure_and_exit(exc);
-		}
-		catch (std::exception const &exc)
-		{
-			this->log_exception_and_exit(exc);
-		}
-		catch (...)
-		{
-			this->log_unknown_exception_and_exit();
-		}
+		// Partition.
+		progress_indicator_delegate indicator_delegate(this->variant_graph_generator(), this->progress_step_max());
+		this->generate_variant_graph(indicator_delegate);
+		this->end_logging();
+		this->uninstall_progress_indicator();
+		this->log_statistics();
+		
+		// Output.
+		cereal::PortableBinaryOutputArchive archive(this->m_output_stream);
+		archive(this->variant_graph_generator().variant_graph());
+		this->m_output_stream << std::flush;
 	}
 	
 	
@@ -276,31 +259,24 @@ namespace vcf2multialign {
 	)
 	{
 		// main() calls dispatch_main() if this function does not throw or call std::exit or something similar.
-		try
-		{
-			// Since the context has Boost’s streams, it cannot be moved. Hence the use of a pointer.
-			auto ctx_ptr(std::make_unique <variant_graph_precalculated_context>());
-			auto &ctx(*ctx_ptr);
-			
-			ctx.open_variants_file(variant_file_path);
-			ctx.open_preprocessing_result_file(preprocessing_result_file_path);
-			ctx.read_reference(reference_file_path, reference_seq_name);
-			ctx.open_output_file(output_graph_path, should_overwrite_files);
-			ctx.prepare_reader();
-			ctx.prepare_generator();
+		// Since the context has Boost’s streams, it cannot be moved. Hence the use of a pointer.
+		typedef v2m::dispatch_exit_guard_helper <variant_graph_precalculated_context> wrapped_context_type;
+		auto ctx_ptr(std::make_unique <wrapped_context_type>());
+		auto &ctx(ctx_ptr->value);
 		
-			// Run in background in order to be able to update a progress bar.
-			lb::dispatch_async_fn(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
-				[ctx_ptr = std::move(ctx_ptr)](){
-					ctx_ptr->process_and_output();
-				}
-			);
-		}
-		catch (lb::assertion_failure_exception const &exc)
-		{
-			log_assertion_failure_exception(exc);
-			throw exc;
-		}
+		ctx.open_variants_file(variant_file_path);
+		ctx.open_preprocessing_result_file(preprocessing_result_file_path);
+		ctx.read_reference(reference_file_path, reference_seq_name);
+		ctx.open_output_file(output_graph_path, should_overwrite_files);
+		ctx.prepare_reader();
+		ctx.prepare_generator();
+		
+		// Run in background in order to be able to update a progress bar.
+		lb::dispatch_async_fn(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
+			[ctx_ptr = std::move(ctx_ptr)](){
+				ctx_ptr->value.run(true);
+			}
+		);
 	}
 	
 	
@@ -317,36 +293,28 @@ namespace vcf2multialign {
 	)
 	{
 		// main() calls dispatch_main() if this function does not throw or call std::exit or something similar.
-		try
-		{
-			// Since the context has Boost’s streams, it cannot be moved. Hence the use of a pointer.
-			auto ctx_ptr(std::make_unique <variant_graph_single_pass_context>(
-				chr_id,
-				std::move(field_names_for_filter_if_set),
-				minimum_bridge_length
-			));
-			auto &ctx(*ctx_ptr);
-			
-			ctx.open_variants_file(variant_file_path);
-			ctx.read_reference(reference_file_path, reference_seq_name);
-			ctx.open_output_file(output_graph_path, should_overwrite_files);
-			if (log_path)
-				ctx.open_log_file(log_path, should_overwrite_files);
-			ctx.prepare_reader();
-			ctx.prepare_generator();
-			
-			// Run in background in order to be able to update a progress bar.
-			lb::dispatch_async_fn(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
-				[ctx_ptr = std::move(ctx_ptr)](){
-					ctx_ptr->process_and_output();
-				}
-			);
-			
-		}
-		catch (lb::assertion_failure_exception const &exc)
-		{
-			log_assertion_failure_exception(exc);
-			throw exc;
-		}
+		// Since the context has Boost’s streams, it cannot be moved. Hence the use of a pointer.
+		typedef v2m::dispatch_exit_guard_helper <variant_graph_single_pass_context> wrapped_context_type;
+		auto ctx_ptr(std::make_unique <wrapped_context_type>(
+			chr_id,
+			std::move(field_names_for_filter_if_set),
+			minimum_bridge_length
+		));
+		auto &ctx(ctx_ptr->value);
+		
+		ctx.open_variants_file(variant_file_path);
+		ctx.read_reference(reference_file_path, reference_seq_name);
+		ctx.open_output_file(output_graph_path, should_overwrite_files);
+		if (log_path)
+			ctx.open_log_file(log_path, should_overwrite_files);
+		ctx.prepare_reader();
+		ctx.prepare_generator();
+		
+		// Run in background in order to be able to update a progress bar.
+		lb::dispatch_async_fn(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
+			[ctx_ptr = std::move(ctx_ptr)](){
+				ctx_ptr->value.run(true);
+			}
+		);
 	}
 }

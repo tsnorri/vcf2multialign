@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Tuukka Norri
+ * Copyright (c) 2019–2021 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -8,6 +8,8 @@
 #include <libbio/assert.hh>
 #include <libbio/dispatch.hh>
 #include <unistd.h>
+#include <vcf2multialign/utility/dispatch_exit_guard.hh>
+#include <vcf2multialign/utility/log_assertion_failure.hh>
 #include <vcf2multialign/variant_graph/variant_graph.hh>
 #include "cmdline.h"
 #include "founder_sequence_greedy_generator.hh"
@@ -122,9 +124,9 @@ namespace {
 	
 	
 	template <typename t_generator>
-	std::unique_ptr <t_generator> instantiate_generator(gengetopt_args_info const &args_info)
+	std::unique_ptr <v2m::dispatch_exit_guard_helper <t_generator>> instantiate_generator(gengetopt_args_info const &args_info)
 	{
-		return std::make_unique <t_generator>(
+		return std::make_unique <v2m::dispatch_exit_guard_helper <t_generator>>(
 			args_info.chunk_size_arg,
 			(args_info.omit_reference_output_flag ? false : true),
 			args_info.overwrite_flag
@@ -146,7 +148,7 @@ namespace {
 	
 	
 	template <typename t_generator>
-	void output_sequences(std::unique_ptr <t_generator> &&gen_ptr)
+	void output_sequences(std::unique_ptr <v2m::dispatch_exit_guard_helper <t_generator>> &&gen_ptr)
 	{
 		// Run in background in order to be able to update a progress bar.
 		lb::log_time(std::cerr);
@@ -155,7 +157,7 @@ namespace {
 			[
 				gen_ptr = std::move(gen_ptr)
 			](){
-				gen_ptr->output_sequences();
+				gen_ptr->value.run(true);
 			}
 		);
 	}
@@ -169,12 +171,13 @@ void process(gengetopt_args_info &args_info)
 		if (args_info.output_founders_given)
 		{
 			auto gen_ptr(instantiate_generator <founder_sequence_generator>(args_info));
-			prepare(*gen_ptr, args_info);
+			prepare(gen_ptr->value, args_info);
 			output_sequences(std::move(gen_ptr));
 		}
 		else if (args_info.output_founders_greedy_given)
 		{
-			auto gen_ptr(std::make_unique <v2m::founder_sequence_greedy_generator>(
+			typedef v2m::dispatch_exit_guard_helper <v2m::founder_sequence_greedy_generator> wrapped_generator_type;
+			auto gen_ptr(std::make_unique <wrapped_generator_type>(
 				args_info.founder_count_arg,
 				args_info.tail_length_arg,
 				(args_info.omit_reference_output_flag ? false : true),
@@ -182,10 +185,12 @@ void process(gengetopt_args_info &args_info)
 				args_info.remove_mid_from_duplicates_flag,
 				args_info.overwrite_flag
 			));
-			prepare(*gen_ptr, args_info);
+				
+			auto &generator(gen_ptr->value);
+			prepare(generator, args_info);
 			
 			{
-				auto const max_paths_in_subgraph(gen_ptr->variant_graph().max_paths_in_subgraph());
+				auto const max_paths_in_subgraph(generator.variant_graph().max_paths_in_subgraph());
 				if (args_info.founder_count_arg < max_paths_in_subgraph)
 				{
 					std::cerr
@@ -202,16 +207,13 @@ void process(gengetopt_args_info &args_info)
 		else if (args_info.output_samples_given)
 		{
 			auto gen_ptr(instantiate_generator <sample_sequence_generator>(args_info));
-			prepare(*gen_ptr, args_info);
+			prepare(gen_ptr->value, args_info);
 			output_sequences(std::move(gen_ptr));
 		}
 	}
 	catch (lb::assertion_failure_exception const &exc)
 	{
-		std::cerr << "Assertion failure: " << exc.what() << '\n';
-		boost::stacktrace::stacktrace const *st(boost::get_error_info <lb::traced>(exc));
-		if (st)
-			std::cerr << "Stack trace:\n" << *st << '\n';
+		v2m::log_assertion_failure_exception(exc);
 		throw exc;
 	}
 }

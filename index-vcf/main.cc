@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Tuukka Norri
+ * Copyright (c) 2019–2021 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -10,8 +10,9 @@
 #include <libbio/dispatch.hh>
 #include <libbio/progress_indicator.hh>
 #include <unistd.h>
+#include <vcf2multialign/utility/dispatch_cli_runner.hh>
+#include <vcf2multialign/utility/dispatch_exit_guard.hh>
 #include <vcf2multialign/utility/log_assertion_failure.hh>
-#include <vcf2multialign/utility/progress_indicator_manager.hh>
 #include <vcf2multialign/vcf_index.hh>
 #include <vcf2multialign/vcf_processor.hh>
 #include "cmdline.h"
@@ -44,9 +45,9 @@ namespace {
 	};
 	
 	
-	class vcf_indexer :	public v2m::vcf_processor,
-						public v2m::output_stream_controller,
-						public v2m::progress_indicator_manager
+	class vcf_indexer :	public v2m::dispatch_cli_runner,
+						public v2m::vcf_processor,
+						public v2m::output_stream_controller
 	{
 	protected:
 		std::string		m_chromosome_name;
@@ -60,10 +61,10 @@ namespace {
 		{
 		}
 		
-		void process_and_output();
 		std::size_t processed_count() const { return this->m_vcf_reader.counter_value(); }
 		
 	protected:
+		void do_work() override;
 		void generate_index(progress_indicator_delegate &progress_delegate);
 	};
 	
@@ -122,39 +123,20 @@ namespace {
 	}
 	
 	
-	void vcf_indexer::process_and_output()
+	void vcf_indexer::do_work()
 	{
-		try
-		{
-			// Partition.
-			progress_indicator_delegate indicator_delegate(*this);
-			this->install_progress_indicator();
-			this->progress_indicator().log_with_counter(lb::copy_time() + "Indexing the variant file…", indicator_delegate);
-			this->generate_index(indicator_delegate);
-			this->end_logging();
-			this->uninstall_progress_indicator();
-			
-			dispatch_async_main(^{ lb::log_time(std::cerr); std::cerr << "Done.\n"; }); // FIXME: log statistics?
-			
-			// Output.
-			cereal::PortableBinaryOutputArchive archive(this->m_output_stream);
-			archive(m_index);
-			this->m_output_stream << std::flush;
-			
-			this->finish();
-		}
-		catch (lb::assertion_failure_exception const &exc)
-		{
-			this->log_assertion_failure_and_exit(exc);
-		}
-		catch (std::exception const &exc)
-		{
-			this->log_exception_and_exit(exc);
-		}
-		catch (...)
-		{
-			this->log_unknown_exception_and_exit();
-		}
+		progress_indicator_delegate indicator_delegate(*this);
+		this->progress_indicator().log_with_counter(lb::copy_time() + "Indexing the variant file…", indicator_delegate);
+		this->generate_index(indicator_delegate);
+		this->end_logging();
+		this->uninstall_progress_indicator();
+		
+		dispatch_async_main(^{ lb::log_time(std::cerr); std::cerr << "Done.\n"; }); // FIXME: log statistics?
+		
+		// Output.
+		cereal::PortableBinaryOutputArchive archive(this->m_output_stream);
+		archive(m_index);
+		this->m_output_stream << std::flush;
 	}
 	
 	
@@ -165,8 +147,9 @@ namespace {
 		bool const should_overwrite_files
 	)
 	{
-		auto indexer_ptr(std::make_unique <vcf_indexer>(chromosome_name));
-		auto &indexer(*indexer_ptr);
+		typedef v2m::dispatch_exit_guard_helper <vcf_indexer> wrapped_indexer_type;
+		auto indexer_ptr(std::make_unique <wrapped_indexer_type>(chromosome_name));
+		auto &indexer(indexer_ptr->value);
 		indexer.open_variants_file(variant_file_path);
 		indexer.open_output_file(output_index_path, should_overwrite_files);
 		indexer.prepare_reader();
@@ -174,7 +157,7 @@ namespace {
 		// Run in background in order to be able to update a progress bar.
 		lb::dispatch_async_fn(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
 			[indexer_ptr = std::move(indexer_ptr)](){
-				indexer_ptr->process_and_output();
+				indexer_ptr->value.run(true);
 			}
 		);
 	}

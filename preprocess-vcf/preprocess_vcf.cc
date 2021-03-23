@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Tuukka Norri
+ * Copyright (c) 2019–2021 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -10,8 +10,9 @@
 #include <vcf2multialign/preprocess/preprocess_logger.hh>
 #include <vcf2multialign/preprocess/variant_partitioner.hh>
 #include <vcf2multialign/utility/check_ploidy.hh>
+#include <vcf2multialign/utility/dispatch_cli_runner.hh>
+#include <vcf2multialign/utility/dispatch_exit_guard.hh>
 #include <vcf2multialign/utility/log_assertion_failure.hh>
-#include <vcf2multialign/utility/progress_indicator_manager.hh>
 #include <vcf2multialign/vcf_processor.hh>
 #include "preprocess_vcf.hh"
 
@@ -42,10 +43,19 @@ namespace {
 
 namespace vcf2multialign {
 	
-	class cut_position_processor final :	public vcf_processor,
+	struct ploidy_result
+	{
+		std::size_t		donor_count{};
+		std::size_t 	chromosome_copy_count{};
+		
+		bool is_valid() const { return 0 < donor_count; }
+	};
+	
+	
+	class cut_position_processor final :	public dispatch_cli_runner,
+											public vcf_processor,
 											public output_stream_controller,
 											public reference_controller,
-											public progress_indicator_manager,
 											public preprocess_logger
 	{
 	protected:
@@ -59,76 +69,85 @@ namespace vcf2multialign {
 			std::string const &chr_name,
 			std::size_t const minimum_subgraph_distance
 		):
+			dispatch_cli_runner(),
 			vcf_processor(),
 			output_stream_controller(),
-			progress_indicator_manager(),
 			m_field_names_for_filter_if_set(std::move(field_names_for_filter_if_set)),
 			m_chr_name(chr_name),
 			m_minimum_subgraph_distance(minimum_subgraph_distance)
 		{
 		}
 		
-		void process_and_output(std::size_t const donor_count, std::size_t const chr_count);
+		ploidy_result check_donor_and_chromosome_copy_count();
+		
+	protected:
+		void do_work() override;
 	};
 	
 	
-	void cut_position_processor::process_and_output(std::size_t const donor_count, std::size_t const chr_count)
+	ploidy_result cut_position_processor::check_donor_and_chromosome_copy_count()
 	{
-		try
+		// Check the ploidy.
+		ploidy_map ploidy;
+		check_ploidy(vcf_reader(), ploidy);
+		auto const donor_count(ploidy.size());
+		if (donor_count)
 		{
-			// Set up the processor.
-			variant_partitioner partitioner(
-				*this,
-				this->m_vcf_reader,
-				this->m_reference,
-				this->m_chr_name,
-				donor_count,
-				chr_count,
-				this->m_minimum_subgraph_distance
-			);
-			
-			preprocessing_result result;
-			result.donor_count = donor_count;
-			result.chr_count = chr_count;
-			
-			// Partition.
-			progress_indicator_delegate indicator_delegate(partitioner);
-			this->install_progress_indicator();
-			
-			this->progress_indicator().log_with_counter(lb::copy_time() + "Processing the variants…", indicator_delegate);
-			partitioner.partition(m_field_names_for_filter_if_set, result, true);
-			this->end_logging();
-			this->uninstall_progress_indicator();
-			
-			dispatch_async(dispatch_get_main_queue(), ^{
-				lb::log_time(std::cerr);
-				std::cerr
-					<< "Done. Handled variants: " << result.handled_line_numbers.size()
-					<< " Maximum segment size: " << result.max_segment_size
-					<< " Cut position count: " << result.positions.size()
-					<< " Chromosome ID mismatches: " << this->chrom_id_mismatches()
-					<< '\n';
-			});
-			
-			// Output.
-			cereal::PortableBinaryOutputArchive archive(this->m_output_stream);
-			archive(result);
-			this->m_output_stream << std::flush;
-			
-			this->finish();
+			auto const chr_count(ploidy.begin()->second);
+			return {donor_count, chr_count};
 		}
-		catch (lb::assertion_failure_exception const &exc)
+		else
 		{
-			this->log_assertion_failure_and_exit(exc);
+			std::cerr << "WARNING: No donors found." << std::endl;
+			return {0, 0};
 		}
-		catch (std::exception const &exc)
-		{
-			this->log_exception_and_exit(exc);
-		}
-		catch (...)
-		{
-			this->log_unknown_exception_and_exit();
-		}
+	}
+	
+	
+	void cut_position_processor::do_work()
+	{
+		auto const ploidy_res(check_donor_and_chromosome_copy_count());
+		if (!ploidy_res.is_valid())
+			return;
+		
+		// Set up the processor.
+		variant_partitioner partitioner(
+			*this,
+			this->m_vcf_reader,
+			this->m_reference,
+			this->m_chr_name,
+			ploidy_res.donor_count,
+			ploidy_res.chromosome_copy_count,
+			this->m_minimum_subgraph_distance
+		);
+		
+		preprocessing_result result;
+		result.donor_count = ploidy_res.donor_count;
+		result.chr_count = ploidy_res.chromosome_copy_count;
+		
+		// Partition.
+		progress_indicator_delegate indicator_delegate(partitioner);
+		this->install_progress_indicator();
+		
+		this->progress_indicator().log_with_counter(lb::copy_time() + "Processing the variants…", indicator_delegate);
+		partitioner.partition(m_field_names_for_filter_if_set, result, true);
+		this->end_logging();
+		this->uninstall_progress_indicator();
+		
+		dispatch_async(dispatch_get_main_queue(), ^{
+			lb::log_time(std::cerr);
+			std::cerr
+				<< "Done. Handled variants: " << result.handled_line_numbers.size()
+				<< " Maximum segment size: " << result.max_segment_size
+				<< " Cut position count: " << result.positions.size()
+				<< " Chromosome ID mismatches: " << this->chrom_id_mismatches()
+				<< '\n';
+		});
+		
+		// Output.
+		cereal::PortableBinaryOutputArchive archive(this->m_output_stream);
+		archive(result);
+		this->m_output_stream << std::flush;
 	}
 	
 	
@@ -148,8 +167,10 @@ namespace vcf2multialign {
 		try
 		{
 			// Since the processor has Boost’s streams, it cannot be moved. Hence the use of a pointer.
-			auto processor_ptr(std::make_unique <cut_position_processor>(std::move(field_names_for_filter_if_set), chr_name, minimum_subgraph_distance));
-			auto &processor(*processor_ptr);
+			typedef v2m::dispatch_exit_guard_helper <cut_position_processor> wrapped_processor_type;
+			
+			auto processor_ptr(std::make_unique <wrapped_processor_type>(std::move(field_names_for_filter_if_set), chr_name, minimum_subgraph_distance));
+			auto &processor(processor_ptr->value);
 			
 			// These will eventually call std::exit if the file in question cannot be opened.
 			processor.open_variants_file(variant_file_path);
@@ -160,25 +181,12 @@ namespace vcf2multialign {
 			
 			processor.prepare_reader();
 			
-			// Check the ploidy.
-			ploidy_map ploidy;
-			check_ploidy(processor.vcf_reader(), ploidy);
-			auto const donor_count(ploidy.size());
-			if (!donor_count)
-			{
-				std::cerr << "WARNING: No donors found." << std::endl;
-				std::exit(EXIT_SUCCESS);
-			}
-			auto const chr_count(ploidy.begin()->second);
-			
 			// Run in background in order to be able to update a progress bar.
 			lb::dispatch_async_fn(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
 				[
-					processor_ptr = std::move(processor_ptr),
-					chr_count,
-					donor_count
+					processor_ptr = std::move(processor_ptr)
 				](){
-					processor_ptr->process_and_output(donor_count, chr_count);
+					processor_ptr->value.run(true);
 				}
 			);
 		}

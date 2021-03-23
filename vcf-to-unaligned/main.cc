@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Tuukka Norri
+ * Copyright (c) 2019–2021 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -12,8 +12,9 @@
 #include <unistd.h>
 #include <vcf2multialign/preprocess/preprocess_logger.hh>
 #include <vcf2multialign/utility/can_handle_variant_alts.hh>
+#include <vcf2multialign/utility/dispatch_cli_runner.hh>
+#include <vcf2multialign/utility/dispatch_exit_guard.hh>
 #include <vcf2multialign/utility/log_assertion_failure.hh>
-#include <vcf2multialign/utility/progress_indicator_manager.hh>
 #include <vcf2multialign/variant_format.hh>
 #include <vcf2multialign/vcf_processor.hh>
 #include "cmdline.h"
@@ -69,84 +70,73 @@ namespace vcf2multialign {
 	}
 
 	
-	class unaligned_processor final :	public vcf_processor,
+	class unaligned_processor final :	public dispatch_cli_runner,
+										public vcf_processor,
 										public output_stream_controller,
 										public reference_controller,
-										public progress_indicator_manager,
 										public preprocess_logger
 	{
 	protected:
 		std::vector <std::string> const	m_excluded_filters;
 		std::vector <std::string> const	m_field_names_for_filter_if_set;
-		std::string	const				m_chromosome_name;
+		std::string const				m_chromosome_name;
+		std::size_t const				m_sample_idx;
+		std::uint16_t const				m_chromosome_copy_idx;
+		
 		
 	public:
 		unaligned_processor(
 			std::vector <std::string> &&excluded_filters,
 			std::vector <std::string> &&field_names_for_filter_if_set,
-			std::string const &chromosome_name
+			std::string const &chromosome_name,
+			std::size_t const sample_idx,
+			std::uint16_t const chromosome_copy_idx
 		):
+			dispatch_cli_runner(),
 			vcf_processor(),
 			output_stream_controller(),
 			reference_controller(),
-			progress_indicator_manager(),
 			preprocess_logger(),
 			m_excluded_filters(std::move(excluded_filters)),
 			m_field_names_for_filter_if_set(std::move(field_names_for_filter_if_set)),
-			m_chromosome_name(chromosome_name)
+			m_chromosome_name(chromosome_name),
+			m_sample_idx(sample_idx),
+			m_chromosome_copy_idx(chromosome_copy_idx)
 		{
 		}
 		
-		void process_and_output(std::size_t const sample_idx, std::uint8_t const chr_idx);
 		std::vector <std::string> const &excluded_filters() const { return m_excluded_filters; }
 		std::vector <std::string> const &field_names_for_filter_if_set() const { return m_field_names_for_filter_if_set; }
 		
 	protected:
-		void output_variants(std::size_t const sample_idx, std::uint8_t const chr_idx, variant_statistics &statistics, progress_indicator_delegate &progress_delegate);
+		void do_work() override;
+		void output_variants(variant_statistics &statistics, progress_indicator_delegate &progress_delegate);
 	};
 	
 	
-	void unaligned_processor::process_and_output(std::size_t const sample_idx, std::uint8_t const chr_idx)
+	void unaligned_processor::do_work()
 	{
-		try
-		{
-			// Partition.
-			progress_indicator_delegate indicator_delegate;
-			this->install_progress_indicator();
-			
-			this->progress_indicator().log_with_counter(lb::copy_time() + "Processing the variants…", indicator_delegate);
-			
-			variant_statistics statistics;
-			output_variants(sample_idx, chr_idx, statistics, indicator_delegate);
-			
-			this->end_logging();
-			this->uninstall_progress_indicator();
-			
-			dispatch_async(dispatch_get_main_queue(), ^{ 
-				lb::log_time(std::cerr);
-				std::cerr << "Done.\n";
-				std::cerr << statistics;
-			});
-			
-			this->m_output_stream << std::flush;
-			this->finish();
-		}
-		catch (lb::assertion_failure_exception const &exc)
-		{
-			this->log_assertion_failure_and_exit(exc);
-		}
-		catch (std::exception const &exc)
-		{
-			this->log_exception_and_exit(exc);
-		}
-		catch (...)
-		{
-			this->log_unknown_exception_and_exit();
-		}
+		progress_indicator_delegate indicator_delegate;
+		
+		this->progress_indicator().log_with_counter(lb::copy_time() + "Processing the variants…", indicator_delegate);
+		
+		variant_statistics statistics;
+		output_variants(statistics, indicator_delegate);
+		
+		this->end_logging();
+		this->uninstall_progress_indicator();
+		
+		dispatch_async(dispatch_get_main_queue(), ^{ 
+			lb::log_time(std::cerr);
+			std::cerr << "Done.\n";
+			std::cerr << statistics;
+		});
+		
+		this->m_output_stream << std::flush;
 	}
 	
 	
-	void unaligned_processor::output_variants(std::size_t const sample_idx, std::uint8_t const chr_idx, variant_statistics &statistics, progress_indicator_delegate &indicator_delegate)
+	void unaligned_processor::output_variants(variant_statistics &statistics, progress_indicator_delegate &indicator_delegate)
 	{
 		auto &reader(this->vcf_reader());
 		reader.set_parsed_fields(vcf::field::ALL);
@@ -177,8 +167,6 @@ namespace vcf2multialign {
 		reader.parse(
 			[
 				this,
-				sample_idx,
-				chr_idx,
 				end_field,
 				&prev_end_pos,
 				&filter_by_assigned,
@@ -244,12 +232,12 @@ namespace vcf2multialign {
 				
 				// Variant passes the checks, handle it.
 				{
-					libbio_always_assert_lt(sample_idx, var.samples().size());
-					auto const &sample(var.samples()[sample_idx]);
+					libbio_always_assert_lt(m_sample_idx, var.samples().size());
+					auto const &sample(var.samples()[m_sample_idx]);
 					auto const *gt_field(get_variant_format(var).gt);
 					auto const &gt((*gt_field)(sample));
-					libbio_always_assert_lt(chr_idx, gt.size());
-					auto const alt_idx(gt[chr_idx].alt);
+					libbio_always_assert_lt(m_chromosome_copy_idx, gt.size());
+					auto const alt_idx(gt[m_chromosome_copy_idx].alt);
 					if (0 == alt_idx)
 					{
 						++statistics.gt_equals_0;
@@ -329,12 +317,15 @@ namespace vcf2multialign {
 			std::sort(excluded_filters.begin(), excluded_filters.end());
 
 			// Since the processor has Boost’s streams, it cannot be moved. Hence the use of a pointer.
-			auto processor_ptr(std::make_unique <unaligned_processor>(
+			typedef dispatch_exit_guard_helper <unaligned_processor> wrapped_processor_type;
+			auto processor_ptr(std::make_unique <wrapped_processor_type>(
 				std::move(excluded_filters),
 				std::move(field_names_for_filter_if_set),
-				chr_name)
-			);
-			auto &processor(*processor_ptr);
+				chr_name,
+				sample_idx,
+				chr_copy_idx
+			));
+			auto &processor(processor_ptr->value);
 			
 			// These will eventually call std::exit if the file in question cannot be opened.
 			processor.open_variants_file(variants_file_path);
@@ -370,12 +361,9 @@ namespace vcf2multialign {
 			// Run in background in order to be able to update a progress bar.
 			lb::dispatch_async_fn(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0),
 				[
-					processor_ptr = std::move(processor_ptr),
-				 	sample_idx,
-				 	chr_copy_idx
+					processor_ptr = std::move(processor_ptr)
 				](){
-					// FIXME: get the sample index from command line.
-					processor_ptr->process_and_output(sample_idx, chr_copy_idx);
+					processor_ptr->value.run(true);
 				}
 			);
 		}

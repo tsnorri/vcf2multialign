@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Tuukka Norri
+ * Copyright (c) 2020–2021 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -576,67 +576,50 @@ namespace vcf2multialign {
 	}
 	
 	
-	void founder_sequence_greedy_generator::output_sequences()
+	void founder_sequence_greedy_generator::do_work()
 	{
-		try
-		{
-			// Setup the progress indicator.
-			this->install_progress_indicator();
-			progress_indicator_delegate progress_delegate(m_graph.subgraph_count());
-			this->progress_indicator().log_with_progress_bar("\t", progress_delegate);
+		progress_indicator_delegate progress_delegate(m_graph.subgraph_count());
+		this->progress_indicator().log_with_progress_bar("\t", progress_delegate);
+		
+		// Create a string view from the reference.
+		std::string_view const reference_sv(m_reference.data(), m_reference.size());
+		
+		auto const output_count(m_founder_count + m_output_reference);
+		dispatch_async_main(^{ lb::log_time(std::cerr); std::cerr << output_count << " sequences will be written.\n"; });
+		
+		// Don’t use chunks for now b.c. that would complicate things too much and not writing everything simultaneously
+		// is more useful with predicted sequences (not founders).
+		
+		output_stream_vector output_files(output_count);
+		
+		auto const mode(lb::make_writing_open_mode({
+			lb::writing_open_mode::CREATE,
+			(m_may_overwrite ? lb::writing_open_mode::OVERWRITE : lb::writing_open_mode::NONE)
+		}));
+		
+		for (std::size_t i(0); i < m_founder_count; ++i)
+			open_founder_output_file(i, output_files[i], mode);
+		
+		if (m_output_reference)
+			open_output_file("REF", output_files.back(), mode);
+		
+		removed_count_map removed_counts;
+		
+		// Generate the sequences.
+		process_graph_and_output(output_files, removed_counts, progress_delegate);
+		
+		dispatch_async(dispatch_get_main_queue(), ^{
+			std::cerr << '\n';
+			lb::log_time(std::cerr);
+			std::cerr << "Done.\n";
+			this->finish_mt();
 			
-			// Create a string view from the reference.
-			std::string_view const reference_sv(m_reference.data(), m_reference.size());
-			
-			auto const output_count(m_founder_count + m_output_reference);
-			dispatch_async_main(^{ lb::log_time(std::cerr); std::cerr << output_count << " sequences will be written.\n"; });
-			
-			// Don’t use chunks for now b.c. that would complicate things too much and not writing everything simultaneously
-			// is more useful with predicted sequences (not founders).
-			
-			output_stream_vector output_files(output_count);
-			
-			auto const mode(lb::make_writing_open_mode({
-				lb::writing_open_mode::CREATE,
-				(m_may_overwrite ? lb::writing_open_mode::OVERWRITE : lb::writing_open_mode::NONE)
-			}));
-			
-			for (std::size_t i(0); i < m_founder_count; ++i)
-				open_founder_output_file(i, output_files[i], mode);
-			
-			if (m_output_reference)
-				open_output_file("REF", output_files.back(), mode);
-			
-			removed_count_map removed_counts;
-			
-			// Generate the sequences.
-			process_graph_and_output(output_files, removed_counts, progress_delegate);
-			
-			dispatch_async(dispatch_get_main_queue(), ^{
-				std::cerr << '\n';
-				lb::log_time(std::cerr);
-				std::cerr << "Done.\n";
-				
-				{
-					std::cout << "# Nodes having edge labels the middle part of which was removed:\n";
-					for (auto const &[node_idx, removed_count] : removed_counts)
-						std::cout << node_idx << '\t' << removed_count << '\n';
-				}
-				
-				this->finish_mt();
-			});
-		}
-		catch (lb::assertion_failure_exception const &exc)
-		{
-			this->log_assertion_failure_and_exit(exc);
-		}
-		catch (std::exception const &exc)
-		{
-			this->log_exception_and_exit(exc);
-		}
-		catch (...)
-		{
-			this->log_unknown_exception_and_exit();
-		}
+			if (m_should_remove_mid)
+			{
+				std::cout << "# Nodes having edge labels the middle part of which was removed:\n";
+				for (auto const &[node_idx, removed_count] : removed_counts)
+					std::cout << node_idx << '\t' << removed_count << '\n';
+			}
+		});
 	}
 }
