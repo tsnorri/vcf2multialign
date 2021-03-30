@@ -40,7 +40,7 @@ namespace vcf2multialign {
 		msa_combiner(std::string output_chr_id, std::uint16_t const ploidy, std::ostream &os, bool const logs_status):
 			m_data_source(ploidy, logs_status),
 			m_variant_writer(os, std::move(output_chr_id)),
-			m_mnv_combiner(m_variant_writer),
+			m_mnv_combiner(m_variant_writer, ploidy),
 			m_variant_filter(m_mnv_combiner),
 			m_ploidy(ploidy)
 		{

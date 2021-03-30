@@ -17,17 +17,22 @@ namespace vcf2multialign {
 	protected:
 		std::optional <variant_description>	m_previous_desc;
 		output_handler						*m_next_handler{};
+		std::uint16_t						m_ploidy{};
 	
 	public:
 		mnv_combiner() = default;
 	
-		mnv_combiner(output_handler &next_handler):
-			m_next_handler(&next_handler)
+		mnv_combiner(output_handler &next_handler, std::uint16_t const ploidy):
+			m_next_handler(&next_handler),
+			m_ploidy(ploidy)
 		{
 		}
 		
 		void handle_variant_description(variant_description &&desc) override;
 		void finish();
+		
+	protected:
+		bool should_combine_with_previous(variant_description const &desc) const;
 	};
 }
 
