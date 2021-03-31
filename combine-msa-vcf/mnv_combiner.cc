@@ -61,12 +61,6 @@ namespace vcf2multialign {
 		// p      c    cX
 		// p + 1  X    <DEL>
 		//
-		// Swapping REF and ALT in the first variant and omitting the second should suffice:
-		//
-		// p      cX   c
-		//
-		// Check if the current description’s REF matches the ALT in the previous one,
-		// as well as the suffix of the previous REF.
 		if (should_combine_with_previous(desc))
 		{
 			if (1 == m_ploidy)
