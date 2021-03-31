@@ -98,7 +98,7 @@ namespace vcf2multialign {
 			else
 			{
 				// Discard the variants as this is too difficult to handle
-				// (unless maybe if the variants were phased).
+				// (unless maybe if the genotypes were phased).
 				*m_previous_desc = std::move(desc);
 			}
 		}
