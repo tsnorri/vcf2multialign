@@ -49,11 +49,16 @@ namespace vcf2multialign {
 	
 	class output_stream_controller
 	{
+	public:
+		typedef libbio::file_ostream	output_stream_type;
+
 	protected:
-		libbio::file_ostream		m_output_stream;
+		output_stream_type				m_output_stream;
 		
 	public:
 		output_stream_controller() = default;
+
+		output_stream_type &output_stream() { return m_output_stream; }
 		void open_output_file(char const *output_path, bool const should_overwrite_files);
 	};
 }
