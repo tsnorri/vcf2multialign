@@ -36,7 +36,16 @@ namespace vcf2multialign {
 		cereal::PortableBinaryInputArchive iarchive(input_graph_stream);
 		iarchive(m_graph);
 	}
-	
+
+
+	void sequence_generator_base::check_output_files(output_stream_vector const &output_files, std::size_t const expected_size) const
+	{
+		// Check that the file sizes match.
+		// Use the unconditional assertion even though the operands are not directly read from user input.
+		for (auto const &of : output_files)
+			libbio_always_assert_eq(of.output_position(), expected_size);
+	}
+
 	
 	void direct_matching_sequence_generator::do_work()
 	{
@@ -52,6 +61,7 @@ namespace vcf2multialign {
 		auto const stream_count(this->get_stream_count());
 		dispatch_async_main(^{ lb::log_time(std::cerr); std::cerr << stream_count << " sequences will be written.\n"; });
 		std::size_t const chunk_count(std::ceil(1.0 * stream_count / m_chunk_size));
+		std::size_t expected_size(SIZE_MAX);
 		for (auto const &pair : ranges::view::closed_iota(std::size_t(0), chunk_count) | ranges::view::sliding(2))
 		{
 			auto const lhs(pair[0]);
@@ -76,6 +86,11 @@ namespace vcf2multialign {
 			}
 			
 			output_chunk(reference_sv, output_files);
+
+			// Check that the file sizes match.
+			if (SIZE_MAX == expected_size)
+				expected_size = output_files.front().tellp();
+			check_output_files(output_files, expected_size);
 		}
 		
 		dispatch_async(dispatch_get_main_queue(), ^{

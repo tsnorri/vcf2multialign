@@ -607,6 +607,8 @@ namespace vcf2multialign {
 		
 		// Generate the sequences.
 		process_graph_and_output(output_files, removed_counts, progress_delegate);
+			
+		check_output_files(output_files, output_files.front().tellp());
 		
 		dispatch_async(dispatch_get_main_queue(), ^{
 			std::cerr << '\n';

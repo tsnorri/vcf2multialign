@@ -54,6 +54,9 @@ namespace vcf2multialign {
 		
 		void read_variant_graph(char const *variant_graph_path);
 		variant_graphs::variant_graph const &variant_graph() const { return m_graph; }
+
+	protected:
+		void check_output_files(output_stream_vector const &output_files, std::size_t const expected_size) const;
 	};
 	
 	
