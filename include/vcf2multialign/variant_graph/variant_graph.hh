@@ -76,8 +76,8 @@ namespace vcf2multialign { namespace variant_graphs {
 		position_vector &subgraph_start_positions() { return m_subgraph_start_positions; }
 		string_vector &alt_edge_labels() { return m_alt_edge_labels; }
 		string_vector &sample_names() { return m_sample_names; }
-		std::vector <libbio::int_vector <0>> &sample_paths() { return m_sample_paths; }
-		std::vector <libbio::int_matrix <0>> &path_edges() { return m_path_edges; }
+		std::vector <sample_path_vector> &sample_paths() { return m_sample_paths; }
+		std::vector <path_edge_matrix> &path_edges() { return m_path_edges; }
 		
 		position_vector const &ref_positions() const { return m_ref_positions; }
 		position_vector const &aligned_ref_positions() const { return m_aligned_ref_positions; }
@@ -86,8 +86,8 @@ namespace vcf2multialign { namespace variant_graphs {
 		position_vector const &subgraph_start_positions() const { return m_subgraph_start_positions; }
 		string_vector const &alt_edge_labels() const { return m_alt_edge_labels; }
 		string_vector const &sample_names() const { return m_sample_names; }
-		std::vector <libbio::int_vector <0>> const &sample_paths() const { return m_sample_paths; }
-		std::vector <libbio::int_matrix <0>> const &path_edges() const { return m_path_edges; }
+		std::vector <sample_path_vector> const &sample_paths() const { return m_sample_paths; }
+		std::vector <path_edge_matrix> const &path_edges() const { return m_path_edges; }
 		std::size_t subgraph_count() const { return m_subgraph_start_positions.size(); }
 		std::size_t max_paths_in_subgraph() const { return m_max_paths_in_subgraph; }
 		
@@ -192,6 +192,7 @@ namespace vcf2multialign { namespace variant_graphs {
 		void setup() { m_next_subgraph_start_1 = 1 + m_graph->m_subgraph_start_positions.front(); }
 		state advance();
 		state advance_and_track_subgraph();
+		variant_graph const &graph() const { return *m_graph; }
 		std::size_t node() const { return m_node_1 - 1; }
 		std::size_t subgraph() const { return m_subgraph; }
 		std::size_t ref_position() const { return m_graph->ref_position_for_node(m_node_1 - 1); }
@@ -258,12 +259,16 @@ namespace vcf2multialign { namespace variant_graphs {
 
 	std::size_t variant_graph_walker::ref_length_(std::size_t const rhs_node) const
 	{
+		if (m_graph->m_ref_positions.size() <= 1 + rhs_node)
+			return 0; // FIXME: add one element to m_ref_positions so that the check is not needed.
 		return m_graph->ref_position_for_node(rhs_node) - m_graph->ref_position_for_node(m_node_1 - 1);
 	}
 
 
 	std::size_t variant_graph_walker::aligned_length_(std::size_t const rhs_node) const
 	{
+		if (m_graph->m_aligned_ref_positions.size() <= 1 + rhs_node)
+			return 0; // FIXME: add one element to m_ref_positions so that the check is not needed.
 		return m_graph->aligned_position_for_node(rhs_node) - m_graph->aligned_position_for_node(m_node_1 - 1);
 	}
 }}
