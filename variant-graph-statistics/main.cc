@@ -70,7 +70,7 @@ namespace {
 	
 	void output_substring_combination_counts(char const *input_path, vgs::variant_graph const &graph, bool const output_summary_only)
 	{
-		auto const &sample_paths(graph.sample_paths()); // Sample path numbers by sample and subgraph number, vector of matrices.
+		auto const &sample_paths(graph.sample_paths()); // Sample path numbers by sample and subgraph number, vector of vectors.
 		
 		typedef std::uint32_t substring_index_type;
 		std::set <std::pair <substring_index_type, substring_index_type>> substring_pairs; // Using an std::set is the simplest way to get the count of unique pairs.
