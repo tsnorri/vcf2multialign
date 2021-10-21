@@ -53,6 +53,7 @@ namespace vcf2multialign {
 		virtual ~sequence_generator_base() {}
 		
 		void read_variant_graph(char const *variant_graph_path);
+		virtual void prepare_variant_graph() {}
 		variant_graphs::variant_graph const &variant_graph() const { return m_graph; }
 	};
 	

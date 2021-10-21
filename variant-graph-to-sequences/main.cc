@@ -3,6 +3,7 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
+#include <boost/format.hpp>
 #include <cstdlib>
 #include <iostream>
 #include <libbio/assert.hh>
@@ -95,10 +96,22 @@ namespace {
 	
 	class sample_sequence_generator final : public v2m::direct_matching_sequence_generator
 	{
+	protected:
+		// FIXME: We currently assume that all samples (and records) have the same ploidy.
+		std::size_t m_sample_count{};	// Not taking REF into account.
+		std::size_t m_ploidy{};
+		
 	public:
 		typedef v2m::direct_matching_sequence_generator::output_stream_vector	output_stream_vector;
 		
 		using v2m::direct_matching_sequence_generator::direct_matching_sequence_generator;
+		
+		void prepare_variant_graph() override
+		{
+			auto const &sample_paths_by_subgraph(m_graph.sample_paths());
+			m_sample_count = sample_paths_by_subgraph.empty() ? 0 : (sample_paths_by_subgraph.front().size());
+			m_ploidy = m_sample_count / m_graph.sample_names().size();
+		}
 		
 		std::unique_ptr <v2m::alt_edge_handler_base> make_alt_edge_handler(
 			std::string_view const &reference_sv,
@@ -111,14 +124,16 @@ namespace {
 		
 		std::size_t const get_stream_count() const override
 		{
-			return (m_output_reference ? 1 : 0) + m_graph.sample_names().size();
+			return (m_output_reference ? 1 : 0) + m_sample_count;
 		}
 		
 	protected:
 		void open_output_file(std::size_t const idx, output_stream_type &of, lb::writing_open_mode const mode) const override
 		{
-			auto const &name(m_graph.sample_names()[idx]);
-			v2m::open_output_file(name, of, mode);
+			auto const name_idx(idx / m_ploidy);
+			auto const chr_idx(idx % m_ploidy + 1);
+			auto const &name(m_graph.sample_names()[name_idx]);
+			v2m::open_output_file(boost::str(boost::format("%s-%d") % name % chr_idx), of, mode);
 		}
 	};
 	
@@ -144,6 +159,7 @@ namespace {
 		lb::log_time(std::cerr);
 		std::cerr << "Reading the variant graph…\n";
 		gen.read_variant_graph(args_info.variants_arg);
+		gen.prepare_variant_graph();
 	}
 	
 	
