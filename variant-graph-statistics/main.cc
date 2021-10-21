@@ -232,6 +232,5 @@ int main(int argc, char **argv)
 		std::exit(EXIT_FAILURE);
 	}
 	
-	// Not reached.
 	return EXIT_SUCCESS;
 }
