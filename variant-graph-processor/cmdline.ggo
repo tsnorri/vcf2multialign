@@ -1,0 +1,15 @@
+# Copyright (c) 2021 Tuukka Norri
+# This code is licensed under MIT license (see LICENSE for details).
+
+package		"variant-graph-processor"
+purpose		"Extracts parts of a varaint graph (in binary)."
+usage		"variant_graph_processor --variants=variants.graph [<options>]"
+description	"Output is written to stdout. Currently only sample names or bridge nodes (nodes connected by a bridge) can be listed."
+
+option		"variants"				g	"Variant graph file path"										string	typestr = "filename"	required
+
+defmode "Bridge nodes" modedesc = "Output bridge node positions"
+modeoption	"bridge-nodes"				-	"Output bridge node positions"		mode = "Bridge nodes"									required
+
+defmode "Sample names" modedesc = "Output sample names"
+modeoption	"sample-names"				-	"Output sample names"				mode = "Sample names"									required
