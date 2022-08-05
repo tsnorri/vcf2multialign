@@ -98,15 +98,20 @@ namespace vcf2multialign {
 					auto const alt_count(var.alts().size());
 					for (auto &ctx : closable_partitions)
 						ctx.count_paths(persistent_var, alt_count);
-					
-					lb::parallel_for_each_range_view(
-						unclosable_partitions,
-						8,
-						[&persistent_var, alt_count](auto &ctx, std::size_t const j)
+
+					auto const count(unclosable_partitions.size());
+					lb::parallel_for(count, 8, [&unclosable_partitions, &persistent_var, alt_count](auto idx, auto const end_idx){
+						// This is somewhat inefficient since accessing a list item takes linear time.
+						auto it(unclosable_partitions.begin());
+						std::advance(it, idx);
+
+						while (idx < end_idx)
 						{
-							ctx.count_paths(persistent_var, alt_count);
+							it->count_paths(persistent_var, alt_count);
+							++it;
+							++idx;
 						}
-					);
+					});
 				}
 				
 				{
