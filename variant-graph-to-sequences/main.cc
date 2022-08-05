@@ -254,7 +254,7 @@ int main(int argc, char **argv)
 		std::exit(EXIT_FAILURE);
 	}
 	
-	if (args_info.founder_count_arg < 1)
+	if (args_info.output_founders_greedy_given && args_info.founder_count_arg < 1)
 	{
 		std::cerr << "Founder count must be positive." << std::endl;
 		std::exit(EXIT_FAILURE);
