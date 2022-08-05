@@ -6,6 +6,7 @@
 #ifndef VCF2MULTIALIGN_VARIANT_GRAPH_VARIANT_GRAPH_GENERATOR_HH
 #define VCF2MULTIALIGN_VARIANT_GRAPH_VARIANT_GRAPH_GENERATOR_HH
 
+#include <deque>
 #include <libbio/copyable_atomic.hh>
 #include <libbio/int_matrix.hh>
 #include <libbio/matrix.hh>
@@ -67,7 +68,7 @@ namespace vcf2multialign { namespace variant_graphs {
 	class variant_graph_generator :	public sample_sorter_delegate
 	{
 	protected:
-		typedef std::vector <libbio::vcf::variant>					variant_vector;
+		typedef std::deque <libbio::vcf::variant>					variant_vector;
 		typedef std::vector <detail::generator_node_description>	node_description_vector;
 		typedef std::vector <std::size_t>							position_vector;
 	
