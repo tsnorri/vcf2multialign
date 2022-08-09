@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019–2021 Tuukka Norri
+ * Copyright (c) 2019–2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -10,7 +10,7 @@
 #include <vcf2multialign/variant_graph/variant_graph.hh>
 #include <vcf2multialign/utility/dispatch_cli_runner.hh>
 #include <vcf2multialign/vcf_processor.hh>
-#include "file_handling.hh"
+#include "sequence_output_handler.hh"
 
 
 namespace vcf2multialign {
@@ -26,7 +26,6 @@ namespace vcf2multialign {
 	
 	class alt_edge_handler_base;
 	
-	
 	class sequence_generator_base :	public dispatch_cli_runner,
 									public reference_controller
 	{
@@ -36,15 +35,22 @@ namespace vcf2multialign {
 		typedef std::list <stream_position>			stream_position_list;
 		
 	protected:
+		std::unique_ptr <sequence_output_handler>	m_output_handler{};
 		variant_graphs::variant_graph				m_graph;
 		bool										m_output_reference{};
 		bool										m_may_overwrite{};
 		
 	public:
 		sequence_generator_base(
+			char const *subprocess_executable_path,
 			bool const output_reference,
 			bool const may_overwrite
 		):
+			m_output_handler(
+				subprocess_executable_path
+				? static_cast <sequence_output_handler *>(new subprocess_sequence_output_handler(subprocess_executable_path))
+				: static_cast <sequence_output_handler *>(new file_sequence_output_handler)
+			),
 			m_output_reference(output_reference),
 			m_may_overwrite(may_overwrite)
 		{
@@ -55,6 +61,7 @@ namespace vcf2multialign {
 		void read_variant_graph(char const *variant_graph_path);
 		virtual void prepare_variant_graph() {}
 		variant_graphs::variant_graph const &variant_graph() const { return m_graph; }
+		virtual std::string output_path(std::size_t const file_idx) const = 0;
 	};
 	
 	
@@ -69,11 +76,12 @@ namespace vcf2multialign {
 		
 	public:
 		direct_matching_sequence_generator(
+			char const *subprocess_executable_path,
 			std::size_t const chunk_size,
 			bool const output_reference,
 			bool const may_overwrite
 		):
-			sequence_generator_base(output_reference, may_overwrite),
+			sequence_generator_base(subprocess_executable_path, output_reference, may_overwrite),
 			m_chunk_size(chunk_size)
 		{
 		}
@@ -81,16 +89,13 @@ namespace vcf2multialign {
 	protected:
 		void do_work() override;
 		
-		virtual std::size_t const get_stream_count() const = 0;
+		virtual std::size_t get_stream_count() const = 0;
 		
 		virtual std::unique_ptr <alt_edge_handler_base> make_alt_edge_handler(
 			std::string_view const &reference_sv,
 			variant_graphs::variant_graph const &graph,
 			output_stream_vector &output_files
 		) const = 0;
-		
-		void open_output_file(char const *path, output_stream_type &of, libbio::writing_open_mode const mode) const;
-		virtual void open_output_file(std::size_t const idx, output_stream_type &of, libbio::writing_open_mode const mode) const = 0;
 		
 		void output_chunk(std::string_view const &reference_sv, output_stream_vector &output_files);
 	};

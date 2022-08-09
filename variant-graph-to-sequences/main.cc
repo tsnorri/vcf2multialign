@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019–2021 Tuukka Norri
+ * Copyright (c) 2019–2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -80,16 +80,15 @@ namespace {
 			return std::unique_ptr <v2m::alt_edge_handler_base>(new founder_alt_edge_handler(reference_sv, graph, output_files));
 		}
 		
-		std::size_t const get_stream_count() const override
+		std::size_t get_stream_count() const override
 		{
 			auto const max_paths(m_graph.max_paths_in_subgraph());
 			return (m_output_reference ? 1 : 0) + max_paths;
 		}
 		
-	protected:
-		void open_output_file(std::size_t const idx, output_stream_type &of, lb::writing_open_mode const mode) const override
+		std::string output_path(std::size_t const file_idx) const override
 		{
-			v2m::open_founder_output_file(idx, of, mode);
+			return std::to_string(file_idx);
 		}
 	};
 	
@@ -122,18 +121,17 @@ namespace {
 			return std::unique_ptr <v2m::alt_edge_handler_base>(new haplotype_alt_edge_handler(reference_sv, graph, output_files));
 		}
 		
-		std::size_t const get_stream_count() const override
+		std::size_t get_stream_count() const override
 		{
 			return (m_output_reference ? 1 : 0) + m_sample_count;
 		}
 		
-	protected:
-		void open_output_file(std::size_t const idx, output_stream_type &of, lb::writing_open_mode const mode) const override
+		std::string output_path(std::size_t const file_idx) const override
 		{
-			auto const name_idx(idx / m_ploidy);
-			auto const chr_idx(idx % m_ploidy + 1);
-			auto const &name(m_graph.sample_names()[name_idx]);
-			v2m::open_output_file(boost::str(boost::format("%s-%d") % name % chr_idx), of, mode);
+			auto const name_idx(file_idx / m_ploidy);
+			auto const chr_idx(file_idx % m_ploidy + 1);
+			auto const &sample_name(m_graph.sample_names()[name_idx]);
+			return boost::str(boost::format("%s-%d") % sample_name % chr_idx);
 		}
 	};
 	
@@ -142,6 +140,7 @@ namespace {
 	std::unique_ptr <v2m::dispatch_exit_guard_helper <t_generator>> instantiate_generator(gengetopt_args_info const &args_info)
 	{
 		return std::make_unique <v2m::dispatch_exit_guard_helper <t_generator>>(
+			args_info.pipe_arg,
 			args_info.chunk_size_arg,
 			(args_info.omit_reference_output_flag ? false : true),
 			args_info.overwrite_flag
@@ -180,7 +179,9 @@ namespace {
 }
 
 
-void process(gengetopt_args_info &args_info)
+// Try to prevent inlining b.c. dispatch_main() does not work well with a try block in the same function.
+// FIXME: some compiler attribute would be better b.c. I don’t think extern actually prevents the call in main() from being inlined.
+extern void process(gengetopt_args_info &args_info)
 {
 	try
 	{
@@ -194,6 +195,7 @@ void process(gengetopt_args_info &args_info)
 		{
 			typedef v2m::dispatch_exit_guard_helper <v2m::founder_sequence_greedy_generator> wrapped_generator_type;
 			auto gen_ptr(std::make_unique <wrapped_generator_type>(
+				args_info.pipe_arg,
 				args_info.founder_count_arg,
 				args_info.tail_length_arg,
 				(args_info.omit_reference_output_flag ? false : true),
@@ -279,6 +281,59 @@ int main(int argc, char **argv)
 			std::exit(EXIT_FAILURE);
 		}
 	}
+	
+	// Since we are going to fork, we would like to log the error conditions of the child processes and exit.
+	lb::install_dispatch_sigchld_handler(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+		bool did_report_error(false);
+		while (true)
+		{
+			int status(0);
+			auto const pid(::waitpid(-1, &status, WNOHANG | WUNTRACED));
+			if (pid <= 0)
+				break;
+			
+			if (WIFEXITED(status))
+			{
+				auto const exit_status(WEXITSTATUS(status));
+				if (0 != exit_status)
+				{
+					did_report_error = true;
+					std::cerr << "ERROR: Child process " << pid << " exited with status " << exit_status;
+					switch (exit_status)
+					{
+						case 127:
+							std::cerr << " (command not found)";
+							break;
+							
+						case 126:
+							std::cerr << " (command invoked cannot execute)";
+							break;
+							
+						case 74: // EX_IOERR
+							std::cerr << " (an I/O error possibly occurred)";
+							break;
+							
+						case 71: // EX_OSERR
+							std::cerr << " (unknown error from execvp())";
+							break;
+						
+						default:
+							break;
+					}
+					std::cerr << '.' << std::endl;
+				}
+			}
+			else if (WIFSIGNALED(status))
+			{
+				did_report_error = true;
+				auto const signal_number(WTERMSIG(status));
+				std::cerr << "ERROR: Child process " << pid << " received signal " << signal_number << '.' << std::endl;
+			}
+		}
+		
+		if (did_report_error)
+			std::exit(EXIT_FAILURE);
+	});
 
 	process(args_info);
 

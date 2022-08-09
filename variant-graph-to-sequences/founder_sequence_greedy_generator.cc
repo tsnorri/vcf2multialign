@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020–2021 Tuukka Norri
+ * Copyright (c) 2020–2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -8,7 +8,6 @@
 #include <vcf2multialign/path_mapping/path_mapper.hh>
 #include <vcf2multialign/path_mapping/segment_connector.hh>
 #include "founder_sequence_greedy_generator.hh"
-#include "file_handling.hh"
 #include "utility.hh"
 
 // Substring refers here to a labelled graph path through one subgraph whereas path refers to a graph path through two consecutive subgraphs.
@@ -590,23 +589,40 @@ namespace vcf2multialign {
 		// Don’t use chunks for now b.c. that would complicate things too much and not writing everything simultaneously
 		// is more useful with predicted sequences (not founders).
 		
-		output_stream_vector output_files(output_count);
-		
-		auto const mode(lb::make_writing_open_mode({
-			lb::writing_open_mode::CREATE,
-			(m_may_overwrite ? lb::writing_open_mode::OVERWRITE : lb::writing_open_mode::NONE)
-		}));
-		
-		for (std::size_t i(0); i < m_founder_count; ++i)
-			open_founder_output_file(i, output_files[i], mode);
-		
-		if (m_output_reference)
-			open_output_file("REF", output_files.back(), mode);
-		
 		removed_count_map removed_counts;
 		
-		// Generate the sequences.
-		process_graph_and_output(output_files, removed_counts, progress_delegate);
+		{
+			// Prepare the outputs.
+			m_output_handler->prepare_outputs(output_count);
+			sequence_output_handler_output_guard guard(*m_output_handler);
+			
+			auto const mode(lb::make_writing_open_mode({
+				lb::writing_open_mode::CREATE,
+				(m_may_overwrite ? lb::writing_open_mode::OVERWRITE : lb::writing_open_mode::NONE)
+			}));
+			
+			m_output_handler->process_outputs(
+				range(0, m_founder_count),
+				[this, mode](std::size_t const idx, output_adapter &oa){
+					auto const path(output_path(idx));
+					oa.open_output(path.data(), mode);
+				}
+			);
+			
+			if (m_output_reference)
+			{
+				m_output_handler->process_last_output(
+					[this, mode](output_adapter &oa){
+						oa.open_output("REF", mode);
+					}
+				);
+			}
+			
+			auto &output_streams(m_output_handler->output_streams());
+			
+			// Generate the sequences.
+			process_graph_and_output(output_streams, removed_counts, progress_delegate);
+		}
 		
 		dispatch_async(dispatch_get_main_queue(), ^{
 			std::cerr << '\n';

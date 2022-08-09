@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020–2021 Tuukka Norri
+ * Copyright (c) 2020–2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -30,6 +30,7 @@ namespace vcf2multialign {
 		
 	public:
 		founder_sequence_greedy_generator(
+			char const *subprocess_executable_path,
 			std::size_t const founder_count,
 			std::size_t const tail_length,
 			bool const output_reference,
@@ -37,7 +38,7 @@ namespace vcf2multialign {
 			bool const should_remove_mid,
 			bool const may_overwrite
 		):
-			sequence_generator_base(output_reference, may_overwrite),
+			sequence_generator_base(subprocess_executable_path, output_reference, may_overwrite),
 			m_founder_count(founder_count),
 			m_tail_length(tail_length),
 			m_fill_unassigned_with_ref(fill_unassigned_with_ref),
@@ -53,6 +54,8 @@ namespace vcf2multialign {
 			removed_count_map &removed_counts,
 			progress_indicator_delegate &progress_delegate
 		) const;
+		
+		std::string output_path(std::size_t const file_idx) const override { return std::to_string(file_idx); }
 	};
 }
 

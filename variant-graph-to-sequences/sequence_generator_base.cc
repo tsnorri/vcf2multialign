@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019–2021 Tuukka Norri
+ * Copyright (c) 2019–2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -21,12 +21,6 @@ namespace vgs	= vcf2multialign::variant_graphs;
 
 
 namespace vcf2multialign {
-	
-	void direct_matching_sequence_generator::open_output_file(char const *path, output_stream_type &of, lb::writing_open_mode const mode) const
-	{
-		v2m::open_output_file("REF", of, mode);
-	}
-	
 	
 	void sequence_generator_base::read_variant_graph(char const *input_graph_path)
 	{
@@ -59,23 +53,32 @@ namespace vcf2multialign {
 			auto const lhsc(m_chunk_size * lhs);
 			auto const rhsc(std::min(stream_count, m_chunk_size * rhs));
 			dispatch_async_main(^{ lb::log_time(std::cerr); std::cerr << "Processing chunk " << rhs << '/' << chunk_count << "…\n"; });
-			output_stream_vector output_files(rhsc - lhsc); // Cannot reuse b.c. lb::file_ostream has a deleted copy constructor.
+			
+			// Prepare the outputs.
+			m_output_handler->prepare_outputs(rhsc - lhsc);
+			sequence_output_handler_output_guard guard(*m_output_handler);
 			
 			// Open the output files.
 			// The last stream will be REF.
-			if (m_output_reference && rhsc == stream_count)
+			bool const should_output_reference(m_output_reference && rhsc == stream_count);
+			if (should_output_reference)
 			{
-				open_output_file("REF", output_files.back(), mode);
-				for (auto &&[i, of] : ranges::view::zip(ranges::view::iota(lhsc, rhsc), output_files) | ranges::view::drop_last(1))
-					open_output_file(i, of, mode);
-			}
-			else
-			{
-				for (auto &&[i, of] : ranges::view::zip(ranges::view::iota(lhsc, rhsc), output_files))
-					open_output_file(i, of, mode);
+				m_output_handler->process_last_output(
+					[this, mode](output_adapter &oa){
+						oa.open_output("REF", mode);
+					}
+				);
 			}
 			
-			output_chunk(reference_sv, output_files);
+			m_output_handler->process_outputs(
+				range(0, rhsc - lhsc) | drop_last(should_output_reference),
+				[this, mode, lhsc](std::size_t const idx, output_adapter &oa){
+					auto const path(output_path(lhsc + idx));
+					oa.open_output(path.data(), mode);
+				}
+			);
+			
+			output_chunk(reference_sv, m_output_handler->output_streams());
 		}
 		
 		dispatch_async(dispatch_get_main_queue(), ^{

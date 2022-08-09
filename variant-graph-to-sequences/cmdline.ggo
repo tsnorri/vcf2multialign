@@ -1,4 +1,4 @@
-# Copyright (c) 2019 Tuukka Norri
+# Copyright (c) 2019-2022 Tuukka Norri
 # This code is licensed under MIT license (see LICENSE for details).
 
 package		"variant-graph-to-sequences"
@@ -12,6 +12,7 @@ option		"reference-sequence"	-	"Reference sequence identifier"																st
 option		"chunk-size"			-	"Number of output files to be opened simultaneously"										long	typestr = "size"		default = "500"	optional
 option		"overwrite"				-	"Allow overwriting existing files"															flag	off
 option		"omit-reference-output"	-	"Do not output the aligned reference sequence"												flag	off
+option		"pipe"					-	"Instead of writing to files, pipe the output to the given command"							string	typestr = "command"						optional
 
 defmode	"Output samples"							modedesc = "Output a reference-guided multiple alignment of the samples."
 modeoption	"output-samples"			S	"Output samples"																					mode = "Output samples"								required

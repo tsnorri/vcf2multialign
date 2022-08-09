@@ -4,7 +4,8 @@ include ../common.mk
 OBJECTS		=	cmdline.o \
 				founder_sequence_greedy_generator.o \
 				main.o \
-				sequence_generator_base.o
+				sequence_generator_base.o \
+				sequence_output_handler.o
 
 all: variant_graph_to_sequences
 
