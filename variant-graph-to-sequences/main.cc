@@ -308,13 +308,17 @@ int main(int argc, char **argv)
 						case 126:
 							std::cerr << " (command invoked cannot execute)";
 							break;
-							
-						case 74: // EX_IOERR
-							std::cerr << " (an I/O error possibly occurred)";
+						
+						case 69: // EX_UNAVAILABLE
+							std::cerr << " (service unavailable)";
 							break;
-							
+						
 						case 71: // EX_OSERR
 							std::cerr << " (unknown error from execvp())";
+							break;
+						
+						case 74: // EX_IOERR
+							std::cerr << " (an I/O error occurred)";
 							break;
 						
 						default:
