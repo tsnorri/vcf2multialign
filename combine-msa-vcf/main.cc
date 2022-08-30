@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019–2020 Tuukka Norri
+ * Copyright (c) 2019–2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -25,6 +25,7 @@ namespace {
 			ref_seq,
 			alt_seq,
 			args_info.variants_arg,
+			args_info.regions_arg,
 			args_info.output_chr_arg,
 			args_info.ploidy_arg,
 			os

@@ -304,7 +304,7 @@ int main(int argc, char **argv)
 						case 127:
 							std::cerr << " (command not found)";
 							break;
-							
+						
 						case 126:
 							std::cerr << " (command invoked cannot execute)";
 							break;

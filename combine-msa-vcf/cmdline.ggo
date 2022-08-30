@@ -1,4 +1,4 @@
-# Copyright (c) 2019 Tuukka Norri
+# Copyright (c) 2019-2022 Tuukka Norri
 # This code is licensed under MIT license (see LICENSE for details).
 
 package		"combine_msa_vcf"
@@ -10,6 +10,7 @@ option	"ref"				r	"Reference FASTA file path"								string	typestr = "filename"
 option	"alt"				l	"Alternative FASTA file path"							string	typestr = "filename"		required
 option	"variants"			a	"Variant file path"										string	typestr = "filename"		optional
 option	"output"			o	"Output file path. Defaults to stdout."					string	typestr = "filename"		optional
+option	"regions"			e	"Consider only the regions int the given BED file"		string	typestr = "filename"		optional
 option	"output-chr"		c	"Chromosome identifier for output"						string								required
 option	"ploidy"			p	"Ploidy"												int									required
 option	"show-invocation"	-	"Output the invocation i.e. command line arguments."	flag	off		hidden

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Tuukka Norri
+ * Copyright (c) 2020-2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -16,6 +16,7 @@ namespace vcf2multialign {
 		vector_type const &ref_seq,
 		vector_type const &alt_seq,
 		char const *variants_path,
+		char const *regions_bed_path,
 		char const *output_chr,
 		std::uint16_t const ploidy,
 		std::ostream &os,
@@ -27,7 +28,7 @@ namespace vcf2multialign {
 
 		if (variants_path)
 		{
-			gen.open_variants_file(variants_path);
+			gen.open_variants_file(variants_path, regions_bed_path);
 			gen.prepare();
 			gen.vcf_reader().set_parsed_fields(vcf::field::ALL);
 		}

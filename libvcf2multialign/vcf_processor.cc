@@ -5,6 +5,7 @@
 
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
+#include <vcf2multialign/bed_reader_delegate.hh>
 #include <vcf2multialign/utility/read_single_fasta_seq.hh>
 #include <vcf2multialign/variant_format.hh>
 #include <vcf2multialign/vcf_processor.hh>
@@ -41,19 +42,20 @@ namespace {
 	}
 	
 	
-	struct vcf_empty_input : public v2m::detail::vcf_input
+	struct vcf_empty_input final : public v2m::detail::vcf_input
 	{
 		vcf::empty_input input{};
 	};
 	
 	
-	struct vcf_mmap_input : public v2m::detail::vcf_input
+	struct vcf_mmap_input final : public v2m::detail::vcf_input
 	{
 		vcf::mmap_input	input{};
 	};
 	
 	
-	struct vcf_compressed_stream_input : public v2m::detail::vcf_input
+	// FIXME: make libbio handle compressed input or read input from a pipe.
+	struct vcf_compressed_stream_input final : public v2m::detail::vcf_input
 	{
 		typedef vcf::stream_input <
 			io::filtering_stream <io::input>
@@ -76,7 +78,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void vcf_processor::open_variants_file(char const *variant_file_path)
+	void vcf_processor::open_variants_file(char const *variant_file_path, char const *bed_file_path)
 	{
 		std::string_view const sv(variant_file_path);
 		if (ends_with(sv, ".gz")) // std::string_view::ends_with is a C++20 addition.
@@ -99,6 +101,19 @@ namespace vcf2multialign {
 			
 			m_vcf_reader.set_input(ptr->input);
 			m_vcf_input = std::move(ptr);
+		}
+		
+		if (bed_file_path)
+		{
+			auto validator(std::make_unique <vcf::region_variant_validator>(true));
+			lb::bed_reader bed_reader;
+			bed_reader_delegate delegate(validator->regions());
+			bed_reader.read_regions(bed_file_path, delegate);
+			m_variant_validator = std::move(validator);
+		}
+		else
+		{
+			m_variant_validator.reset(new vcf::region_variant_validator(false));
 		}
 	}
 	

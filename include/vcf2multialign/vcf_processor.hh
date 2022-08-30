@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Tuukka Norri
+ * Copyright (c) 2019-2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -25,16 +25,17 @@ namespace vcf2multialign {
 	class vcf_processor
 	{
 	protected:
-		typedef std::unique_ptr <detail::vcf_input>	input_ptr;
+		typedef std::unique_ptr <detail::vcf_input>					input_ptr;
+		typedef std::unique_ptr <libbio::vcf::variant_validator>	variant_validator_ptr;
 		
 	protected:
-		input_ptr			m_vcf_input;
-		libbio::vcf::reader	m_vcf_reader;
-		
+		input_ptr				m_vcf_input;
+		variant_validator_ptr	m_variant_validator;
+		libbio::vcf::reader		m_vcf_reader;
 		
 	public:
 		libbio::vcf::reader &vcf_reader() { return m_vcf_reader; }
-		void open_variants_file(char const *variant_file_path);
+		void open_variants_file(char const *variant_file_path, char const *bed_file_path = nullptr);
 		void prepare_reader();
 		void setup_empty_input();
 	};
