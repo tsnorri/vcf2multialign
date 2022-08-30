@@ -108,11 +108,18 @@ lib/libbio/local.mk: local.mk
 lib/libbio/src/libbio.a: lib/libbio/local.mk
 	$(MAKE) -C lib/libbio
 
-lib/swift-corelibs-libdispatch/build/src/libdispatch.a:
+lib/swift-corelibs-libdispatch/CMakeLists.txt.original:
+	$(CP) lib/swift-corelibs-libdispatch/CMakeLists.txt lib/swift-corelibs-libdispatch/CMakeLists.txt.original
+	$(PATCH) lib/swift-corelibs-libdispatch/CMakeLists.txt.original \
+		tools/swift-cmakelists.patch \
+		-o lib/swift-corelibs-libdispatch/CMakeLists.txt
+
+lib/swift-corelibs-libdispatch/build/src/libdispatch.a: lib/swift-corelibs-libdispatch/CMakeLists.txt.original
 	$(RM) -rf lib/swift-corelibs-libdispatch/build && \
 	cd lib/swift-corelibs-libdispatch && \
 	$(MKDIR) build && \
 	cd build && \
+	$(CP) ../../../tools/disable_warnings.cmake ../cmake/modules/V2MDisableCompilerWarnings.cmake && \
 	$(CMAKE) \
 		-G Ninja \
 		-DCMAKE_C_COMPILER="$(CC)" \
