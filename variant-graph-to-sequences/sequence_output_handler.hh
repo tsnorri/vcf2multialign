@@ -27,8 +27,8 @@ namespace vcf2multialign {
 	class subprocess_output_adapter final : public output_adapter
 	{
 	public:
-		typedef vcf2multialign::output_stream_type	output_stream_type;
-		typedef libbio::subprocess					subprocess_type;
+		typedef vcf2multialign::output_stream_type							output_stream_type;
+		typedef libbio::subprocess <libbio::subprocess_handle_spec::STDIN>	subprocess_type;
 		
 	protected:
 		subprocess_type		*m_subprocess{};
@@ -94,8 +94,8 @@ namespace vcf2multialign {
 	class subprocess_sequence_output_handler final : public sequence_output_handler
 	{
 	public:
-		typedef libbio::subprocess					subprocess_type;
-		typedef std::vector <subprocess_type>		subprocess_vector;
+		typedef libbio::subprocess <libbio::subprocess_handle_spec::STDIN>	subprocess_type;
+		typedef std::vector <subprocess_type>								subprocess_vector;
 		
 	protected:
 		subprocess_vector		m_subprocesses;		// Need to be deallocated after the output streams.

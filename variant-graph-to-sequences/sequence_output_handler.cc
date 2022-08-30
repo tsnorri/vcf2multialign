@@ -42,10 +42,10 @@ namespace vcf2multialign {
 			malloc_ptr <char> name_(strdup(name));
 			
 			char * const args[]{exec_path.get(), name_.get(), nullptr};
-			*m_subprocess = lb::subprocess(args);
+			*m_subprocess = subprocess_type(args);
 		}
 			
-		auto const fd(m_subprocess->write_handle().get());
+		auto const fd(m_subprocess->stdin_handle().get());
 		*m_output_stream = output_stream_type(
 			fd,
 			IO_CHANNEL_WRITER_BUFFER_SIZE,
