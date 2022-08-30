@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Tuukka Norri
+ * Copyright (c) 2020-2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -24,7 +24,10 @@ namespace vcf2multialign {
 		os << "##FILTER=<ID=ALT_EQ_TO_REF,Description=\"Variant called by the VC is equivalent to the reference\">\n";
 		os << "##FILTER=<ID=GT_NOT_SET,Description=\"All GT values are equal to zero.\">\n";
 		os << "##INFO=<ID=OC,Number=1,Type=Integer,Description=\"Number of overlapping VC variants\">\n";
-		os << "##INFO=<ID=ORIGIN,Number=1,Type=String,Description=\"Variant source (MSA for multiple sequence alignment, VC for variant caller)\">\n";
+		
+		if (m_should_output_msa_deduced_variants)
+			os << "##INFO=<ID=ORIGIN,Number=1,Type=String,Description=\"Variant source (MSA for multiple sequence alignment, VC for variant caller)\">\n";
+		
 		os << "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n";
 		os << "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMPLE\n";
 	}
@@ -32,8 +35,11 @@ namespace vcf2multialign {
 	
 	void variant_writer::handle_variant_description(variant_description &&desc)
 	{
+		if (m_should_output_msa_deduced_variants && variant_origin::MSA == desc.origin)
+			return;
+		
 		auto &os(*m_os);
-
+		
 		// CHROM
 		os << m_output_chr_id << '\t';
 			
@@ -58,22 +64,25 @@ namespace vcf2multialign {
 			
 		// INFO
 		os << "\tOC=" << desc.overlap_count;
-		os << ";ORIGIN=";
-		switch (desc.origin)
+		if (m_should_output_msa_deduced_variants)
 		{
-			case variant_origin::MSA:
+			os << ";ORIGIN=";
+			switch (desc.origin)
 			{
-				os << "MSA";
-				break;
-			}
+				case variant_origin::MSA:
+				{
+					os << "MSA";
+					break;
+				}
 					
-			case variant_origin::VC:
-			{
-				os << "VC";
-				break;
+				case variant_origin::VC:
+				{
+					os << "VC";
+					break;
+				}
 			}
 		}
-			
+		
 		// FORMAT
 		os << "\tGT\t";
 			

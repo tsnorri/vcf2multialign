@@ -29,7 +29,8 @@ namespace {
 			args_info.chr_arg,
 			args_info.output_chr_arg,
 			args_info.ploidy_arg,
-			os
+			os,
+			args_info.output_msa_variants_flag
 		);
 	}
 }

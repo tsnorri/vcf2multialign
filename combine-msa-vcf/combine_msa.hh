@@ -20,7 +20,8 @@ namespace vcf2multialign {
 		char const *output_chr,
 		std::uint16_t const ploidy,
 		std::ostream &os,
-		bool const log_status = true
+		bool const should_output_msa_variants,
+		bool const should_log_status = true
 	);
 }
 

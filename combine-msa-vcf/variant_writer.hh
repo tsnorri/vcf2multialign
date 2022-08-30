@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Tuukka Norri
+ * Copyright (c) 2020-2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -16,13 +16,15 @@ namespace vcf2multialign {
 	protected:
 		std::string							m_output_chr_id;
 		std::ostream						*m_os{};
+		bool								m_should_output_msa_deduced_variants{};
 		
 	public:
 		variant_writer() = default;
 		
-		variant_writer(std::ostream &os, std::string &&output_chr_id):
+		variant_writer(std::ostream &os, std::string &&output_chr_id, bool should_output_msa_deduced_variants = true):
 			m_output_chr_id(std::move(output_chr_id)),
-			m_os(&os)
+			m_os(&os),
+			m_should_output_msa_deduced_variants(should_output_msa_deduced_variants)
 		{
 		}
 		

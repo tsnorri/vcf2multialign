@@ -21,11 +21,12 @@ namespace vcf2multialign {
 		char const *output_chr,
 		std::uint16_t const ploidy,
 		std::ostream &os,
-		bool const log_status
+		bool const should_output_msa_variants,
+		bool const should_log_status
 	)
 	{
 		v2m::vcf_record_generator gen(input_chr);
-		v2m::msa_combiner combiner(output_chr, ploidy, os, log_status);
+		v2m::msa_combiner combiner(output_chr, ploidy, os, should_output_msa_variants, should_log_status);
 
 		if (variants_path)
 		{
