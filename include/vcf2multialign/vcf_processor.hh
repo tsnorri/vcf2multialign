@@ -13,7 +13,10 @@
 
 namespace vcf2multialign::detail {
 	
-	struct vcf_input {};
+	struct vcf_input
+	{
+		virtual ~vcf_input() {}
+	};
 }
 
 
