@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Tuukka Norri
+ * Copyright (c) 2019-2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -18,8 +18,14 @@ namespace vcf2multialign {
 	protected:
 		libbio::vcf::reader::parser_state	m_parser_state;
 		libbio::vcf::info_field_end const	*m_end_field{};
+		char const							*m_chr_id{};		// Not owned.
 		
 	public:
+		vcf_record_generator(char const *chr_id):
+			m_chr_id(chr_id)
+		{
+		}
+		
 		void prepare();
 		variant_record next_variant();
 	};

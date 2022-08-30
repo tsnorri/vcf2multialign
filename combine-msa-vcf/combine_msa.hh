@@ -16,6 +16,7 @@ namespace vcf2multialign {
 		vector_type const &alt_seq,
 		char const *variants_path,
 		char const *regions_bed_path,
+		char const *input_chr,
 		char const *output_chr,
 		std::uint16_t const ploidy,
 		std::ostream &os,

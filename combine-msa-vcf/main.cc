@@ -26,6 +26,7 @@ namespace {
 			alt_seq,
 			args_info.variants_arg,
 			args_info.regions_arg,
+			args_info.chr_arg,
 			args_info.output_chr_arg,
 			args_info.ploidy_arg,
 			os
@@ -54,6 +55,12 @@ int main(int argc, char **argv)
 	if (args_info.ploidy_arg <= 0)
 	{
 		std::cerr << "Ploidy needs to be positive." << std::endl;
+		std::exit(EXIT_FAILURE);
+	}
+	
+	if (args_info.variants_arg && (!args_info.chr_arg))
+	{
+		std::cerr << "Chromosome identifier for input needs to be specified if variants are used for input." << std::endl;
 		std::exit(EXIT_FAILURE);
 	}
 	

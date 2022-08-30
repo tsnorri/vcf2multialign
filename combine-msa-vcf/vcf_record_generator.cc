@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Tuukka Norri
+ * Copyright (c) 2019-2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -28,14 +28,32 @@ namespace vcf2multialign {
 	variant_record vcf_record_generator::next_variant()
 	{
 		variant_record retval;
-		bool const st(this->m_vcf_reader.parse_one([this, &retval](vcf::transient_variant const &var) {
-			// Not reached on EOF.
-			libbio_assert(m_end_field);
-			retval.variant = var;
-			retval.aligned_position = var.pos();
-			retval.size = vcf::variant_end_pos(var, *m_end_field) - var.zero_based_pos(); // FIXME: what do we store?
-			return true;
-		}, m_parser_state));
+		bool should_continue{true};
+		bool have_input{true};
+		
+		while (should_continue && have_input)
+		{
+			have_input = this->m_vcf_reader.parse_one(
+				[
+					this,
+					&should_continue,
+					&retval
+				](vcf::transient_variant const &var) {
+					// Not reached on EOF.
+					
+					if (var.chrom_id() != m_chr_id)
+						return true;
+					
+					should_continue = false; // Found a suitable variant.
+					libbio_assert(m_end_field);
+					retval.variant = var;
+					retval.aligned_position = var.pos();
+					retval.size = vcf::variant_end_pos(var, *m_end_field) - var.zero_based_pos(); // FIXME: what do we store?
+					return true;
+				},
+				m_parser_state
+			);
+		}
 	
 		return retval;
 	}

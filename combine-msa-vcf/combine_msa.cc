@@ -17,13 +17,14 @@ namespace vcf2multialign {
 		vector_type const &alt_seq,
 		char const *variants_path,
 		char const *regions_bed_path,
+		char const *input_chr,
 		char const *output_chr,
 		std::uint16_t const ploidy,
 		std::ostream &os,
 		bool const log_status
 	)
 	{
-		v2m::vcf_record_generator gen;
+		v2m::vcf_record_generator gen(input_chr);
 		v2m::msa_combiner combiner(output_chr, ploidy, os, log_status);
 
 		if (variants_path)
