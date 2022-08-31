@@ -32,10 +32,9 @@ TARGET_TYPE		?=
 BOOST_ROOT		?= /usr
 BOOST_INCLUDE	?= -I$(BOOST_ROOT)/include
 
-# Make Boost not use std::unary_function and std::binary_function with BOOST_NO_CXX98_FUNCTION_BASE. (These have been deprecated.)
 CFLAGS			+= -std=c99   $(OPT_FLAGS) $(WARNING_FLAGS) $(SYSTEM_CFLAGS)
 CXXFLAGS		+= -std=c++2b $(OPT_FLAGS) $(WARNING_FLAGS) $(SYSTEM_CXXFLAGS)
-CPPFLAGS		+= -DHAVE_CONFIG_H -I../include -I../lib/cereal/include -I../lib/libbio/include -I../lib/libbio/lib/GSL/include -I../lib/libbio/lib/range-v3/include $(BOOST_INCLUDE) $(SYSTEM_CPPFLAGS) -DBOOST_NO_CXX98_FUNCTION_BASE
+CPPFLAGS		+= -DHAVE_CONFIG_H -I../include -I../lib/cereal/include -I../lib/libbio/include -I../lib/libbio/lib/GSL/include -I../lib/libbio/lib/range-v3/include $(BOOST_INCLUDE) $(SYSTEM_CPPFLAGS)
 LDFLAGS			:= ../lib/libbio/src/libbio.a $(BOOST_LIBS) $(LDFLAGS) $(SYSTEM_LDFLAGS)
 
 ifeq ($(shell uname -s),Linux)
