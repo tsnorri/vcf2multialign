@@ -18,17 +18,6 @@ namespace v2m	= vcf2multialign;
 
 namespace {
 	
-	template <typename t_map, typename t_key, typename t_ptr_value>
-	void add_to_map(t_map &map, t_key const &key, t_ptr_value const ptr_value)
-	{
-		map.emplace(
-			std::piecewise_construct,
-			std::forward_as_tuple(key),
-			std::forward_as_tuple(ptr_value)
-		);
-	}
-
-
 	template <std::size_t t_size>
 	inline bool ends_with(std::string_view const &sv, char const (&ending_arr)[t_size])
 	{
@@ -64,6 +53,15 @@ namespace {
 		filtering_stream_input	input;
 		lb::file_istream		compressed_input_stream;
 	};
+	
+	
+	void output_subfield_description(std::ostream &os, vcf::subfield_base const &field)
+	{
+		vcf::output_vcf_value(os, field.metadata_value_type());
+		vcf::output_vcf_value(os, field.number());
+		if (field.value_type_is_vector())
+			os << 'V';
+	}
 }
 
 
@@ -139,19 +137,20 @@ namespace vcf2multialign {
 	void vcf_processor::prepare_reader()
 	{
 		vcf::add_reserved_genotype_keys(m_vcf_reader.genotype_fields());
-	
+		
 		{
 			auto &info_fields(m_vcf_reader.info_fields());
 			vcf::add_reserved_info_keys(info_fields);
-	
+			
 			// Add some fields used in 1000G.
-			add_to_map(info_fields, "CIPOS",	new vcf_info_field_cipos());
-			add_to_map(info_fields, "CIEND",	new vcf_info_field_ciend());
-			add_to_map(info_fields, "SVLEN",	new vcf_info_field_svlen());
-			add_to_map(info_fields, "SVTYPE",	new vcf_info_field_svtype());
+			vcf::add_subfield <vcf_info_field_cipos>  (info_fields, "CIPOS");
+			vcf::add_subfield <vcf_info_field_ciend>  (info_fields, "CIEND");
+			vcf::add_subfield <vcf_info_field_svlen>  (info_fields, "SVLEN");
+			vcf::add_subfield <vcf_info_field_svtype> (info_fields, "SVTYPE");
 		}
-	
+		
 		m_vcf_reader.set_variant_format(new variant_format());
+		
 		m_vcf_reader.read_header();
 	}
 }
