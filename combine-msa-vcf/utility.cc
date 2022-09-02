@@ -40,7 +40,7 @@ namespace vcf2multialign {
 		auto const &samples(var.samples());
 		libbio_assert(!samples.empty());
 		auto const *gt_field(v2m::get_variant_format(var).gt);
-		libbio_assert(gt_field);
+		libbio_always_assert_msg(gt_field, "Variant on line ", var.lineno(), " does not have GT in its format.");
 		auto const &first_sample(samples.front());
 		auto const &gt((*gt_field)(first_sample)); // vector of sample_genotype
 		
