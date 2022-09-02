@@ -1,0 +1,10 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -88,6 +88,7 @@ include(DispatchSanitization)
+ include(DispatchCompilerWarnings)
+ include(DTrace)
+ include(SwiftSupport)
++include(V2MDisableCompilerWarnings)
+ 
+ # NOTE(abdulras) this is the CMake supported way to control whether we generate
+ # shared or static libraries.  This impacts the behaviour of `add_library` in

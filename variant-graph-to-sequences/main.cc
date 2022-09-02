@@ -8,6 +8,8 @@
 #include <iostream>
 #include <libbio/assert.hh>
 #include <libbio/dispatch.hh>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 #include <vcf2multialign/utility/dispatch_exit_guard.hh>
 #include <vcf2multialign/utility/log_assertion_failure.hh>
