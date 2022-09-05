@@ -13,6 +13,24 @@ namespace v2m	= vcf2multialign;
 
 
 namespace {
+	
+	v2m::msa_variant_output msa_variant_output(enum enum_msa_variants const msa_variants_arg)
+	{
+		switch (msa_variants_arg)
+		{
+			case msa_variants__NULL:
+			case msa_variants_arg_none:
+				return v2m::msa_variant_output::NONE;
+				
+			case msa_variants_arg_all:
+				return v2m::msa_variant_output::ALL;
+				
+			case msa_variants_arg_altMINUS_matchesMINUS_ref:
+				return v2m::msa_variant_output::ALT_MATCHES_REF;
+		}
+	}
+	
+	
 	void combine_msa(gengetopt_args_info const &args_info, std::ostream &os)
 	{
 		// Read the input FASTAs.
@@ -29,8 +47,8 @@ namespace {
 			args_info.chr_arg,
 			args_info.output_chr_arg,
 			args_info.ploidy_arg,
-			os,
-			args_info.output_msa_variants_flag
+			msa_variant_output(args_info.msa_variants_arg),
+			os
 		);
 	}
 }

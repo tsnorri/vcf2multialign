@@ -33,6 +33,7 @@ namespace vcf2multialign {
 		// the order of the values does not matter.
 		
 		std::string					ref;
+		std::string					ref_src;
 		std::string					alt;
 		std::vector <bool>			genotype;
 		std::vector <std::string>	filters;
@@ -40,6 +41,7 @@ namespace vcf2multialign {
 		std::int32_t				overlap_count{};
 		variant_origin				origin{};
 		bool						is_skipped{};
+		bool						had_alt_eq_to_ref{};
 		
 	protected:
 		template <typename t_string_1, typename t_string_2>

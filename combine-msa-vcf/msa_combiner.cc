@@ -323,8 +323,9 @@ namespace vcf2multialign {
 							auto const ref_characters_available(std::min(var_ref_characters_remaining, tail_length));
 							auto const alt_characters_available(std::min(var_alt_characters_remaining, tail_length));
 							auto const var_alt_start(var_alt_sv.size() - var_alt_characters_remaining); // Take into account the characters appended in the previous segments.
-							desc.ref += ref_sv.substr(left_pad, ref_characters_available);
-							desc.alt += var_alt_sv.substr(var_alt_start, alt_characters_available);
+							desc.ref		+= ref_sv.substr(left_pad, ref_characters_available);
+							desc.ref_src	+= alt_sv.substr(left_pad, ref_characters_available);
+							desc.alt		+= var_alt_sv.substr(var_alt_start, alt_characters_available);
 							
 							var_ref_characters_remaining -= ref_characters_available;
 							var_alt_characters_remaining -= alt_characters_available;
@@ -350,19 +351,22 @@ namespace vcf2multialign {
 						case segment_type::INSERTION_WITH_SNP:
 						{
 							libbio_assert_lt(0, var_ref_characters_remaining);
-
+							
+							std::string_view const ref_sv(seg.ref.string);
 							std::string_view const alt_sv(seg.alt.string);
 							
 							// Add the pad characters if needed.
-							desc.alt += alt_sv.substr(0, left_pad);
+							desc.ref_src	+= alt_sv.substr(0, left_pad);
+							desc.alt		+= alt_sv.substr(0, left_pad);
 							
 							// Add the remaining characters.
 							auto const tail_length(alt_sv.size() - left_pad);
 							auto const ref_characters_available(std::min(var_ref_characters_remaining, tail_length));
 							auto const alt_characters_available(std::min(var_alt_characters_remaining, tail_length));
-							auto const var_alt_start(var_alt_sv.size() - var_alt_characters_remaining);
-							desc.ref += seg.ref.string; // var_ref_characters_remaining is at least one.
-							desc.alt += var_alt_sv.substr(var_alt_start, alt_characters_available);
+							auto const var_alt_start(var_alt_sv.size() - var_alt_characters_remaining); // Continue from the current position.
+							desc.ref		+= seg.ref.string; // var_ref_characters_remaining is at least one.
+							desc.ref_src	+= alt_sv.substr(left_pad, ref_characters_available);
+							desc.alt		+= var_alt_sv.substr(var_alt_start, alt_characters_available);
 							
 							var_ref_characters_remaining -= ref_characters_available;
 							var_alt_characters_remaining -= alt_characters_available;
@@ -382,6 +386,14 @@ namespace vcf2multialign {
 				desc.alt += var_alt_sv.substr(var_alt_sv.size() - var_alt_characters_remaining);
 
 				libbio_assert_lt(0, desc.ref.size());
+				
+				// Check if we should rewrite the variant again using the ad hoc reference as the ALT text.
+				if (msa_variant_output::ALT_MATCHES_REF == m_msa_var_output && desc.ref == desc.alt)
+				{
+					using std::swap;
+					swap(desc.alt, desc.ref_src);
+					desc.had_alt_eq_to_ref = true;
+				}
 			}
 		}
 	}

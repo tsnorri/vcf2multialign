@@ -33,6 +33,7 @@ namespace vcf2multialign {
 		variant_filter						m_variant_filter;
 		
 		std::uint16_t						m_ploidy{1};
+		msa_variant_output					m_msa_var_output{msa_variant_output::NONE};
 	
 	public:
 		msa_combiner() = default;
@@ -41,14 +42,15 @@ namespace vcf2multialign {
 			std::string output_chr_id,
 			std::uint16_t const ploidy,
 			std::ostream &os,
-			bool const should_output_msa_variants,
+			msa_variant_output const msa_var_output,
 			bool const should_log_status
 		):
 			m_data_source(ploidy, should_log_status),
-			m_variant_writer(os, std::move(output_chr_id), should_output_msa_variants),
+			m_variant_writer(os, std::move(output_chr_id), msa_variant_output::ALL == msa_var_output),
 			m_mnv_combiner(m_variant_writer, ploidy),
 			m_variant_filter(m_mnv_combiner),
-			m_ploidy(ploidy)
+			m_ploidy(ploidy),
+			m_msa_var_output(msa_var_output)
 		{
 		}
 		
