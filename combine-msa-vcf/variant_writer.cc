@@ -27,7 +27,7 @@ namespace vcf2multialign {
 		os << "##INFO=<ID=USRA,Number=0,Type=Flag,Description\"Uses source reference for ALT (ALT matched REF after projection and was substituted with a substring of the original reference)\">\n";
 		
 		if (m_should_output_msa_deduced_variants)
-			os << "##INFO=<ID=ORIGIN,Number=1,Type=String,Description=\"Variant source (MSA for multiple sequence alignment, VC for variant caller)\">\n";
+			os << "##INFO=<ID=VS,Number=1,Type=String,Description=\"Variant source (MSA for multiple sequence alignment, VC for variant caller)\">\n";
 		
 		os << "##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Genotype\">\n";
 		os << "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMPLE\n";
@@ -67,7 +67,7 @@ namespace vcf2multialign {
 		os << "\tOC=" << desc.overlap_count;
 		if (m_should_output_msa_deduced_variants)
 		{
-			os << ";ORIGIN=";
+			os << ";VS=";
 			switch (desc.origin)
 			{
 				case variant_origin::MSA:
