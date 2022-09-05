@@ -36,7 +36,7 @@ namespace vcf2multialign {
 	
 	void variant_writer::handle_variant_description(variant_description &&desc)
 	{
-		if (m_should_output_msa_deduced_variants && variant_origin::MSA == desc.origin)
+		if (!m_should_output_msa_deduced_variants && variant_origin::MSA == desc.origin)
 			return;
 		
 		auto &os(*m_os);
