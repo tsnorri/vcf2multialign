@@ -229,7 +229,7 @@ namespace vcf2multialign {
 
 	void variant_graph_single_pass_context::log_statistics() const
 	{
-		dispatch_async_main(^{ lb::log_time(std::cerr); std::cerr << "Done. Chromosome ID mismatches: " << this->chrom_id_mismatches() << "\n"; }); // FIXME: log more statistics?
+		dispatch_async_main(^{ lb::log_time(std::cerr); std::cerr << "Done. Suitable variants: " << this->variants_passing_checks() << " chromosome ID mismatches: " << this->chrom_id_mismatches() << "\n"; }); // FIXME: log more statistics?
 	}
 	
 	

@@ -140,6 +140,7 @@ namespace vcf2multialign {
 				<< "Done. Handled variants: " << result.handled_line_numbers.size()
 				<< " Maximum segment size: " << result.max_segment_size
 				<< " Cut position count: " << result.positions.size()
+				<< " Suitable variants: " << this->variants_passing_checks()
 				<< " Chromosome ID mismatches: " << this->chrom_id_mismatches()
 				<< '\n';
 		});

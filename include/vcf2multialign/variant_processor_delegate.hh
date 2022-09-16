@@ -23,6 +23,7 @@ namespace vcf2multialign {
 		virtual void variant_processor_found_variant_with_no_suitable_alts(libbio::vcf::transient_variant const &var) = 0;
 		virtual void variant_processor_found_filtered_variant(libbio::vcf::transient_variant const &var, libbio::vcf::info_field_base const &field) = 0;
 		virtual void variant_processor_found_variant_with_ref_mismatch(libbio::vcf::transient_variant const &var, std::string_view const &ref_sub) = 0;
+		virtual void variant_processor_found_matching_variant(libbio::vcf::transient_variant const &var) = 0;
 	};
 	
 	

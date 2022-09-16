@@ -144,6 +144,7 @@ namespace vcf2multialign { namespace variant_graphs {
 				// Add to the stack.
 				overlap_end_pos = std::max(overlap_end_pos, var_end);
 				m_subgraph_variants.emplace_back(var);
+				delegate.variant_processor_found_matching_variant(var);
 				
 			end:
 				++m_processed_count;

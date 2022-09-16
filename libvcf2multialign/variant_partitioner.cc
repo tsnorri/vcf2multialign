@@ -73,6 +73,7 @@ namespace vcf2multialign {
 				
 				// Variant passes the checks, handle it.
 				handled_line_numbers.emplace_back(lineno);
+				m_delegate->variant_processor_found_matching_variant(var);
 				
 				// Check if the current node is a candidate for splitting.
 				// Since we’re trying to find an optimal segmentation, subgraph distance is only checked

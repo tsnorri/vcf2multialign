@@ -26,19 +26,22 @@ namespace vcf2multialign {
 		libbio::file_ostream							m_log_output_stream;
 		std::set <std::pair <std::size_t, std::size_t>>	m_reported_overlaps;
 		std::mutex										m_mutex{};
-		std::atomic_size_t								m_chrom_id_mismatches{}; // We expect this to be accessed not very frequently from different threads.
+		std::atomic_size_t								m_variants_passing_checks{};	// We expect these to be accessed not very frequently from different threads.
+		std::atomic_size_t								m_chrom_id_mismatches{};
 		
 	public:
 		void open_log_file(char const *path, bool const should_overwrite_files);
 		
-		void variant_processor_found_variant_with_chrom_id_mismatch(libbio::vcf::transient_variant const &var) override { ++m_chrom_id_mismatches; }
+		void variant_processor_found_variant_with_chrom_id_mismatch(libbio::vcf::transient_variant const &var) override { m_chrom_id_mismatches.fetch_add(1, std::memory_order_relaxed); }
 		void variant_processor_no_field_for_identifier(std::string const &identifier) override;
 		void variant_processor_found_variant_with_position_greater_than_reference_length(libbio::vcf::transient_variant const &var) override;
 		void variant_processor_found_variant_with_no_suitable_alts(libbio::vcf::transient_variant const &var) override;
 		void variant_processor_found_filtered_variant(libbio::vcf::transient_variant const &var, libbio::vcf::info_field_base const &field) override;
 		void variant_processor_found_variant_with_ref_mismatch(libbio::vcf::transient_variant const &var, std::string_view const &ref_sub) override;
 		void sample_sorter_found_overlapping_variant(libbio::vcf::variant const &var, std::size_t const sample_idx, std::size_t const prev_end_pos) override;
+		void variant_processor_found_matching_variant(libbio::vcf::transient_variant const &var) override { m_variants_passing_checks.fetch_add(1, std::memory_order_relaxed); }
 
+		std::size_t variants_passing_checks() const { return m_variants_passing_checks; }
 		std::size_t chrom_id_mismatches() const { return m_chrom_id_mismatches; }
 		
 	protected:
