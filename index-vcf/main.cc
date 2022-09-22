@@ -100,8 +100,7 @@ namespace {
 					return true;
 				
 				auto const var_pos(var.pos());
-				auto const line_range(this->m_vcf_reader.current_line_range());
-				auto const [line_start, line_end] = line_range;
+				auto const var_offset(m_vcf_reader.variant_offset());
 				
 				// Check if the chromosome identifier has changed. If not,
 				// check if the position changed in order to store only the first entry for
@@ -109,11 +108,11 @@ namespace {
 				if (!entry_ptr || chrom_id != entry_ptr->chromosome_identifier)
 				{
 					entry_ptr = &m_index.add_entry(chrom_id);
-					entry_ptr->add_position(var_pos - 1, line_start);
+					entry_ptr->add_position(var_pos - 1, var_offset);
 				}
 				else if (prev_pos < var_pos)
 				{
-					entry_ptr->add_position(var_pos - 1, line_start);
+					entry_ptr->add_position(var_pos - 1, var_offset);
 				}
 				
 				prev_pos = var_pos;
