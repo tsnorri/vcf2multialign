@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Tuukka Norri
+ * Copyright (c) 2019-2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -59,19 +59,16 @@ namespace vcf2multialign { namespace variant_graphs { namespace detail {
 		{
 		}
 	};
-}}}
-
-
-namespace vcf2multialign { namespace variant_graphs {
 	
-	// Generate a variant graph from a set of VCF records.
-	class variant_graph_generator :	public sample_sorter_delegate
+	
+	// For having default implementations of the assignment operators.
+	class variant_graph_generator_base
 	{
 	protected:
 		typedef std::deque <libbio::vcf::variant>					variant_vector;
 		typedef std::vector <detail::generator_node_description>	node_description_vector;
 		typedef std::vector <std::size_t>							position_vector;
-	
+		
 	protected:
 		libbio::vcf::info_field_end const				*m_end_field{};
 		variant_graph									m_graph;
@@ -87,18 +84,30 @@ namespace vcf2multialign { namespace variant_graphs {
 		std::vector <std::uint16_t>						m_unhandled_alt_csum;
 		std::size_t										m_output_lineno{};
 		libbio::copyable_atomic <std::size_t>			m_processed_count{};
+		
+	public:
+		variant_graph_generator_base() = default;
+		
+		variant_graph_generator_base(libbio::vcf::reader &reader, sample_sorter_delegate &delegate):
+			m_end_field(reader.get_end_field_ptr()),
+			m_sample_indexer(reader.current_variant()),
+			m_sample_sorter(delegate, *m_end_field, m_sample_indexer)
+		{
+		}
+	};
+}}}
+
+
+namespace vcf2multialign { namespace variant_graphs {
 	
+	// Generate a variant graph from a set of VCF records.
+	class variant_graph_generator :	public detail::variant_graph_generator_base, sample_sorter_delegate
+	{
 	public:
 		variant_graph_generator() = default;
 		
-		variant_graph_generator(
-			libbio::vcf::reader &reader,
-			std::size_t const donor_count,
-			std::uint8_t const chr_count
-		):
-			m_end_field(reader.get_end_field_ptr()),
-			m_sample_indexer(donor_count, chr_count), // donor_count and chr_count should be set in all cases.
-			m_sample_sorter(*this, reader, m_sample_indexer)
+		explicit variant_graph_generator(libbio::vcf::reader &reader):
+			variant_graph_generator_base(reader, *this)
 		{
 		}
 		
@@ -106,8 +115,8 @@ namespace vcf2multialign { namespace variant_graphs {
 		class variant_graph &variant_graph() { return m_graph; }
 		class sample_sorter &sample_sorter() { return m_sample_sorter; }
 		class sample_sorter const &sample_sorter() const { return m_sample_sorter; }
-		class sample_indexer &sample_indexer() { return m_sample_indexer; }
-		class sample_indexer const &sample_indexer() const { return m_sample_indexer; }
+		
+		inline void finish_copy_or_move(); // FIXME: should not be public.
 		
 		std::size_t processed_count() const { return m_processed_count.load(std::memory_order_relaxed); }
 		
@@ -149,7 +158,7 @@ namespace vcf2multialign { namespace variant_graphs {
 			vector_type const &reference,
 			preprocessing_result const &preprocessing_result
 		):
-			variant_graph_generator(reader, preprocessing_result.donor_count, preprocessing_result.chr_count),
+			variant_graph_generator(reader),
 			m_delegate(&delegate),
 			m_reader(&reader),
 			m_reference(&reference),
@@ -180,11 +189,9 @@ namespace vcf2multialign { namespace variant_graphs {
 			libbio::vcf::reader &reader,
 			vector_type const &reference,
 			std::string const &chr_name,
-			std::size_t const donor_count,
-			std::uint8_t const chr_count,
 			std::size_t const minimum_bridge_length
 		):
-			variant_graph_generator(reader, donor_count, chr_count),
+			variant_graph_generator(reader),
 			variant_processor(reader, reference, chr_name),
 			m_delegate(&delegate),
 			m_minimum_bridge_length(minimum_bridge_length)
@@ -200,6 +207,13 @@ namespace vcf2multialign { namespace variant_graphs {
 			bool const should_start_from_current_variant
 		);
 	};
+	
+	
+	void variant_graph_generator::finish_copy_or_move()
+	{
+		m_sample_sorter.set_delegate(*this);
+		m_sample_sorter.set_sample_indexer(m_sample_indexer);
+	}
 }}
 
 #endif

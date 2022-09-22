@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Tuukka Norri
+ * Copyright (c) 2019-2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -7,6 +7,7 @@
 #include <libbio/utility.hh>
 #include <vcf2multialign/preprocess/variant_partitioner.hh>
 #include <vcf2multialign/utility/can_handle_variant_alts.hh>
+#include <vcf2multialign/variant_format.hh>
 
 namespace lb	= libbio;
 namespace vcf	= libbio::vcf;
@@ -24,7 +25,8 @@ namespace vcf2multialign {
 		this->m_reader->set_parsed_fields(vcf::field::ALL);
 		
 		// Get the field descriptors needed for accessing the values.
-		auto const *end_field(this->m_reader->get_end_field_ptr());
+		auto const *end_field_(this->m_reader->get_end_field_ptr());
+		auto const &end_field(*end_field_);
 		
 		// Determine the fields used for filtering.
 		std::vector <vcf::info_field_base *> filter_by_assigned;
@@ -36,7 +38,7 @@ namespace vcf2multialign {
 		{
 			// Set up the first cut position and segment.
 			cut_position_tree.emplace_back();
-			auto &ctx(unclosable_partitions.emplace_back(*m_delegate, *this->m_reader, m_sample_indexer));
+			auto &ctx(unclosable_partitions.emplace_back(*m_delegate, end_field, m_sample_indexer));
 			ctx.start_position_idx = cut_position_tree.size() - 1;
 		}
 		
@@ -44,21 +46,23 @@ namespace vcf2multialign {
 		handled_line_numbers.clear();
 		
 		std::size_t overlap_end{};
+		bool is_first{true};
 		auto handling_callback(
 			[
 				this,
-				end_field,
+				&end_field,
 				&filter_by_assigned,
 				&cut_position_tree,
 				&closable_partitions,
 				&unclosable_partitions,
 				&handled_line_numbers,
-			 	&overlap_end
+			 	&overlap_end,
+				&is_first
 			](vcf::transient_variant const &var) -> bool
 			{
 				auto const lineno(var.lineno());
 				auto const var_pos(var.zero_based_pos());
-				auto const var_end(vcf::variant_end_pos(var, *end_field));
+				auto const var_end(vcf::variant_end_pos(var, end_field));
 				libbio_always_assert_lte(var_pos, var_end);
 				
 				switch (this->check_variant(var, filter_by_assigned, *m_delegate))
@@ -75,6 +79,15 @@ namespace vcf2multialign {
 				handled_line_numbers.emplace_back(lineno);
 				m_delegate->variant_processor_found_matching_variant(var);
 				
+				// check_variant() filters by chromosome name, so we only need to prepare the sample sample indexer once.
+				if (is_first)
+				{
+					is_first = false;
+					auto const *gt_field(get_variant_format(var).gt);
+					libbio_assert(gt_field);
+					m_sample_indexer.prepare(var);
+				}
+				
 				// Check if the current node is a candidate for splitting.
 				// Since we’re trying to find an optimal segmentation, subgraph distance is only checked
 				// from the segment starting position (in check_closable()). Checking for the bridge
@@ -86,7 +99,7 @@ namespace vcf2multialign {
 					// If there is a closable partition, make a copy of it.
 					if (!closable_partitions.empty())
 					{
-						auto &new_ctx(unclosable_partitions.emplace_back(*m_delegate, *this->m_reader, m_sample_indexer));
+						auto &new_ctx(unclosable_partitions.emplace_back(*m_delegate, end_field, m_sample_indexer));
 						new_ctx.chain_previous(closable_partitions.front(), var_pos, cut_position_tree);
 					}
 				}
@@ -116,7 +129,7 @@ namespace vcf2multialign {
 				}
 				
 				{
-					auto const var_end(vcf::variant_end_pos(var, *end_field));
+					auto const var_end(vcf::variant_end_pos(var, end_field));
 					overlap_end = std::max(overlap_end, var_end);
 				}
 				

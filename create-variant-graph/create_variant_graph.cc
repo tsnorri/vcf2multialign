@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019–2021 Tuukka Norri
+ * Copyright (c) 2019–2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -8,9 +8,9 @@
 #include <vcf2multialign/variant_graph/variant_graph_generator.hh>
 #include <vcf2multialign/preprocess/preprocess_logger.hh>
 #include <vcf2multialign/preprocess/variant_partitioner.hh>
-#include <vcf2multialign/utility/check_ploidy.hh>
 #include <vcf2multialign/utility/dispatch_cli_runner.hh>
 #include <vcf2multialign/utility/dispatch_exit_guard.hh>
+#include <vcf2multialign/utility/find_first_matching_variant.hh>
 #include <vcf2multialign/utility/log_assertion_failure.hh>
 #include <vcf2multialign/vcf_processor.hh>
 #include "create_variant_graph.hh"
@@ -121,7 +121,6 @@ namespace vcf2multialign {
 		}
 		
 		vgs::variant_graph_single_pass_generator &variant_graph_generator() override { return m_generator; }
-		std::tuple <std::size_t, std::uint8_t> check_ploidy_from_vcf();
 		void prepare_generator();
 		
 	protected:
@@ -166,43 +165,49 @@ namespace vcf2multialign {
 	}
 	
 	
-	std::tuple <std::size_t, std::uint8_t> variant_graph_single_pass_context::check_ploidy_from_vcf()
-	{
-		// Check the ploidy.
-		ploidy_map ploidy;
-		check_ploidy(this->vcf_reader(), ploidy);
-		auto const donor_count(ploidy.size());
-		if (!donor_count)
-		{
-			std::cerr << "WARNING: No donors found." << std::endl;
-			std::exit(EXIT_SUCCESS);
-		}
-		auto const chr_count(ploidy.begin()->second);
-		
-		return std::make_tuple(donor_count, chr_count);
-	}
-	
-	
 	void variant_graph_precalculated_context::prepare_generator()
 	{
+		if (m_preprocessing_result.handled_line_numbers.empty())
+		{
+			std::cerr << "ERROR: No variants given in the preprocessing output." << std::endl;
+			std::exit(EXIT_FAILURE);
+		}
+		
+		{
+			auto const first_lineno(m_preprocessing_result.handled_line_numbers.front());
+			
+			// The parsed fields need to be set here so that the first matching variant gets parsed correctly.
+			this->m_vcf_reader.set_parsed_fields(vcf::field::ALL);
+			if (!v2m::find_variant_by_line_number(this->m_vcf_reader, first_lineno))
+			{
+				std::cerr << "ERROR: Did not find the variant specified in the preprocessing result." << std::endl;
+				std::exit(EXIT_FAILURE);
+			}
+		}
+		
 		m_generator = vgs::variant_graph_precalculated_generator(*this, this->m_vcf_reader, this->m_reference, m_preprocessing_result);
-		m_generator.sample_sorter().set_sample_indexer(m_generator.sample_indexer()); // Fix the pointer. FIXME: should be done in variant_graph_generator’s move assignment operator.
+		m_generator.finish_copy_or_move(); // FIXME: this should happen automatically but since sample_sorter uses libbio::atomic_int_vector, writing a move constructor etc. is difficult.
 	}
 	
 	
 	void variant_graph_single_pass_context::prepare_generator()
 	{
-		auto const [donor_count, chr_count] = check_ploidy_from_vcf();
+		// The parsed fields need to be set here so that the first matching variant gets parsed correctly.
+		this->m_vcf_reader.set_parsed_fields(vcf::field::ALL);
+		if (!v2m::find_first_matching_variant(this->m_vcf_reader, m_chromosome_name))
+		{
+			std::cerr << "ERROR: The given chromosome identifier “" << m_chromosome_name << "“ did not match any of the VCF records." << std::endl;
+			std::exit(EXIT_FAILURE);
+		}
+		
 		m_generator = vgs::variant_graph_single_pass_generator(
 			*this,
 			this->m_vcf_reader,
 			this->m_reference,
 			m_chromosome_name,
-			donor_count,
-			chr_count,
 			m_minimum_bridge_length
 		);
-		m_generator.sample_sorter().set_sample_indexer(m_generator.sample_indexer()); // Fix the pointer. FIXME: should be done in variant_graph_generator’s move assignment operator.
+		m_generator.finish_copy_or_move(); // FIXME: this should happen automatically but since sample_sorter uses libbio::atomic_int_vector, writing a move constructor etc. is difficult.
 	}
 	
 	

@@ -2,8 +2,8 @@ include ../local.mk
 include ../common.mk
 
 OBJECTS =	can_handle_variant_alts.o \
-			check_ploidy.o \
 			dispatch_cli_runner.o \
+			find_first_matching_variant.o \
 			log_assertion_failure.o \
 			path_mapper.o \
 			path_sorted_variant.o \

@@ -1,17 +1,19 @@
 /*
- * Copyright (c) 2020 Tuukka Norri
+ * Copyright (c) 2020-2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
 #include <catch2/catch.hpp>
 #include <vcf2multialign/variant_graph/variant_graph.hh>
 #include <vcf2multialign/variant_graph/variant_graph_generator.hh>
-#include <vcf2multialign/utility/check_ploidy.hh>
+#include <vcf2multialign/utility/find_first_matching_variant.hh>
 #include <vcf2multialign/utility/read_single_fasta_seq.hh>
 #include <vcf2multialign/variant_format.hh>
 
+
 namespace gen	= Catch::Generators;
 namespace lb	= libbio;
+namespace vcf	= libbio::vcf;
 namespace rsv	= ranges::view;
 namespace v2m	= vcf2multialign;
 namespace vgs	= vcf2multialign::variant_graphs;
@@ -21,37 +23,21 @@ namespace {
 	
 	struct variant_graph_generator_delegate final : public vgs::variant_graph_single_pass_generator_delegate
 	{
-		virtual void variant_graph_generator_will_handle_subgraph(
+		void variant_graph_generator_will_handle_subgraph(
 			lb::vcf::variant const &first_var,
 			std::size_t const variant_count,
 			std::size_t const path_count
-		)
+		) override
 		{
 		}
 		
-		virtual void variant_processor_found_variant_with_chrom_id_mismatch(lb::vcf::transient_variant const &var)
-		{
-		}
-		
-		virtual void variant_processor_no_field_for_identifier(std::string const &identifier)
-		{
-		}
-		
-		virtual void variant_processor_found_variant_with_position_greater_than_reference_length(lb::vcf::transient_variant const &var)
-		{
-		}
-		
-		virtual void variant_processor_found_variant_with_no_suitable_alts(lb::vcf::transient_variant const &var)
-		{
-		}
-		
-		virtual void variant_processor_found_filtered_variant(lb::vcf::transient_variant const &var, lb::vcf::info_field_base const &field)
-		{
-		}
-		
-		virtual void variant_processor_found_variant_with_ref_mismatch(lb::vcf::transient_variant const &var, std::string_view const &ref_sub)
-		{
-		}
+		void variant_processor_found_variant_with_chrom_id_mismatch(lb::vcf::transient_variant const &var) override {}
+		void variant_processor_no_field_for_identifier(std::string const &identifier) override {}
+		void variant_processor_found_variant_with_position_greater_than_reference_length(lb::vcf::transient_variant const &var) override {}
+		void variant_processor_found_variant_with_no_suitable_alts(lb::vcf::transient_variant const &var) override {}
+		void variant_processor_found_filtered_variant(lb::vcf::transient_variant const &var, lb::vcf::info_field_base const &field) override {}
+		void variant_processor_found_variant_with_ref_mismatch(lb::vcf::transient_variant const &var, std::string_view const &ref_sub) override {}
+		void variant_processor_found_matching_variant(libbio::vcf::transient_variant const &var) override {}
 	};
 	
 	
@@ -199,12 +185,9 @@ namespace {
 		vcf_reader.set_variant_format(new v2m::variant_format());
 		vcf_reader.read_header();
 		
-		// Check the ploidy.
-		v2m::ploidy_map ploidy_map;
-		v2m::check_ploidy(vcf_reader, ploidy_map);
-		
-		auto const donor_count(ploidy_map.size());
-		auto const chr_count(ploidy_map.begin()->second);
+		// The parsed fields need to be set here so that the first matching variant gets parsed correctly.
+		vcf_reader.set_parsed_fields(vcf::field::ALL);
+		REQUIRE(v2m::find_first_matching_variant(vcf_reader, "1"));
 		
 		variant_graph_generator_delegate delegate;
 		vgs::variant_graph_single_pass_generator generator(
@@ -212,8 +195,6 @@ namespace {
 			vcf_reader,
 			reference_seq,
 			"1", // Chromosome name
-			donor_count,
-			chr_count,
 			0 // Minimum bridge length
 		);
 		

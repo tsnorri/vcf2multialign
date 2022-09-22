@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Tuukka Norri
+ * Copyright (c) 2017-2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -8,7 +8,6 @@
 
 #include <boost/iostreams/device/file_descriptor.hpp>
 #include <boost/iostreams/stream.hpp>
-#include <map>
 #include <set>
 #include <vector>
 
@@ -29,8 +28,6 @@ namespace vcf2multialign {
 		
 		void reset() { handled_count = 0; total_count = 0; }
 	};
-	
-	typedef std::map <std::size_t, std::size_t> ploidy_map;
 }
 
 #endif

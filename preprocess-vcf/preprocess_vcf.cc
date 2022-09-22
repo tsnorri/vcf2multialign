@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019–2021 Tuukka Norri
+ * Copyright (c) 2019–2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -9,7 +9,6 @@
 #include <libbio/utility.hh>
 #include <vcf2multialign/preprocess/preprocess_logger.hh>
 #include <vcf2multialign/preprocess/variant_partitioner.hh>
-#include <vcf2multialign/utility/check_ploidy.hh>
 #include <vcf2multialign/utility/dispatch_cli_runner.hh>
 #include <vcf2multialign/utility/dispatch_exit_guard.hh>
 #include <vcf2multialign/utility/log_assertion_failure.hh>
@@ -85,45 +84,18 @@ namespace vcf2multialign {
 	};
 	
 	
-	ploidy_result cut_position_processor::check_donor_and_chromosome_copy_count()
-	{
-		// Check the ploidy.
-		ploidy_map ploidy;
-		check_ploidy(vcf_reader(), ploidy);
-		auto const donor_count(ploidy.size());
-		if (donor_count)
-		{
-			auto const chr_count(ploidy.begin()->second);
-			return {donor_count, chr_count};
-		}
-		else
-		{
-			std::cerr << "WARNING: No donors found." << std::endl;
-			return {0, 0};
-		}
-	}
-	
-	
 	void cut_position_processor::do_work()
 	{
-		auto const ploidy_res(check_donor_and_chromosome_copy_count());
-		if (!ploidy_res.is_valid())
-			return;
-		
 		// Set up the processor.
 		variant_partitioner partitioner(
 			*this,
 			this->m_vcf_reader,
 			this->m_reference,
 			this->m_chr_name,
-			ploidy_res.donor_count,
-			ploidy_res.chromosome_copy_count,
 			this->m_minimum_subgraph_distance
 		);
 		
 		preprocessing_result result;
-		result.donor_count = ploidy_res.donor_count;
-		result.chr_count = ploidy_res.chromosome_copy_count;
 		
 		// Partition.
 		progress_indicator_delegate indicator_delegate(partitioner);

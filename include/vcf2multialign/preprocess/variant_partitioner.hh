@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Tuukka Norri
+ * Copyright (c) 2019-2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -35,15 +35,13 @@ namespace vcf2multialign {
 		std::vector <std::size_t>	handled_line_numbers;	// In addition to the cut positions, store the line numbers that were handled.
 		position_vector				positions;
 		path_number_type			max_segment_size{};
-		std::size_t					donor_count{};
-		std::uint8_t				chr_count{};
 		bool						is_valid{};
 		
 		// Ignore the version for now.
 		template <typename t_archive>
 		void serialize(t_archive &archive, std::uint32_t const version)
 		{
-			archive(handled_line_numbers, positions, max_segment_size, donor_count, chr_count, is_valid);
+			archive(handled_line_numbers, positions, max_segment_size, is_valid);
 		}
 	};
 	
@@ -68,15 +66,12 @@ namespace vcf2multialign {
 			variant_partitioner_delegate &delegate,
 			libbio::vcf::reader &reader,
 			vector_type const &reference,
-			std::string const chr_name,
-			std::size_t const donor_count,
-			std::uint8_t const chr_count,
+			std::string const &chr_name,
 			std::size_t const minimum_subgraph_distance
 		):
 			variant_processor(reader, reference, chr_name),
 			m_delegate(&delegate),
 			//m_end_field(reader.get_end_field_ptr()),
-			m_sample_indexer(donor_count, chr_count),
 			m_minimum_subgraph_distance(minimum_subgraph_distance)
 		{
 		}
@@ -121,8 +116,8 @@ namespace vcf2multialign {
 			
 			dp_ctx() = default;
 			
-			dp_ctx(sample_sorter_delegate &delegate, libbio::vcf::reader &reader, sample_indexer const &indexer):
-				sorter(delegate, reader, indexer)
+			dp_ctx(sample_sorter_delegate &delegate, libbio::vcf::info_field_end const &end_field, sample_indexer const &indexer):
+				sorter(delegate, end_field, indexer)
 			{
 				sorter.prepare_for_next_subgraph();
 			}

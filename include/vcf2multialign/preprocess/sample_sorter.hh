@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Tuukka Norri
+ * Copyright (c) 2019-2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -27,33 +27,33 @@ namespace vcf2multialign {
 	class sample_sorter
 	{
 	protected:
-		typedef std::uint16_t								path_number_type;
-		typedef libbio::atomic_int_vector <2>				branch_vector;
+		typedef std::uint16_t				path_number_type;
+		typedef libbio::int_vector <2>		branch_vector;
 
 	protected:
-		sample_sorter_delegate		*m_delegate{};
-		sample_indexer const		*m_sample_indexer{};
-		libbio::vcf::info_field_end	*m_end_field{};
-		path_vector					m_src_paths;
-		path_vector					m_dst_paths;
-		path_vector					m_branching_paths;			// Path numbers for branching paths.
-		branch_vector				m_branches_by_path_index;
-		std::vector <std::size_t>	m_end_positions_by_sample;
-		path_number_type			m_path_counter{};
+		sample_sorter_delegate				*m_delegate{};
+		sample_indexer const				*m_sample_indexer{};
+		libbio::vcf::info_field_end const	*m_end_field{};
+		path_vector							m_src_paths;
+		path_vector							m_dst_paths;
+		path_vector							m_branching_paths;			// Path numbers for branching paths.
+		branch_vector						m_branches_by_path_index;
+		std::vector <std::size_t>			m_end_positions_by_sample;
+		path_number_type					m_path_counter{};
 
 	public:
 		sample_sorter() = default;
 	
-		sample_sorter(sample_sorter_delegate &delegate, libbio::vcf::reader &reader, sample_indexer const &indexer):
+		sample_sorter(sample_sorter_delegate &delegate, libbio::vcf::info_field_end const &end_field, sample_indexer const &indexer):
 			m_delegate(&delegate),
 			m_sample_indexer(&indexer),
+			m_end_field(&end_field),
 			m_src_paths(indexer.total_samples(), 0),
 			m_dst_paths(indexer.total_samples(), 0),
 			m_branching_paths(indexer.total_samples(), 0),
 			m_branches_by_path_index(indexer.total_samples()),
 			m_end_positions_by_sample(indexer.total_samples())
 		{
-			reader.get_info_field_ptr("END", m_end_field);
 		}
 	
 		void set_delegate(sample_sorter_delegate &delegate) { m_delegate = &delegate; }

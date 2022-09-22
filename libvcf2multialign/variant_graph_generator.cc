@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Tuukka Norri
+ * Copyright (c) 2019-2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -77,9 +77,6 @@ namespace vcf2multialign { namespace variant_graphs {
 		
 		m_processed_count.store(0, std::memory_order_relaxed);
 		reader.set_parsed_fields(vcf::field::ALL);
-		
-		m_end_positions_by_sample.clear();
-		m_end_positions_by_sample.resize(m_sample_indexer.total_samples(), 0);
 	}
 	
 	
@@ -93,17 +90,13 @@ namespace vcf2multialign { namespace variant_graphs {
 		
 		generate_graph_setup();
 		
-		reader.set_parsed_fields(vcf::field::ALL);
-		
-		// Get the field descriptors needed for accessing the values.
-		auto const *end_field(reader.get_end_field_ptr());
-		
 		// Determine the fields used for filtering.
 		std::vector <vcf::info_field_base *> filter_by_assigned;
 		this->fill_filter_by_assigned(field_names_for_filter_by_assigned, filter_by_assigned, delegate);
 		
 		std::size_t prev_overlap_end_pos(0);
 		std::size_t overlap_end_pos(0);
+		bool is_first{true};
 		
 		// Process the variants.
 		auto handling_callback(
@@ -112,7 +105,8 @@ namespace vcf2multialign { namespace variant_graphs {
 				&delegate,
 				&filter_by_assigned,
 				&overlap_end_pos,
-				&prev_overlap_end_pos
+				&prev_overlap_end_pos,
+				&is_first
 			]
 			(vcf::transient_variant const &var) -> bool
 			{
@@ -129,6 +123,16 @@ namespace vcf2multialign { namespace variant_graphs {
 						goto end;
 					case variant_check_status::FATAL_ERROR:
 						return false;
+				}
+				
+				// check_variant() filters by chromosome name, so we only need to prepare the sample sample indexer once.
+				if (is_first)
+				{
+					is_first = false;
+					
+					libbio_assert(get_variant_format(var).gt);
+					m_end_positions_by_sample.clear();
+					m_end_positions_by_sample.resize(m_sample_indexer.total_samples(), 0);
 				}
 				
 				// Check for a suitable subgraph starting position.
@@ -319,6 +323,7 @@ namespace vcf2multialign { namespace variant_graphs {
 		// Also zero ALT indices that cannot be handled, as well as null alleles.
 		
 		auto const total_samples(m_sample_indexer.total_samples());
+		libbio_assert_lt(0, total_samples);
 		for (auto &var : m_subgraph_variants)
 		{
 			auto const pos(var.zero_based_pos());
@@ -376,6 +381,7 @@ namespace vcf2multialign { namespace variant_graphs {
 		auto const nodes_with_alts(ranges::count_if(m_sorted_nodes, [](auto const &node){ return 0 < node.alt_edge_count; }));
 		
 		auto const sample_count(m_sample_indexer.total_samples());
+		libbio_assert_lt(0, sample_count);
 		auto const path_count(m_sample_sorter.path_count());
 		this->delegate().variant_graph_generator_will_handle_subgraph(m_subgraph_variants.front(), m_subgraph_variants.size(), path_count);
 		
@@ -577,7 +583,8 @@ namespace vcf2multialign { namespace variant_graphs {
 			
 				// Set the path edges.
 				auto const *gt_field(get_variant_format(var).gt);
-				for (auto const &[path_idx, sample_idx] : rsv::enumerate(psv.representatives_by_path()))
+				auto const &representatives(psv.representatives_by_path());
+				for (auto const &[path_idx, sample_idx] : rsv::enumerate(representatives))
 				{
 					libbio_assert_neq(SAMPLE_NUMBER_MAX, sample_idx);
 					auto const [donor_idx, chr_idx] = m_sample_indexer.donor_and_chr_idx(sample_idx);

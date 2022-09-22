@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019 Tuukka Norri
+ * Copyright (c) 2019-2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -69,8 +69,12 @@ namespace vcf2multialign {
 		// Reset variant-specific state.
 		{
 			auto word_range(m_branches_by_path_index.word_range());
+			
+#if 0
 			for (auto &word : word_range | ranges::view::take(1 + m_path_counter / branch_vector::ELEMENT_COUNT))
 				word.store(0, std::memory_order_release);
+#endif
+			ranges::fill(word_range | ranges::view::take(1 + m_path_counter / branch_vector::ELEMENT_COUNT), 0);
 		}
 	
 		// Check which paths branch by setting a bit mask in m_branches_by_path_index.
@@ -93,11 +97,13 @@ namespace vcf2multialign {
 					auto const alt_idx_(check_variant_for_sample_and_update_state(sample_idx, var, alt_idx) ? alt_idx : 0);
 					auto const val((expected_alt_idx == alt_idx_) ? 0x2 : 0x1);
 					//std::cerr << "1 donor_idx: " << donor_idx << " chr_idx: " << +chr_idx << " expected_alt_idx: " << +expected_alt_idx << " alt_idx: " << alt_idx << " alt_idx_: " << alt_idx_ << " path_idx: " << path_idx << " val: " << val << std::endl;
-					m_branches_by_path_index.fetch_or(path_idx, val, std::memory_order_release);
+					//m_branches_by_path_index.fetch_or(path_idx, val, std::memory_order_release);
+					m_branches_by_path_index[path_idx] |= val;
 				}
 				else
 				{
-					m_branches_by_path_index.fetch_or(path_idx, 0x1, std::memory_order_release);
+					//m_branches_by_path_index.fetch_or(path_idx, 0x1, std::memory_order_release);
+					m_branches_by_path_index[path_idx] |= 0x1;
 				}
 
 				++sample_idx;
@@ -108,7 +114,8 @@ namespace vcf2multialign {
 		for (auto const &tup : ranges::view::enumerate(m_branches_by_path_index) | ranges::view::take(m_path_counter))
 		{
 			auto const [path_idx, val] = tup;
-			auto const mask(val.load(std::memory_order_acquire));
+			//auto const mask(val.load(std::memory_order_acquire));
+			auto const mask(val.load());
 			//std::cerr << "2 path_idx: " << path_idx << " mask: " << mask << std::endl;
 			if (0x3 == mask)
 			{
@@ -130,7 +137,8 @@ namespace vcf2multialign {
 				
 				libbio_assert_lt(src_path_idx, m_branching_paths.size());
 				auto const dst_path_idx(
-					(m_branches_by_path_index.load(src_path_idx, std::memory_order_acquire) == 0x3 && expected_alt_idx == alt_idx)
+					//(m_branches_by_path_index.load(src_path_idx, std::memory_order_acquire) == 0x3 && expected_alt_idx == alt_idx)
+					(m_branches_by_path_index.load(src_path_idx) == 0x3 && expected_alt_idx == alt_idx)
 					? m_branching_paths[src_path_idx]
 					: src_path_idx
 				);
