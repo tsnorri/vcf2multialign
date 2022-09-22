@@ -1,12 +1,12 @@
 /*
- * Copyright (c) 2020 Tuukka Norri
+ * Copyright (c) 2020-2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
 #ifndef VCF2MULTIALIGN_COMBINE_MSA_MNV_COMBINER_HH
 #define VCF2MULTIALIGN_COMBINE_MSA_MNV_COMBINER_HH
 
-#include <optional>
+#include <vector>
 #include "output_handler.hh"
 
 
@@ -15,7 +15,7 @@ namespace vcf2multialign {
 	class mnv_combiner final : public output_handler
 	{
 	protected:
-		std::optional <variant_description>	m_previous_desc;
+		std::vector <variant_description>	m_previous_descs;
 		output_handler						*m_next_handler{};
 		std::uint16_t						m_ploidy{};
 	
@@ -30,9 +30,6 @@ namespace vcf2multialign {
 		
 		void handle_variant_description(variant_description &&desc) override;
 		void finish();
-		
-	protected:
-		bool should_combine_with_previous(variant_description const &desc) const;
 	};
 }
 

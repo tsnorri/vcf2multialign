@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Tuukka Norri
+ * Copyright (c) 2020-2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -15,24 +15,49 @@ namespace rsv	= ranges::view;
 namespace v2m	= vcf2multialign;
 
 
+namespace {
+	class variant_desc_cmp
+	{
+		// In mnv_combiner we require that the variants from the variant caller come last.
+		static_assert(lb::to_underlying(v2m::variant_origin::MSA) < lb::to_underlying(v2m::variant_origin::VC));
+		
+	protected:
+		auto as_tuple(v2m::variant_description const &var) const
+		{
+			return std::make_tuple(var.position, lb::to_underlying(var.origin));
+		}
+
+	public:
+		bool operator()(v2m::variant_description const &lhs, v2m::variant_description const &rhs) const
+		{
+			return as_tuple(lhs) < as_tuple(rhs);
+		}
+	};
+}
+
+
 namespace vcf2multialign {
 	
 	void variant_filter::merge_output_variants(std::size_t const partition_point)
 	{
 		// Merge the partitions of sorted variants.
+		variant_desc_cmp cmp;
+		std::sort(
+			m_output_variants.begin() + partition_point,
+			m_output_variants.end(),
+			cmp
+		);
 		std::inplace_merge(
 			m_output_variants.begin(),
 			m_output_variants.begin() + partition_point,
 			m_output_variants.end(),
-			[](auto const &lhs, auto const &rhs){
-				return lhs.position < rhs.position;
-			}
+			cmp
 		);
 		libbio_assert(
 			std::is_sorted(
 				m_output_variants.begin(),
 				m_output_variants.end(),
-				[](auto const &lhs, auto const &rhs){ return lhs.position < rhs.position; }
+				cmp
 			)
 		);
 	}
@@ -41,11 +66,7 @@ namespace vcf2multialign {
 	void variant_filter::filter_processed_variants_and_output(std::size_t const min_unhandled_ref_pos)
 	{
 		// Omit filtering for now, except for checking REF against ALT.
-		libbio_assert(
-			std::is_sorted(m_output_variants.begin(), m_output_variants.end(), [](auto const &lhs, auto const &rhs){
-				return lhs.position < rhs.position;
-			})
-		);
+		libbio_assert(std::is_sorted(m_output_variants.begin(), m_output_variants.end(), variant_desc_cmp{}));
 		std::vector <std::string> filters;
 		auto var_it(m_output_variants.begin());
 		auto const var_end(m_output_variants.end());

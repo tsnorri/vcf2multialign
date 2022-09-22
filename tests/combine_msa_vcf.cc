@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Tuukka Norri
+ * Copyright (c) 2020-2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -61,7 +61,7 @@ namespace {
 	{
 		std::string dst;
 		io::filtering_ostream out(std::back_inserter(dst));
-		v2m::combine_msa(ref_seq, alt_seq, vcf_path, "chr1", 2, out, false);
+		v2m::combine_msa(ref_seq, alt_seq, vcf_path, nullptr, "chr1", "chr1", 2, v2m::msa_variant_output::ALL, out, false);
 		out.flush();
 			
 		THEN(expected_outcome)
