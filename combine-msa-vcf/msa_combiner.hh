@@ -23,6 +23,13 @@ namespace vcf2multialign {
 	class msa_combiner : public segmentation_handler
 	{
 		friend msa_data_source;
+
+	public:
+		struct combining_statistics
+		{
+			std::size_t	combined_variants{};
+			std::size_t	alt_eq_to_ref{};
+		};
 		
 	protected:
 		msa_data_source						m_data_source;
@@ -32,6 +39,7 @@ namespace vcf2multialign {
 		mnv_combiner						m_mnv_combiner;
 		variant_filter						m_variant_filter;
 		
+		std::size_t							m_alt_matches_ref{};
 		std::uint16_t						m_ploidy{1};
 		msa_variant_output					m_msa_var_output{msa_variant_output::NONE};
 	
@@ -55,7 +63,7 @@ namespace vcf2multialign {
 		}
 		
 		// Entry point.
-		void process_msa(vector_type const &ref, vector_type const &alt, vcf_record_generator &var_rec_gen);
+		combining_statistics process_msa(vector_type const &ref, vector_type const &alt, vcf_record_generator &var_rec_gen);
 		
 	protected:
 		void process_one_segment_msa(
@@ -79,7 +87,7 @@ namespace vcf2multialign {
 			std::int32_t const max_overlaps
 		);
 
-		virtual void process_variants(msa_segmentation &segmentation) override;
+		void process_variants(msa_segmentation &segmentation) override;
 	};
 }
 

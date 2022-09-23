@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019–2020 Tuukka Norri
+ * Copyright (c) 2019–2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -393,6 +393,7 @@ namespace vcf2multialign {
 					using std::swap;
 					swap(desc.alt, desc.ref_src);
 					desc.had_alt_eq_to_ref = true;
+					++m_alt_matches_ref;
 				}
 			}
 		}
@@ -545,13 +546,16 @@ namespace vcf2multialign {
 	
 	
 	// Entry point.
-	void msa_combiner::process_msa(vector_type const &ref, vector_type const &alt, vcf_record_generator &var_rec_gen)
+	auto msa_combiner::process_msa(vector_type const &ref, vector_type const &alt, vcf_record_generator &var_rec_gen) -> combining_statistics
 	{
+		m_alt_matches_ref = 0;
 		m_variant_writer.output_vcf_header();
 		m_data_source.process_msa(ref, alt, var_rec_gen, *this); // Calls process_variants().
 		
 		// Finish.
 		m_variant_filter.filter_processed_variants_and_output(SIZE_MAX);
 		m_mnv_combiner.finish();
+
+		return {m_mnv_combiner.combined_variants(), m_alt_matches_ref};
 	}
 }

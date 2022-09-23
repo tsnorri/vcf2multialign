@@ -3,6 +3,7 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
+#include <libbio/utility/misc.hh>
 #include "combine_msa.hh"
 
 namespace lb	= libbio;
@@ -39,6 +40,12 @@ namespace vcf2multialign {
 			gen.setup_empty_input();
 		}
 
-		combiner.process_msa(ref_seq, alt_seq, gen);
+		auto const res(combiner.process_msa(ref_seq, alt_seq, gen));
+		if (should_log_status)
+		{
+			lb::log_time(std::cerr)
+				<< "Done. Combined variants (variant caller reverses alternative reference): " << res.combined_variants
+				<< " alt eq. to ref: " << res.alt_eq_to_ref << ".\n";
+		}
 	}
 }

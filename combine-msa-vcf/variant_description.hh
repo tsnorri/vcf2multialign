@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Tuukka Norri
+ * Copyright (c) 2020-2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -101,6 +101,30 @@ namespace vcf2multialign {
 		{
 		}
 	};
+
+
+	inline std::ostream &operator<<(std::ostream &os, variant_origin const origin)
+	{
+		switch (origin)
+		{
+			case variant_origin::MSA:
+				os << "MSA";
+				break;
+
+			case variant_origin::VC:
+				os << "VC";
+				break;
+		}
+
+		return os;
+	}
+
+
+	inline std::ostream &operator<<(std::ostream &os, variant_description const &desc)
+	{
+		os << "position: " << desc.position << " ref: " << desc.ref << " ref_src: " << desc.ref_src << " alt: " << desc.alt << " origin: " << desc.origin;
+		return os;
+	}
 }
 
 #endif

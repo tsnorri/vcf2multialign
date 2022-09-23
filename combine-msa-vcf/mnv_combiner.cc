@@ -23,10 +23,6 @@ namespace {
 		// Checked by the caller.
 		libbio_assert_eq(1 + prev_desc.position, desc.position);
 		
-		// Already handled.
-		if (desc.had_alt_eq_to_ref)
-			return false;
-		
 		// <DEL>
 		if (!desc.alt.empty())
 			return false;
@@ -122,6 +118,14 @@ namespace vcf2multialign {
 					
 					using std::swap;
 					swap(prev_desc.ref, prev_desc.alt);
+					++m_combined_variants;
+
+					if (prev_desc.had_alt_eq_to_ref)
+					{
+						std::cerr << "WARNING: Combining with a variant where ALT matched REF.\n";
+						std::cerr << "Prev: " << prev_desc << '\n';
+						std::cerr << "Curr: " << desc << '\n';
+					}
 				}
 				
 				m_next_handler->handle_variant_description(std::move(prev_desc));

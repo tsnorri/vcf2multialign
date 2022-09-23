@@ -17,6 +17,7 @@ namespace vcf2multialign {
 	protected:
 		std::vector <variant_description>	m_previous_descs;
 		output_handler						*m_next_handler{};
+		std::size_t							m_combined_variants{};
 		std::uint16_t						m_ploidy{};
 	
 	public:
@@ -28,8 +29,11 @@ namespace vcf2multialign {
 		{
 		}
 		
+		// FIXME: add prepare() or something that resets m_combined_variants.
 		void handle_variant_description(variant_description &&desc) override;
 		void finish();
+
+		std::size_t combined_variants() const { return m_combined_variants; }
 	};
 }
 
