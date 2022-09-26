@@ -392,6 +392,7 @@ namespace vcf2multialign {
 				{
 					using std::swap;
 					swap(desc.alt, desc.ref_src);
+					desc.genotype.flip();
 					desc.had_alt_eq_to_ref = true;
 					++m_alt_matches_ref;
 				}
