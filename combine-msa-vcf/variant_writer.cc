@@ -25,6 +25,7 @@ namespace vcf2multialign {
 		os << "##FILTER=<ID=GT_NOT_SET,Description=\"All GT values are equal to zero\">\n";
 		os << "##INFO=<ID=OC,Number=1,Type=Integer,Description=\"Number of overlapping VC variants\">\n";
 		os << "##INFO=<ID=USRA,Number=0,Type=Flag,Description=\"Uses source reference for ALT (ALT matched REF after projection and was substituted with a substring of the original reference)\">\n";
+		os << "##INFO=<ID=CO,Number=0,Type=Flag,Description=\"Is combined, i.e. variant reverses a deletion in the alternative sequence\">\n";
 		
 		if (m_should_output_msa_deduced_variants)
 			os << "##INFO=<ID=VS,Number=1,Type=String,Description=\"Variant source (MSA for multiple sequence alignment, VC for variant caller)\">\n";
@@ -46,7 +47,9 @@ namespace vcf2multialign {
 			
 		// POS, ID, REF
 		libbio_assert_lt(0, desc.ref.size());
-		os << (1 + desc.position) << "\t.\t" << desc.ref << '\t';
+		os << (1 + desc.position) << '\t';
+		os << (desc.id.empty() ? "." : desc.id) << '\t';
+		os << desc.ref << '\t';
 			
 		// ALT
 		if (desc.alt.empty())
@@ -86,6 +89,9 @@ namespace vcf2multialign {
 		
 		if (desc.had_alt_eq_to_ref)
 			os << ";USRA";
+
+		if (desc.is_combined)
+			os << ";CO";
 		
 		// FORMAT
 		os << "\tGT\t";
