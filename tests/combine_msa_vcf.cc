@@ -61,7 +61,7 @@ namespace {
 	{
 		std::string dst;
 		io::filtering_ostream out(std::back_inserter(dst));
-		v2m::combine_msa(ref_seq, alt_seq, vcf_path, nullptr, "chr1", "chr1", 2, v2m::msa_variant_output::ALL, out, false);
+		v2m::combine_msa(ref_seq, alt_seq, vcf_path, nullptr, "chr1", "chr1", 2, true, out, false);
 		out.flush();
 			
 		THEN(expected_outcome)
@@ -436,6 +436,11 @@ SCENARIO("MSA combiner can merge sequences and variants")
 	GIVEN("A MSA with insertions and deletions and a VCF with insertions and SNPs")
 	{
 		test_msa_vcf_merge("msa-indels-vcf-insertions-snps", "the resulting VCF will have the expected variants", "ref.fa", "alt.fa", "vars.vcf", "expected-2.vcf");
+	}
+
+	GIVEN("A MSA with insertions and deletions and a VCF with insertions and SNPs")
+	{
+		test_msa_vcf_merge("msa-indels-vcf-insertions-snps", "the resulting VCF will have the expected variants", "ref.fa", "alt.fa", "vars-2.vcf", "expected-2-2.vcf");
 	}
 	
 	GIVEN("An identity MSA and a VCF with overlapping variants")
