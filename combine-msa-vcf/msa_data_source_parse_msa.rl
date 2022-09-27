@@ -27,9 +27,9 @@ namespace vcf2multialign {
 			variable pe		m_fsm.pe;
 			variable eof	m_fsm.pe;
 			
-			#nt			= [ACGTN];	# Add [acgtn] to allow lowecase.
+			#nt			= [ACGTN\0];	# Add [acgtn] to allow lowecase.
 			# Allow the special characters:
-			nt			= [ACGTURYKMSWBDHVN];
+			nt			= [ACGTURYKMSWBDHVN\0];
 			ntg			= nt | '-';
 			
 			a_			= [A];		# Add [a] etc. to allow lowercase.
@@ -68,11 +68,12 @@ namespace vcf2multialign {
 			not_h		= nt - h_;
 			not_v		= nt - v_;
 			not_n		= nt - n_;
+			not_0		= nt - '\0';
 			
 			#same		= /AA/ | /CC/ | /GG/ | /TT/ | /NN/;
-			same		= /AA/ | /CC/ | /GG/ | /TT/ | /UU/ | /RR/ | /YY/ | /KK/ | /MM/ | /SS/ | /WW/ | /BB/ | /DD/ | /HH/ | /VV/ | /NN/;	# Add /i to allow lowercase.
+			same		= /AA/ | /CC/ | /GG/ | /TT/ | /UU/ | /RR/ | /YY/ | /KK/ | /MM/ | /SS/ | /WW/ | /BB/ | /DD/ | /HH/ | /VV/ | /NN/ | /\0\0/;	# Add /i to allow lowercase.
 			#diff		= (a_ . not_a) | (c_ . not_c) | (g_ . not_g) | (t_ . not_t) | (n_ . not_n);
-			diff		= (a_ . not_a) | (c_ . not_c) | (g_ . not_g) | (t_ . not_t) | (u_ . not_u) | (r_ . not_r) | (y_ . not_y) | (k_ . not_k) | (m_ . not_m) | (s_ . not_s) | (w_ . not_w) | (b_ . not_b) | (d_ . not_d) | (h_ . not_h) | (v_ . not_v) | (n_ . not_n);
+			diff		= (a_ . not_a) | (c_ . not_c) | (g_ . not_g) | (t_ . not_t) | (u_ . not_u) | (r_ . not_r) | (y_ . not_y) | (k_ . not_k) | (m_ . not_m) | (s_ . not_s) | (w_ . not_w) | (b_ . not_b) | (d_ . not_d) | (h_ . not_h) | (v_ . not_v) | (n_ . not_n) | ('\0' . not_0);
 			both_nt		= nt{2};				# Any two non-gap.
 			
 			action deletion_continue_r {

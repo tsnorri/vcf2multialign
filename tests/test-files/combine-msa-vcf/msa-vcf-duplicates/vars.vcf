@@ -3,6 +3,6 @@
 ##comment=Variant ND is not a duplicate.
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SAMPLE
 chr1	2	.	T	A	.	PASS	.	GT	0/1
-chr1	3	.	A	T	.	PASS	.	GT	1/1
+chr1	3	.	A	T	.	PASS	.	GT	0/1
 chr1	4	ND	A	TT	.	PASS	.	GT	0/1
 chr1	6	.	TT	CA	.	PASS	.	GT	0/1

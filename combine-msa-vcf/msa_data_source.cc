@@ -133,7 +133,7 @@ namespace vcf2multialign {
 					rsv::repeat_n(sp_info.first_ref_chr_after_pad, sp_info.ref_chr_needs_left_align),	// If alt has less gap characters in the beginning than ref, align ref’s first
 					rsv::repeat_n('-', sp_info.ref_pad_diff),											// character to the left. (This is consistent with VCF 4.3 section 1.6.1.4.)
 					ref | rsv::drop_exactly(drop_count),												// Drop also the first non-gap character if it was in the rsv::repeat_n above.
-					rsv::single('-')																	// Add one gap to the end s.t. the last character will be handled with the sliding window.
+					rsv::single('\0')																	// Mark the end with a special character s.t. the last character will be handled with the sliding window.
 				)
 				| rsv::transform([&ref_cnt](auto const c) { return ref_cnt.add_chr(c); }),	// Wrap inside sequence_character.
 				rsv::concat( // Alt / ad-hoc ref
