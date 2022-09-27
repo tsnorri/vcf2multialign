@@ -43,6 +43,7 @@ namespace vcf2multialign {
 		variant_origin				origin{};
 		bool						is_skipped{};
 		bool						had_alt_eq_to_ref{};
+		bool						is_combined{};
 		
 	protected:
 		template <typename t_ref_string, typename t_alt_string>

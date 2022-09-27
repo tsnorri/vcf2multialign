@@ -114,6 +114,7 @@ namespace vcf2multialign {
 					// If the variant caller has found anything similar to the MSA-derived variant,
 					// ignore the latter.
 					should_skip_current = true;
+					prev_desc.is_combined = true;
 					prev_desc.genotype.flip();
 					
 					using std::swap;
