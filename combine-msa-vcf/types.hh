@@ -26,14 +26,6 @@ namespace vcf2multialign {
 	};
 	
 	
-	enum class msa_variant_output : std::uint8_t
-	{
-		NONE = 0,
-		ALL,
-		ALT_MATCHES_REF
-	};
-	
-	
 	struct variant_record
 	{
 		libbio::vcf::variant	variant;

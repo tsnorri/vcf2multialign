@@ -397,7 +397,7 @@ namespace vcf2multialign {
 				libbio_assert_lt(0, desc.ref.size());
 				
 				// Check if we should rewrite the variant again using the ad hoc reference as the ALT text.
-				if (msa_variant_output::ALT_MATCHES_REF == m_msa_var_output && desc.ref == desc.alt)
+				if (desc.ref == desc.alt)
 				{
 					using std::swap;
 					swap(desc.alt, desc.ref_src);
