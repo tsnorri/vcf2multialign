@@ -14,6 +14,7 @@ namespace vcf2multialign {
 	{
 		virtual ~output_handler() {}
 		virtual void handle_variant_description(variant_description &&desc) = 0;
+		virtual void finish() = 0;
 	};
 }
 

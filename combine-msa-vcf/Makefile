@@ -11,6 +11,7 @@ LIBRARY_OBJECTS		=	combine_msa.o \
 						msa_data_source_parse_msa.o \
 						overlap_counter.o \
 						utility.o \
+						variant_deduplicator.o \
 						variant_filter.o \
 						variant_writer.o \
 						vcf_record_generator.o

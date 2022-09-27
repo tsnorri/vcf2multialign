@@ -145,5 +145,6 @@ namespace vcf2multialign {
 			m_next_handler->handle_variant_description(std::move(desc));
 		
 		m_previous_descs.clear();
+		m_next_handler->finish();
 	}
 }

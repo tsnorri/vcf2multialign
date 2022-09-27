@@ -8,7 +8,8 @@
 ##INFO=<ID=VS,Number=1,Type=String,Description="Variant source (MSA for multiple sequence alignment, VC for variant caller)">
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SAMPLE
-chr1	2	.	CG	AA	.	PASS	OC=1;VS=VC	GT	1/0
-chr1	2	.	CGTA	TTTT	.	PASS	OC=1;VS=VC	GT	1/0
-chr1	7	.	GTAC	TTTT	.	PASS	OC=1;VS=VC	GT	1/0
-chr1	9	.	AC	AA	.	PASS	OC=1;VS=VC	GT	1/0
+chr1	2	.	A	T	.	PASS	OC=1;VS=VC;USRA	GT	0/1
+chr1	3	.	T	A	.	PASS	OC=1;VS=VC;USRA	GT	1/1
+chr1	4	.	T	A	.	PASS	OC=1;VS=MSA	GT	0/1
+chr1	4	ND	T	TT	.	PASS	OC=2;VS=VC	GT	0/1
+chr1	6	.	CA	TT	.	PASS	OC=1;VS=VC	GT	0/1

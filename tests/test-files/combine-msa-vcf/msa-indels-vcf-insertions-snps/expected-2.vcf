@@ -9,7 +9,6 @@
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SAMPLE
 chr1	1	.	G	T	.	PASS	OC=0;VS=MSA	GT	1/1
-chr1	2	.	A	T	.	GT_NOT_SET	OC=2;VS=MSA	GT	0/0
 chr1	2	.	A	T	.	GT_NOT_SET	OC=1;VS=VC;USRA	GT	0/0
 chr1	3	.	T	C	.	PASS	OC=0;VS=MSA	GT	1/1
 chr1	4	.	T	C	.	GT_NOT_SET	OC=2;VS=MSA	GT	0/0

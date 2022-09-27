@@ -37,6 +37,11 @@ namespace {
 			INFO("First mismatch:");
 			INFO("(expected): '" << make_substring(expected_sv, res.first)	<< '\'');
 			INFO("(actual):   '" << make_substring(actual_sv, res.second)	<< '\'');
+			INFO("Complete output:");
+			INFO("(expected):\n");
+			INFO(expected_sv)
+			INFO("(actual):\n");
+			INFO(actual_sv);
 			FAIL();
 		}
 	}
@@ -228,6 +233,11 @@ SCENARIO("MSA combiner can merge sequences")
 	GIVEN("A MSA with a SNP and a MNP")
 	{
 		test_msa_merge("msa-mnps", "the resulting VCF will have the variants");
+	}
+	
+	GIVEN("A MSA with a MNP and a SNP")
+	{
+		test_msa_merge("msa-vcf-duplicates", "the resulting VCF will have the variants", "ref.fa", "alt.fa");
 	}
 	
 	GIVEN("A MSA with an insertion")
@@ -428,6 +438,11 @@ SCENARIO("MSA combiner can merge sequences with mixed-type segemnts (miscellaneo
 
 SCENARIO("MSA combiner can merge sequences and variants")
 {
+	GIVEN("Duplicate variants (after merge)")
+	{
+		test_msa_vcf_merge("msa-vcf-duplicates", "the resulting VCF will have the expected variants (no duplicates)", "ref.fa", "alt.fa", "vars.vcf", "expected-2.vcf");
+	}
+	
 	GIVEN("A MSA with a deletion")
 	{
 		test_msa_vcf_merge("msa-del", "the resulting VCF will have the expected variants (the one deduced from MSA removed)", "ref.fa", "alt.fa", "vars.vcf", "expected-2.vcf");

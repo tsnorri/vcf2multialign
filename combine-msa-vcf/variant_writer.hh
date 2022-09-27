@@ -30,6 +30,7 @@ namespace vcf2multialign {
 		
 		void output_vcf_header() const;
 		void handle_variant_description(variant_description &&desc) override;
+		void finish() override {}
 	};
 }
 

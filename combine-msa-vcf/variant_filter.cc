@@ -5,8 +5,6 @@
 
 #include <algorithm>
 #include <numeric>
-#include <range/v3/all.hpp>
-#include "output_handler.hh"
 #include "variant_filter.hh"
 
 
@@ -15,77 +13,52 @@ namespace rsv	= ranges::view;
 namespace v2m	= vcf2multialign;
 
 
-namespace {
-	class variant_desc_cmp
-	{
-		// In mnv_combiner we require that the variants from the variant caller come last.
-		static_assert(lb::to_underlying(v2m::variant_origin::MSA) < lb::to_underlying(v2m::variant_origin::VC));
-		
-	protected:
-		auto as_tuple(v2m::variant_description const &var) const
-		{
-			return std::make_tuple(var.position, lb::to_underlying(var.origin));
-		}
-
-	public:
-		bool operator()(v2m::variant_description const &lhs, v2m::variant_description const &rhs) const
-		{
-			return as_tuple(lhs) < as_tuple(rhs);
-		}
-	};
-}
-
-
 namespace vcf2multialign {
 	
-	void variant_filter::merge_output_variants(std::size_t const partition_point)
+	void variant_filter::clear_queue()
 	{
-		// Merge the partitions of sorted variants.
-		variant_desc_cmp cmp;
-		std::sort(
-			m_output_variants.begin() + partition_point,
-			m_output_variants.end(),
-			cmp
-		);
-		std::inplace_merge(
-			m_output_variants.begin(),
-			m_output_variants.begin() + partition_point,
-			m_output_variants.end(),
-			cmp
-		);
-		libbio_assert(
-			std::is_sorted(
-				m_output_variants.begin(),
-				m_output_variants.end(),
-				cmp
-			)
-		);
+		// mnv_combiner needs the variants in this order.
+		for (auto &var : m_msa_output_variants)
+			m_next_handler->handle_variant_description(std::move(var));
+		
+		for (auto &var : m_vc_output_variants)
+			m_next_handler->handle_variant_description(std::move(var));
+		
+		m_msa_output_variants.clear();
+		m_vc_output_variants.clear();
 	}
 	
 	
-	void variant_filter::filter_processed_variants_and_output(std::size_t const min_unhandled_ref_pos)
+	void variant_filter::handle_variant_description(variant_description &&desc)
 	{
 		// Omit filtering for now, except for checking REF against ALT.
-		libbio_assert(std::is_sorted(m_output_variants.begin(), m_output_variants.end(), variant_desc_cmp{}));
-		std::vector <std::string> filters;
-		auto var_it(m_output_variants.begin());
-		auto const var_end(m_output_variants.end());
-		while (var_it != var_end)
+		if (desc.ref == desc.alt)
+			desc.filters.emplace_back("ALT_EQ_TO_REF");
+		
+		if (0 == std::accumulate(desc.genotype.begin(), desc.genotype.end(), std::uint16_t(0)))
+			desc.filters.emplace_back("GT_NOT_SET");
+		
+		libbio_assert_lte(m_current_pos, desc.position);
+		if (m_current_pos < desc.position)
+			clear_queue();
+		
+		m_current_pos = desc.position;
+		switch (desc.origin)
 		{
-			auto &desc(*var_it);
-			if (min_unhandled_ref_pos <= desc.position)
+			case variant_origin::MSA:
+				m_msa_output_variants.emplace_back(std::move(desc));
 				break;
 			
-			if (desc.ref == desc.alt)
-				desc.filters.emplace_back("ALT_EQ_TO_REF");
-			
-			if (0 == std::accumulate(desc.genotype.begin(), desc.genotype.end(), std::uint16_t(0)))
-				desc.filters.emplace_back("GT_NOT_SET");
-			
-			m_next_handler->handle_variant_description(std::move(*var_it));
-			++var_it;
+			case variant_origin::VC:
+				m_vc_output_variants.emplace_back(std::move(desc));
+				break;
 		}
-		
-		m_output_variants.erase(m_output_variants.begin(), var_it);
+	}
+	
+	
+	void variant_filter::finish()
+	{
+		clear_queue();
+		m_next_handler->finish();
 	}
 }

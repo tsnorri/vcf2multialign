@@ -31,7 +31,7 @@ namespace vcf2multialign {
 		
 		// FIXME: add prepare() or something that resets m_combined_variants.
 		void handle_variant_description(variant_description &&desc) override;
-		void finish();
+		void finish() override;
 
 		std::size_t combined_variants() const { return m_combined_variants; }
 	};

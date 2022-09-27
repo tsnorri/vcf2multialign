@@ -12,6 +12,7 @@
 #include "mnv_combiner.hh"
 #include "msa_data_source.hh"
 #include "overlap_counter.hh"
+#include "variant_deduplicator.hh"
 #include "variant_filter.hh"
 #include "variant_writer.hh"
 #include "vcf_record_generator.hh"
@@ -35,9 +36,10 @@ namespace vcf2multialign {
 		msa_data_source						m_data_source;
 		
 		// Output handling
-		variant_writer						m_variant_writer;
-		mnv_combiner						m_mnv_combiner;
-		variant_filter						m_variant_filter;
+		variant_writer						m_variant_writer;		// output_handler
+		mnv_combiner						m_mnv_combiner;			// output_handler
+		variant_filter						m_variant_filter;		// output_handler
+		variant_deduplicator				m_variant_deduplicator;
 		
 		std::size_t							m_alt_matches_ref{};
 		std::uint16_t						m_ploidy{1};
@@ -56,6 +58,7 @@ namespace vcf2multialign {
 			m_variant_writer(os, std::move(output_chr_id), should_output_msa_variants),
 			m_mnv_combiner(m_variant_writer, ploidy),
 			m_variant_filter(m_mnv_combiner),
+			m_variant_deduplicator(m_variant_filter),
 			m_ploidy(ploidy)
 		{
 		}

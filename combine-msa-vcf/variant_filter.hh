@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 Tuukka Norri
+ * Copyright (c) 2020-2022 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -9,19 +9,22 @@
 #include <ostream>
 #include <string>
 #include <vector>
+#include "output_handler.hh"
 #include "variant_description.hh"
 
 
 namespace vcf2multialign {
 	
-	struct output_handler;
-	
-
-	class variant_filter
+	class variant_filter final : public output_handler
 	{
 	protected:
-		std::vector <variant_description>	m_output_variants;
+		std::vector <variant_description>	m_msa_output_variants;
+		std::vector <variant_description>	m_vc_output_variants;
 		output_handler						*m_next_handler{};
+		std::size_t							m_current_pos{};
+		
+	protected:
+		void clear_queue();
 		
 	public:
 		variant_filter() = default;
@@ -30,12 +33,8 @@ namespace vcf2multialign {
 		{
 		}
 		
-		variant_description &handle_variant_description(variant_description &&desc) { return m_output_variants.emplace_back(std::move(desc)); }
-
-		std::size_t size() const { return m_output_variants.size(); }
-		
-		void merge_output_variants(std::size_t const partition_point);
-		void filter_processed_variants_and_output(std::size_t const min_unhandled_ref_pos);
+		void handle_variant_description(variant_description &&desc) override;
+		void finish() override;
 	};
 }
 
