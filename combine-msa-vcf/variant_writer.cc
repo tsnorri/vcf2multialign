@@ -46,7 +46,9 @@ namespace vcf2multialign {
 			
 		// POS, ID, REF
 		libbio_assert_lt(0, desc.ref.size());
-		os << (1 + desc.position) << "\t.\t" << desc.ref << '\t';
+		os << (1 + desc.position) << '\t';
+		os << (desc.id.empty() ? "." : desc.id) << '\t';
+		os << desc.ref << '\t';
 			
 		// ALT
 		if (desc.alt.empty())
@@ -86,7 +88,7 @@ namespace vcf2multialign {
 		
 		if (desc.had_alt_eq_to_ref)
 			os << ";USRA";
-		
+
 		// FORMAT
 		os << "\tGT\t";
 			

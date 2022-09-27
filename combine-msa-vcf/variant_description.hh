@@ -35,6 +35,7 @@ namespace vcf2multialign {
 		std::string					ref;
 		std::string					ref_src;
 		std::string					alt;
+		std::string					id; // Currently we allow only one ID.
 		std::vector <bool>			genotype;
 		std::vector <std::string>	filters;
 		std::size_t					position{};
@@ -44,18 +45,18 @@ namespace vcf2multialign {
 		bool						had_alt_eq_to_ref{};
 		
 	protected:
-		template <typename t_string_1, typename t_string_2>
+		template <typename t_ref_string, typename t_alt_string>
 		variant_description(
 			std::size_t const position_,
-			t_string_1 &&ref_,
-			t_string_2 &&alt_,
+			t_ref_string &&ref_,
+			t_alt_string &&alt_,
 			std::size_t const ploidy,
 			std::int32_t const overlap_count_,
 			variant_origin const origin_,
 			private_tag const
 		):
-			ref(std::forward <t_string_1>(ref_)),
-			alt(std::forward <t_string_2>(alt_)),
+			ref(std::forward <t_ref_string>(ref_)),
+			alt(std::forward <t_alt_string>(alt_)),
 			genotype(ploidy, false),
 			position(position_),
 			overlap_count(overlap_count_),
@@ -80,19 +81,19 @@ namespace vcf2multialign {
 			genotype.resize(ploidy, false);
 		}
 		
-		template <typename t_string_1, typename t_string_2>
+		template <typename t_ref_string, typename t_alt_string>
 		variant_description(
 			std::size_t const position_,
-			t_string_1 &&ref_,
-			t_string_2 &&alt_,
+			t_ref_string &&ref_,
+			t_alt_string &&alt_,
 			std::size_t const ploidy,
 			std::int32_t const overlap_count_,
 			variant_origin const origin_
 		):
 			variant_description(
 				position_,
-				std::forward <t_string_1>(ref_),
-				std::forward <t_string_2>(alt_),
+				std::forward <t_ref_string>(ref_),
+				std::forward <t_alt_string>(alt_),
 				ploidy,
 				(overlap_count_ < 0 ? overlap_count_ : std::min <std::int32_t>(overlap_count_, ploidy)),
 				origin_,
@@ -122,7 +123,13 @@ namespace vcf2multialign {
 
 	inline std::ostream &operator<<(std::ostream &os, variant_description const &desc)
 	{
-		os << "position: " << desc.position << " ref: " << desc.ref << " ref_src: " << desc.ref_src << " alt: " << desc.alt << " origin: " << desc.origin;
+		os
+			<< "position: " << desc.position
+			<< " id: " << desc.id
+			<< " ref: " << desc.ref
+			<< " ref_src: " << desc.ref_src
+			<< " alt: " << desc.alt
+			<< " origin: " << desc.origin;
 		return os;
 	}
 }

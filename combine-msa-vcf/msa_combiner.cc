@@ -266,7 +266,8 @@ namespace vcf2multialign {
 		{
 			auto const range(ranges::subrange(aligned_segment_begin, aligned_segment_end));
 			std::size_t alt_idx{};
-			for (auto const &var_alt : var.variant.alts())
+			auto const &alts(var.variant.alts());
+			for (auto const &var_alt : alts)
 			{
 				++alt_idx;
 				// Skip if the ALT allele was unknown.
@@ -286,6 +287,14 @@ namespace vcf2multialign {
 
 				auto &desc(m_variant_filter.handle_variant_description(variant_description(m_ploidy, gt_count, variant_origin::VC)));
 				desc.overlap_count = max_overlaps - 1;
+
+				auto const &ids(var.variant.id());
+				if (!ids.empty())
+				{
+					// Handle multiple IDs, make ALTs have different IDs (although according to VCF v4.3, variants “should” have different IDs).
+					desc.id = ids.front();
+				}
+
 				std::string_view const var_alt_sv(var_alt.alt);
 				
 				switch (first_seg.type)
