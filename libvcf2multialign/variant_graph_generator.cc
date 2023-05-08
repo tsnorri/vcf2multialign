@@ -188,6 +188,7 @@ namespace vcf2multialign { namespace variant_graphs {
 		std::size_t overlap_end_pos(0);
 		std::size_t prev_overlap_end_pos(0);
 		libbio_always_assert_neq(cut_pos_it, cut_pos_end);
+		bool is_first{true};
 		
 		// Process the variants.
 		auto handling_callback(
@@ -198,7 +199,8 @@ namespace vcf2multialign { namespace variant_graphs {
 				&line_no_it,
 				line_no_end,
 				&overlap_end_pos,
-				&prev_overlap_end_pos
+				&prev_overlap_end_pos,
+				&is_first
 			](vcf::transient_variant const &var) -> bool
 			{
 				auto const lineno(var.lineno());
@@ -209,6 +211,14 @@ namespace vcf2multialign { namespace variant_graphs {
 					auto const var_end(vcf::variant_end_pos(var, *m_end_field));
 					libbio_always_assert_lte(var_pos, var_end);
 					libbio_always_assert_lte(var_pos, *cut_pos_it);
+					
+					if (is_first)
+					{
+						is_first = false;
+						libbio_assert(get_variant_format(var).gt);
+						m_end_positions_by_sample.clear();
+						m_end_positions_by_sample.resize(m_sample_indexer.total_samples(), 0);
+					}
 					
 					if (var_pos == *cut_pos_it)
 					{
