@@ -5,6 +5,7 @@
 
 #include <libbio/algorithm.hh>
 #include <libbio/bits.hh>
+#include <libbio/vcf/variant_printer.hh>
 #include <range/v3/algorithm/copy.hpp>
 #include <range/v3/view/transform.hpp>
 #include <vcf2multialign/variant_graph/variant_graph_generator.hh>
@@ -460,7 +461,21 @@ namespace vcf2multialign { namespace variant_graphs {
 			m_start_positions.push_back(ref_pos);
 			m_end_positions.push_back(end_pos);
 		}
-		libbio_always_assert(std::is_sorted(m_start_positions.begin(), m_start_positions.end()));
+
+		{
+			auto const end(m_start_positions.end());
+			auto const it(std::is_sorted_until(m_start_positions.begin(), end));
+			if (it != end)
+			{
+				std::cerr << "ERROR: The following variants are not sorted by position in the input.\n";
+				for (auto const &var : m_subgraph_variants)
+					vcf::output_vcf(std::cerr, var);
+				std::cerr << "First position not in sorted order:" << (1 + *it) << "\n";
+				// Throw instead of std::exit?
+				std::exit(EXIT_FAILURE);
+			}
+		}
+
 		ranges::sort(m_end_positions);
 	
 		// Get unique positions and merge.
