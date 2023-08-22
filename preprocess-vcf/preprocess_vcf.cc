@@ -102,7 +102,7 @@ namespace vcf2multialign {
 		this->install_progress_indicator();
 		
 		this->progress_indicator().log_with_counter(lb::copy_time() + "Processing the variants…", indicator_delegate);
-		partitioner.partition(m_field_names_for_filter_if_set, result, true);
+		partitioner.partition(m_field_names_for_filter_if_set, result, false);
 		this->end_logging();
 		this->uninstall_progress_indicator();
 		
