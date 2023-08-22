@@ -63,79 +63,89 @@ namespace vcf2multialign {
 				auto const lineno(var.lineno());
 				auto const var_pos(var.zero_based_pos());
 				auto const var_end(vcf::variant_end_pos(var, end_field));
-				libbio_always_assert_lte(var_pos, var_end);
-				
-				switch (this->check_variant(var, filter_by_assigned, *m_delegate))
+				try
 				{
-					case variant_check_status::PASS:
-						break;
-					case variant_check_status::ERROR:
-						goto end;
-					case variant_check_status::FATAL_ERROR:
-						return false;
-				}
-				
-				// Variant passes the checks, handle it.
-				handled_line_numbers.emplace_back(lineno);
-				m_delegate->variant_processor_found_matching_variant(var);
-				
-				// check_variant() filters by chromosome name, so we only need to prepare the sample sample indexer once.
-				if (is_first)
-				{
-					is_first = false;
-					auto const *gt_field(get_variant_format(var).gt);
-					libbio_assert(gt_field);
-					m_sample_indexer.prepare(var);
-				}
-				
-				// Check if the current node is a candidate for splitting.
-				// Since we’re trying to find an optimal segmentation, subgraph distance is only checked
-				// from the segment starting position (in check_closable()). Checking for the bridge
-				// length would result in a segmentation that could be used with arbitrary joining.
-				if (overlap_end <= var_pos)
-				{
-					check_closable(var_pos, cut_position_tree, unclosable_partitions, closable_partitions);
+					libbio_always_assert_lte(var_pos, var_end);
 					
-					// If there is a closable partition, make a copy of it.
-					if (!closable_partitions.empty())
+					switch (this->check_variant(var, filter_by_assigned, *m_delegate))
 					{
-						auto &new_ctx(unclosable_partitions.emplace_back(*m_delegate, end_field, m_sample_indexer));
-						new_ctx.chain_previous(closable_partitions.front(), var_pos, cut_position_tree);
+						case variant_check_status::PASS:
+							break;
+						case variant_check_status::ERROR:
+							goto end;
+						case variant_check_status::FATAL_ERROR:
+							return false;
 					}
-				}
-				
-				// Update the scores.
-				{
-					// FIXME: count_paths expects a vcf::variant. Otherwise the copy would not be needed.
-					vcf::variant persistent_var(var);
 					
-					auto const alt_count(var.alts().size());
-					for (auto &ctx : closable_partitions)
-						ctx.count_paths(persistent_var, alt_count);
-
-					auto const count(unclosable_partitions.size());
-					lb::parallel_for(count, 8, [&unclosable_partitions, &persistent_var, alt_count](auto idx, auto const end_idx){
-						// This is somewhat inefficient since accessing a list item takes linear time.
-						auto it(unclosable_partitions.begin());
-						std::advance(it, idx);
-
-						while (idx < end_idx)
+					// Variant passes the checks, handle it.
+					handled_line_numbers.emplace_back(lineno);
+					m_delegate->variant_processor_found_matching_variant(var);
+					
+					// check_variant() filters by chromosome name, so we only need to prepare the sample sample indexer once.
+					if (is_first)
+					{
+						is_first = false;
+						auto const *gt_field(get_variant_format(var).gt);
+						libbio_assert(gt_field);
+						m_sample_indexer.prepare(var);
+					}
+					
+					// Check if the current node is a candidate for splitting.
+					// Since we’re trying to find an optimal segmentation, subgraph distance is only checked
+					// from the segment starting position (in check_closable()). Checking for the bridge
+					// length would result in a segmentation that could be used with arbitrary joining.
+					if (overlap_end <= var_pos)
+					{
+						check_closable(var_pos, cut_position_tree, unclosable_partitions, closable_partitions);
+						
+						// If there is a closable partition, make a copy of it.
+						if (!closable_partitions.empty())
 						{
-							it->count_paths(persistent_var, alt_count);
-							++it;
-							++idx;
+							auto &new_ctx(unclosable_partitions.emplace_back(*m_delegate, end_field, m_sample_indexer));
+							new_ctx.chain_previous(closable_partitions.front(), var_pos, cut_position_tree);
 						}
-					});
+					}
+					
+					// Update the scores.
+					{
+						// FIXME: count_paths expects a vcf::variant. Otherwise the copy would not be needed.
+						vcf::variant persistent_var(var);
+						
+						auto const alt_count(var.alts().size());
+						for (auto &ctx : closable_partitions)
+							ctx.count_paths(persistent_var, alt_count);
+
+						auto const count(unclosable_partitions.size());
+						lb::parallel_for(count, 8, [&unclosable_partitions, &persistent_var, alt_count](auto idx, auto const end_idx){
+							// This is somewhat inefficient since accessing a list item takes linear time.
+							auto it(unclosable_partitions.begin());
+							std::advance(it, idx);
+
+							while (idx < end_idx)
+							{
+								it->count_paths(persistent_var, alt_count);
+								++it;
+								++idx;
+							}
+						});
+					}
+					
+					{
+						auto const var_end(vcf::variant_end_pos(var, end_field));
+						overlap_end = std::max(overlap_end, var_end);
+					}
+					
+				end:
+					m_processed_count.fetch_add(1, std::memory_order_relaxed);
+					return true;
 				}
-				
+				catch (libbio::assertion_failure_exception const &)
 				{
-					auto const var_end(vcf::variant_end_pos(var, end_field));
-					overlap_end = std::max(overlap_end, var_end);
+					std::cerr << "Line number:      " << lineno << '\n';
+					std::cerr << "Variant position: " << var_pos << '\n';
+					std::cerr << "End position:     " << var_end << '\n';
+					throw;
 				}
-				
-			end:
-				m_processed_count.fetch_add(1, std::memory_order_relaxed);
-				return true;
 			}
 		);
 		
