@@ -1,10 +1,11 @@
 /*
- * Copyright (c) 2019 Tuukka Norri
+ * Copyright (c) 2019-2023 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
+#include <libbio/fasta_reader.hh>
 #include <vcf2multialign/bed_reader_delegate.hh>
 #include <vcf2multialign/utility/read_single_fasta_seq.hh>
 #include <vcf2multialign/variant_format.hh>
@@ -69,10 +70,7 @@ namespace vcf2multialign {
 
 	void reference_controller::read_reference(char const *reference_path, char const *reference_seq_name)
 	{
-		// Read the input FASTA.
-		lb::mmap_handle <char> ref_handle;
-		ref_handle.open(reference_path);
-		read_single_fasta_seq(ref_handle, m_reference, reference_seq_name);
+		read_single_fasta_seq(reference_path, m_reference, reference_seq_name);
 	}
 	
 	
