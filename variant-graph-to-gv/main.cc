@@ -8,6 +8,7 @@
 #include <iostream>
 #include <libbio/assert.hh>
 #include <libbio/dispatch.hh>
+#include <libbio/file_handling.hh>
 #include <range/v3/view/sliding.hpp>
 #include <range/v3/view/zip.hpp>
 #include <unistd.h>
@@ -52,11 +53,8 @@ namespace {
 			
 			lb::open_file_for_reading(input_graph_path, input_graph_stream);
 			
-			lb::mmap_handle <char> ref_handle;
-			ref_handle.open(reference_path);
-			
 			// Read the input FASTA.
-			v2m::read_single_fasta_seq(ref_handle, reference, reference_seq_name);
+			v2m::read_single_fasta_seq(reference_path, reference, reference_seq_name);
 			
 			// Read the intermediate graph.
 			cereal::PortableBinaryInputArchive iarchive(input_graph_stream);
