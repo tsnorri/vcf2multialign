@@ -535,11 +535,11 @@ namespace {
 		position_type next_ref_pos{};
 		position_type next_aln_pos{};
 		node_type current_node{};
-		auto const node_count(graph.node_count());
+		auto const limit(graph.node_count() - 1);
 		auto const chr_copy_idx_(variant_graph::SAMPLE_MAX == sample_idx ? 0 : graph.ploidy_csum[sample_idx] + chr_copy_idx);
-		while (current_node < node_count)
+		while (current_node < limit)
 		{
-			if (variant_graph::SAMPLE_MAX != sample_idx)
+			if (variant_graph::SAMPLE_MAX != sample_idx) // Always follow REF edges if outputting the aligned reference.
 			{
 				auto const &[edge_lb, edge_rb] = graph.edge_range_for_node(current_node);
 				for (edge_type edge_idx(edge_lb); edge_idx < edge_rb; ++edge_idx)
@@ -552,6 +552,7 @@ namespace {
 						next_aln_pos = graph.aligned_positions[target_node];
 						libbio_assert_lte(label.size(), next_aln_pos - aln_pos);
 						stream << label;
+						current_node = target_node;
 						goto continue_loop;
 					}
 				}
