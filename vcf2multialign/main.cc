@@ -413,7 +413,7 @@ namespace {
 							continue;
 						
 						// Check that the alternative allele was handled.
-						auto const edge_idx(edges_by_alt[sample_gt.alt]);
+						auto const edge_idx(edges_by_alt[sample_gt.alt - 1]);
 						if (variant_graph::EDGE_MAX == edge_idx)
 							continue;
 						
