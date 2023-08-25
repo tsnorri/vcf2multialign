@@ -254,6 +254,27 @@ namespace {
 		std::vector <position_type> target_ref_positions_by_chrom_copy;
 		std::vector <position_type> current_edge_targets;
 		std::multimap <position_type, edge_destination> next_aligned_positions; // Aligned positions by reference position.
+		
+		auto add_target_nodes([&graph, &aln_pos, &prev_ref_pos, &next_aligned_positions](position_type const ref_pos){
+			auto const end(next_aligned_positions.end());
+			auto it(next_aligned_positions.begin());
+			auto const begin(it);
+			for (; it != end; ++it)
+			{
+				if (ref_pos < it->first)
+					break;
+				
+				// Add the node.
+				auto const dist(it->first - prev_ref_pos); // Distance from the previous node.
+				aln_pos = std::max(aln_pos + dist, it->second.position);
+				auto const node_idx(graph.add_or_update_node(it->first, aln_pos));
+				graph.alt_edge_targets[it->second.edge_index] = node_idx;
+				prev_ref_pos = it->first;
+			}
+			
+			next_aligned_positions.erase(begin, it);
+		});
+		
 		reader.parse(
 			[
 				chr_id,
@@ -266,7 +287,8 @@ namespace {
 				&edges_by_alt,
 				&target_ref_positions_by_chrom_copy,
 				&current_edge_targets,
-				&next_aligned_positions
+				&next_aligned_positions,
+				&add_target_nodes
 			](vcf::transient_variant const &var) -> bool {
 				++var_idx;
 				auto const * const gt_field(get_variant_format(var).gt_field);
@@ -314,25 +336,7 @@ namespace {
 				}
 				
 				// Add nodes if needed.
-				{
-					auto const end(next_aligned_positions.end());
-					auto it(next_aligned_positions.begin());
-					auto const begin(it);
-					for (; it != end; ++it)
-					{
-						if (ref_pos < it->first)
-							break;
-						
-						// Add the node.
-						auto const dist(it->first - prev_ref_pos); // Distance from the previous node.
-						aln_pos = std::max(aln_pos + dist, it->second.position);
-						auto const node_idx(graph.add_or_update_node(it->first, aln_pos));
-						graph.alt_edge_targets[it->second.edge_index] = node_idx;
-						prev_ref_pos = it->first;
-					}
-					
-					next_aligned_positions.erase(begin, it);
-				}
+				add_target_nodes(ref_pos);
 				
 				// Add node for the current record.
 				auto const dist(ref_pos - prev_ref_pos);
@@ -440,6 +444,7 @@ namespace {
 		// Add a sink node.
 		{
 			auto const ref_pos(ref_seq.size());
+			add_target_nodes(ref_pos);
 			auto const dist(ref_pos - prev_ref_pos);
 			graph.add_or_update_node(ref_pos, aln_pos + dist);
 		}
