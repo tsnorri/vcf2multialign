@@ -539,6 +539,7 @@ namespace {
 		auto const chr_copy_idx_(variant_graph::SAMPLE_MAX == sample_idx ? 0 : graph.ploidy_csum[sample_idx] + chr_copy_idx);
 		while (current_node < limit)
 		{
+			std::size_t label_size{};
 			if (variant_graph::SAMPLE_MAX != sample_idx) // Always follow REF edges if outputting the aligned reference.
 			{
 				auto const &[edge_lb, edge_rb] = graph.edge_range_for_node(current_node);
@@ -546,6 +547,7 @@ namespace {
 				{
 					if (graph.paths_by_chrom_copy_and_edge(edge_idx, chr_copy_idx_))
 					{
+						// Found an ALT edge to follow.
 						auto const target_node(graph.alt_edge_targets[edge_idx]);
 						auto const &label(graph.alt_edge_labels[edge_idx]);
 						next_ref_pos = graph.reference_positions[target_node];
@@ -553,6 +555,7 @@ namespace {
 						libbio_assert_lte(label.size(), next_aln_pos - aln_pos);
 						stream << label;
 						current_node = target_node;
+						label_size = label.size();
 						goto continue_loop;
 					}
 				}
@@ -563,11 +566,12 @@ namespace {
 				next_aln_pos = graph.aligned_positions[current_node + 1];
 				std::string_view const ref_part(ref_seq.data() + ref_pos, next_ref_pos - ref_pos);
 				stream << ref_part;
+				label_size = ref_part.size();
 				++current_node;
 			}
 			
 		continue_loop:
-			std::fill_n(std::ostreambuf_iterator <char>(stream), next_aln_pos - aln_pos, '-');
+			std::fill_n(std::ostreambuf_iterator <char>(stream), next_aln_pos - aln_pos - label_size, '-');
 			ref_pos = next_ref_pos;
 			aln_pos = next_aln_pos;
 		}
