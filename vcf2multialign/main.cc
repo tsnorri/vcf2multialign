@@ -243,8 +243,7 @@ namespace {
 		
 		graph.sample_names = reader.sample_names_by_index();
 		graph.alt_edge_count_csum.emplace_back(0);
-		graph.reference_positions.emplace_back(0);
-		graph.aligned_positions.emplace_back(0);
+		graph.add_node(0, 0);
 		
 		std::uint64_t var_idx{};
 		position_type aln_pos{};
