@@ -61,7 +61,7 @@ namespace {
 		auto const src_nrow(mat.number_of_rows());
 		auto const src_ncol(mat.number_of_columns());
 		libbio_assert_eq(0, src_ncol % 8);
-		libbio_assert_eq(0, src_nrow / 64);
+		libbio_assert_eq(0, src_nrow % 64);
 		auto const col_groups(src_ncol / 8);
 		auto const col_words(src_nrow / 64);
 		
