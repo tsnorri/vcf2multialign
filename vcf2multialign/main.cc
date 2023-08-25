@@ -455,6 +455,61 @@ namespace {
 	}
 	
 	
+	void output_graphviz(
+		sequence_vector const &ref_seq_,
+		variant_graph const &graph,
+		lb::file_handle &fh
+	)
+	{
+		std::string_view const ref_seq(ref_seq_.data(), ref_seq_.size());
+		
+		lb::file_ostream stream;
+		stream.open(fh.get(), ios::never_close_handle);
+		stream.exceptions(std::ostream::badbit);
+		
+		stream << "digraph variants {\n";
+		stream << "\trankdir = LR;\n";
+		stream << "\trank = same;\n";
+		
+		typedef variant_graph::position_type	position_type;
+		typedef variant_graph::node_type		node_type;
+		typedef variant_graph::edge_type		edge_type;
+		
+		// Nodes.
+		for (auto const &[node, ref_pos, aln_pos] : rsv::zip(rsv::iota(0), graph.reference_positions, graph.aligned_positions))
+			stream << '\t' << node << " [shape = Mrecord, label = \"" << node << " | " << ref_pos << " | " << aln_pos << "\"];\n";
+		stream << '\n';
+		
+		// REF edges.
+		for (auto const &[node, range] : rsv::enumerate(graph.reference_positions | rsv::sliding(2)))
+		{
+			auto const lb(range[0]);
+			auto const rb(range[1]);
+			auto const label(ref_seq.substr(lb, rb - lb));
+
+			// FIXME: Handle special characters in the label?
+			stream << '\t' << node << " -> " << (node + 1) << " [label = \"";
+			if (label.size() <= label.size())
+				stream << label;
+			else
+				stream << label.substr(0, 10) << "…" << label.substr(label.size() - 10, 10) << " (" << label.size() << ')';
+			stream << "\", penwidth = 2.0];\n";
+		}
+		stream << '\n';
+		
+		// ALT edges.
+		for (auto const &[src_node, edge_range] : rsv::enumerate(graph.alt_edge_count_csum | rsv::sliding(2)))
+		{
+			auto const edge_lb(edge_range[0]);
+			auto const edge_rb(edge_range[1]);
+			
+			for (edge_type edge_idx(edge_lb); edge_idx < edge_rb; ++edge_idx)
+				stream << '\t' << src_node << " -> " << graph.alt_edge_targets[edge_idx] << " [label = \"" << graph.alt_edge_labels[edge_idx] << "\"];\n";
+		}
+		stream << "}\n";
+	}
+	
+	
 	void output_sequence_(
 		sequence_vector const &ref_seq,
 		variant_graph const &graph,
@@ -585,7 +640,7 @@ namespace {
 	}
 	
 	
-	void run(char const *reference_path, char const *variants_path, char const *ref_seq_id, char const *chr_id, char const *pipe_cmd)
+	void run(char const *reference_path, char const *variants_path, char const *ref_seq_id, char const *chr_id, bool const should_output_sequences, char const *pipe_cmd, char const *graphviz_output_path)
 	{
 		// Read the reference sequence.
 		sequence_vector ref_seq;
@@ -611,8 +666,19 @@ namespace {
 		build_variant_graph(ref_seq, variants_path, chr_id, graph, stats);
 		std::cerr << " Done. Handled variants: " << stats.handled_variants << " chromosome ID mismatches: " << stats.chr_id_mismatches << "\n";
 		
-		lb::log_time(std::cerr) << "Outputting sequences…" << std::flush;
-		output_sequences(ref_seq, graph, pipe_cmd);
+		if (graphviz_output_path)
+		{
+			lb::log_time(std::cerr) << "Outputting the variant graph in Grapnviz format…" << std::flush;
+			lb::file_handle fh(lb::open_file_for_writing(graphviz_output_path, lb::writing_open_mode::CREATE));
+			output_graphviz(ref_seq, graph, fh);
+			std::cerr << " Done.\n";
+		}
+		
+		if (should_output_sequences)
+		{
+			lb::log_time(std::cerr) << "Outputting sequences…" << std::flush;
+			output_sequences(ref_seq, graph, pipe_cmd);
+		}
 	}
 }
 
@@ -643,7 +709,9 @@ int main(int argc, char **argv)
 		args_info.variants_arg,
 		args_info.reference_sequence_arg,
 		args_info.chromosome_arg,
-		args_info.pipe_arg
+		args_info.output_sequences_flag,
+		args_info.pipe_arg,
+		args_info.output_graphviz_arg
 	);
 	
 	return EXIT_SUCCESS;
