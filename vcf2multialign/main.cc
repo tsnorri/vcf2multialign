@@ -532,7 +532,7 @@ namespace {
 		position_type next_aln_pos{};
 		node_type current_node{};
 		auto const node_count(graph.node_count());
-		auto const chr_copy_idx_(graph.ploidy_csum[sample_idx] + chr_copy_idx);
+		auto const chr_copy_idx_(variant_graph::SAMPLE_MAX == sample_idx ? 0 : graph.ploidy_csum[sample_idx] + chr_copy_idx);
 		while (current_node < node_count)
 		{
 			if (variant_graph::SAMPLE_MAX != sample_idx)
