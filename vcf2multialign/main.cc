@@ -75,7 +75,7 @@ namespace {
 		std::size_t dst_idx{};
 		for (std::size_t row_word_idx(0); row_word_idx < col_words; ++row_word_idx)
 		{
-			for (std::uint8_t row_byte_idx(0); row_byte_idx < 8; row_byte_idx)
+			for (std::uint8_t row_byte_idx(0); row_byte_idx < 8; ++row_byte_idx)
 			{
 				// Process 8 columns at a time.
 				for (std::size_t col_group(0); col_group < col_groups; ++col_group)
@@ -85,7 +85,7 @@ namespace {
 					for (std::uint8_t col_idx(0); col_idx < 8; ++col_idx)
 					{
 						auto const col_idx_(8 * col_group + col_idx);
-						std::uint64_t src_word(src_values[col_idx_ * col_words + row_word_idx]);
+						std::uint64_t src_word(src_values.word_at(col_idx_ * col_words + row_word_idx));
 						src_word >>= 8 * row_byte_idx;
 						src_word &= 0xff;
 						src_word <<= 8 * col_idx;
