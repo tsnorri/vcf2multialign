@@ -1,0 +1,18 @@
+include ../local.mk
+include ../common.mk
+
+OBJECTS		=	cmdline.o \
+				main.o
+
+all: vcf2multialign
+
+clean:
+	$(RM) $(OBJECTS) vcf2multialign cmdline.c cmdline.h version.h config.h
+
+vcf2multialign: $(OBJECTS)
+	$(CXX) -o $@ $(OBJECTS) $(LDFLAGS)
+
+main.cc : cmdline.c
+cmdline.c : config.h
+
+include ../config.mk

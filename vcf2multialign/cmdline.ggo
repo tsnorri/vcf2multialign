@@ -1,0 +1,17 @@
+# Copyright (c) 2023 Tuukka Norri
+# This code is licensed under MIT license (see LICENSE for details).
+
+package		"vcf2multialign"
+purpose		"Create multiply-aligned haplotype sequences from a variant call file and a reference sequence."
+usage		"vcf2multialign --reference=filename.fa --variants=filename.vcf [<options>]"
+description	"Reads the variant file and produces a graph representation that may be used to generate a reference-guided alignment or founder sequences. The precalculated cut positions may be produced with preprocess-vcf."
+
+option		"reference"					r	"Reference FASTA file path"															string	typestr = "filename"	required
+option		"variants"					a	"Variant call file path"															string	typestr = "filename"	required
+option		"chromosome"				c	"Chromosome identifier"																string	typestr = "identifier"	required
+option		"reference-sequence"		e	"Reference sequence identifier in the input FASTA"									string	typestr = "identifier"	optional
+#option		"overwrite"					-	"Overwrite output files"															flag	off
+#option		"log"						-	"Variant handling log file path"													string	typestr = "filename"	optional
+option		"pipe"						-	"Instead of writing to files, pipe the output to the given command"					string	typestr = "command"		optional
+#option		"filter-fields-set"			-	"Remove variants with any value for the given field (used with e.g. CIPOS, CIEND)"	string	typestr = "identifier"	optional	multiple
+option		"show-invocation"			-	"Output the invocation i.e. command line arguments."								flag	off									hidden
