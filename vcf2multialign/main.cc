@@ -32,6 +32,16 @@ namespace {
 	typedef std::vector <char>	sequence_vector;
 	
 	
+	void open_stream_with_file_handle(
+		lb::file_ostream &stream,
+		lb::file_handle &fh
+	)
+	{
+		stream.open(fh.get(), ios::never_close_handle);
+		stream.exceptions(std::ostream::badbit);
+	}
+	
+	
 	struct variant_graph
 	{
 		typedef std::uint64_t				position_type;	// FIXME: is std::uint32_t enough?
@@ -441,18 +451,14 @@ namespace {
 	}
 	
 	
-	void output_sequence_(
+	void output_sequence(
 		sequence_vector const &ref_seq,
 		variant_graph const &graph,
 		variant_graph::sample_type const sample_idx,
 		variant_graph::ploidy_type const chr_copy_idx,
-		lb::file_handle &fh
+		lb::file_ostream &stream
 	)
 	{
-		lb::file_ostream stream;
-		stream.open(fh.get(), ios::never_close_handle);
-		stream.exceptions(std::ostream::badbit);
-		
 		typedef variant_graph::position_type	position_type;
 		typedef variant_graph::node_type		node_type;
 		typedef variant_graph::edge_type		edge_type;
@@ -505,6 +511,48 @@ namespace {
 	}
 	
 	
+	void output_sequence(
+		sequence_vector const &ref_seq,
+		variant_graph const &graph,
+		variant_graph::sample_type const sample_idx,
+		variant_graph::ploidy_type const chr_copy_idx,
+		lb::file_handle &fh
+	)
+	{
+		lb::file_ostream stream;
+		open_stream_with_file_handle(stream, fh);
+		output_sequence(ref_seq, graph, sample_idx, chr_copy_idx, stream);
+	}
+	
+	
+	void handle_subprocess_exit(lb::process_handle::close_return_t const &res)
+	{
+		auto const &[close_status, exit_status, pid] = res;
+		if (! (lb::process_handle::close_status::exit_called == close_status && 0 == exit_status))
+		{
+			std::cerr << "ERROR: Subprocess with PID " << pid << " exited with status " << exit_status;
+			
+			switch (close_status)
+			{
+				case lb::process_handle::close_status::unknown:
+					std::cerr << " (exiting reason not known)";
+					break;
+				case lb::process_handle::close_status::terminated_by_signal:
+					std::cerr << " (terminated by signal)";
+					break;
+				case lb::process_handle::close_status::stopped_by_signal:
+					std::cerr << " (stopped by signal)";
+					break;
+				default:
+					break;
+			}
+		
+			std::cerr << '\n';
+			std::exit(EXIT_FAILURE);
+		}
+	}
+	
+	
 	void output_sequence_file(
 		sequence_vector const &ref_seq,
 		variant_graph const &graph,
@@ -518,39 +566,13 @@ namespace {
 		{
 			auto proc(lb::subprocess <lb::subprocess_handle_spec::STDIN>::subprocess_with_arguments({pipe_cmd, dst_name}));
 			auto &fh(proc.stdin_handle());
-			
-			output_sequence_(ref_seq, graph, sample_idx, chr_copy_idx, fh);
-			
-			auto const res(proc.close());
-			auto const close_status(std::get <0>(res));
-			auto const exit_status(std::get <1>(res));
-			if (! (lb::process_handle::close_status::exit_called == close_status && 0 == exit_status))
-			{
-				std::cerr << "ERROR: Subprocess with PID " << std::get <2>(res) << " exited with status " << exit_status;
-				
-				switch (close_status)
-				{
-					case lb::process_handle::close_status::unknown:
-						std::cerr << " (exiting reason not known)";
-						break;
-					case lb::process_handle::close_status::terminated_by_signal:
-						std::cerr << " (terminated by signal)";
-						break;
-					case lb::process_handle::close_status::stopped_by_signal:
-						std::cerr << " (stopped by signal)";
-						break;
-					default:
-						break;
-				}
-			
-				std::cerr << '\n';
-				std::exit(EXIT_FAILURE);
-			}
+			output_sequence(ref_seq, graph, sample_idx, chr_copy_idx, fh);
+			handle_subprocess_exit(proc.close());
 		}
 		else
 		{
 			lb::file_handle fh(lb::open_file_for_writing(dst_name, lb::writing_open_mode::CREATE));
-			output_sequence_(ref_seq, graph, sample_idx, chr_copy_idx, fh);
+			output_sequence(ref_seq, graph, sample_idx, chr_copy_idx, fh);
 		}
 	}
 	
@@ -576,7 +598,62 @@ namespace {
 	}
 	
 	
-	void run(char const *reference_path, char const *variants_path, char const *ref_seq_id, char const *chr_id, bool const should_output_sequences, char const *pipe_cmd, char const *graphviz_output_path)
+	void output_sequences_a2m(sequence_vector const &ref_seq, variant_graph const &graph, lb::file_ostream &stream)
+	{
+		typedef variant_graph::ploidy_type ploidy_type;
+		
+		stream << ">REF\n";
+		output_sequence(ref_seq, graph, variant_graph::SAMPLE_MAX, 0, stream);
+		stream << '\n';
+		
+		for (auto const &[sample_idx, sample] : rsv::enumerate(graph.sample_names))
+		{
+			auto const ploidy(graph.sample_ploidy(sample_idx));
+			for (auto const chr_copy_idx : rsv::iota(ploidy_type(0), ploidy))
+			{
+				stream << '>' << sample << '-' << chr_copy_idx << '\n';
+				output_sequence(ref_seq, graph, sample_idx, chr_copy_idx, stream);
+				stream << '\n';
+			}
+		}
+	}
+	
+	
+	void output_sequences_a2m(sequence_vector const &ref_seq, variant_graph const &graph, char const * const dst_name, char const * const pipe_cmd)
+	{
+		if (pipe_cmd)
+		{
+			auto proc(lb::subprocess <lb::subprocess_handle_spec::STDIN>::subprocess_with_arguments({pipe_cmd, dst_name}));
+			auto &fh(proc.stdin_handle());
+			
+			{
+				lb::file_ostream stream;
+				open_stream_with_file_handle(stream, fh);
+				output_sequences_a2m(ref_seq, graph, stream);
+			}
+			
+			handle_subprocess_exit(proc.close());
+		}
+		else
+		{
+			lb::file_handle fh(lb::open_file_for_writing(dst_name, lb::writing_open_mode::CREATE));
+			lb::file_ostream stream;
+			open_stream_with_file_handle(stream, fh);
+			output_sequences_a2m(ref_seq, graph, stream);
+		}
+	}
+	
+	
+	void run(
+		char const *reference_path,
+		char const *variants_path,
+		char const *ref_seq_id,
+		char const *chr_id,
+		char const *sequence_a2m_output_path,
+		bool const should_output_sequences_separate,
+		char const *pipe_cmd,
+		char const *graphviz_output_path
+	)
 	{
 		// Read the reference sequence.
 		sequence_vector ref_seq;
@@ -610,10 +687,18 @@ namespace {
 			std::cerr << " Done.\n";
 		}
 		
-		if (should_output_sequences)
+		if (sequence_a2m_output_path)
 		{
-			lb::log_time(std::cerr) << "Outputting sequences…" << std::flush;
+			lb::log_time(std::cerr) << "Outputting sequences as A2M…" << std::flush;
+			output_sequences_a2m(ref_seq, graph, sequence_a2m_output_path, pipe_cmd);
+			std::cerr << " Done.\n";
+		}
+		
+		if (should_output_sequences_separate)
+		{
+			lb::log_time(std::cerr) << "Outputting sequences one by one…" << std::flush;
 			output_sequence_files(ref_seq, graph, pipe_cmd);
+			std::cerr << " Done.\n";
 		}
 	}
 }
@@ -645,7 +730,8 @@ int main(int argc, char **argv)
 		args_info.variants_arg,
 		args_info.reference_sequence_arg,
 		args_info.chromosome_arg,
-		args_info.output_sequences_flag,
+		args_info.output_sequences_a2m_arg,
+		args_info.output_sequences_separate_flag,
 		args_info.pipe_arg,
 		args_info.output_graphviz_arg
 	);
