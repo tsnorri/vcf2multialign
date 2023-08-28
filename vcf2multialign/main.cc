@@ -505,7 +505,7 @@ namespace {
 	}
 	
 	
-	void output_sequence(
+	void output_sequence_file(
 		sequence_vector const &ref_seq,
 		variant_graph const &graph,
 		variant_graph::sample_type const sample_idx,
@@ -555,11 +555,11 @@ namespace {
 	}
 	
 	
-	void output_sequences(sequence_vector const &ref_seq, variant_graph const &graph, char const * const pipe_cmd)
+	void output_sequence_files(sequence_vector const &ref_seq, variant_graph const &graph, char const * const pipe_cmd)
 	{
 		typedef variant_graph::ploidy_type ploidy_type;
 		
-		output_sequence(ref_seq, graph, variant_graph::SAMPLE_MAX, 0, pipe_cmd, "REF");
+		output_sequence_file(ref_seq, graph, variant_graph::SAMPLE_MAX, 0, pipe_cmd, "REF");
 		for (auto const &[sample_idx, sample] : rsv::enumerate(graph.sample_names))
 		{
 			auto const ploidy(graph.sample_ploidy(sample_idx));
@@ -570,7 +570,7 @@ namespace {
 				dst_name << sample;
 				dst_name << '-';
 				dst_name << chr_copy_idx;
-				output_sequence(ref_seq, graph, sample_idx, chr_copy_idx, pipe_cmd, dst_name.str().data());
+				output_sequence_file(ref_seq, graph, sample_idx, chr_copy_idx, pipe_cmd, dst_name.str().data());
 			}
 		}
 	}
@@ -613,7 +613,7 @@ namespace {
 		if (should_output_sequences)
 		{
 			lb::log_time(std::cerr) << "Outputting sequences…" << std::flush;
-			output_sequences(ref_seq, graph, pipe_cmd);
+			output_sequence_files(ref_seq, graph, pipe_cmd);
 		}
 	}
 }
