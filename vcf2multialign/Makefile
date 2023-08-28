@@ -10,7 +10,7 @@ clean:
 	$(RM) $(OBJECTS) vcf2multialign cmdline.c cmdline.h version.h config.h
 
 vcf2multialign: $(OBJECTS)
-	$(CXX) -o $@ $(OBJECTS) $(LDFLAGS)
+	$(CXX) -o $@ $(OBJECTS) ../libvcf2multialign/libvcf2multialign.a $(LDFLAGS)
 
 main.cc : cmdline.c
 cmdline.c : config.h

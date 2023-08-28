@@ -16,6 +16,7 @@
 #include <range/v3/view/iota.hpp>
 #include <string>
 #include <string_view>
+#include <vcf2multialign/transpose_matrix.hh>
 #include <vector>
 #include "cmdline.h"
 
@@ -23,86 +24,12 @@ namespace ios	= boost::iostreams;
 namespace lb	= libbio;
 namespace rsv	= ranges::views;
 namespace vcf	= libbio::vcf;
+namespace v2m	= vcf2multialign;
 
 
 namespace {
 	
 	typedef std::vector <char>	sequence_vector;
-	
-	
-	constexpr std::uint64_t transpose8x8(std::uint64_t const word)
-	{
-		// Partially from https://stackoverflow.com/a/41046873/856976
-		return (
-			  (word & 0x0100'0000'0000'0000) >> 49
-			| (word & 0x0201'0000'0000'0000) >> 42
-			| (word & 0x0402'0100'0000'0000) >> 35
-			| (word & 0x0804'0201'0000'0000) >> 28
-			| (word & 0x1008'0402'0100'0000) >> 21
-			| (word & 0x2010'0804'0201'0000) >> 14
-			| (word & 0x4020'1008'0402'0100) >> 7
-			| (word & 0x8040'2010'0804'0201)
-			| (word & 0x0080'4020'1008'0402) << 7
-			| (word & 0x0000'8040'2010'0804) << 14
-			| (word & 0x0000'0080'4020'1008) << 21
-			| (word & 0x0000'0000'8040'2010) << 28
-			| (word & 0x0000'0000'0080'4020) << 35
-			| (word & 0x0000'0000'0000'8040) << 42
-			| (word & 0x0000'0000'0000'0080) << 49
-		);
-	}
-	
-	
-	void transpose_matrix(lb::bit_matrix &mat)
-	{
-		static_assert(std::is_same_v <std::uint64_t, lb::bit_matrix::value_type>);
-		
-		// Doing this in place would be quite difficult (esp. for non-rectangular matrices).
-		auto const src_nrow(mat.number_of_rows());
-		auto const src_ncol(mat.number_of_columns());
-		libbio_assert_eq(0, src_ncol % 8);
-		libbio_assert_eq(0, src_nrow % 64);
-		auto const col_groups(src_ncol / 8);
-		auto const col_words(src_nrow / 64);
-		
-		lb::bit_matrix dst(src_ncol, src_nrow, 0);
-		auto const &src_values(mat.values());
-		auto &dst_values(dst.values());
-		libbio_assert_eq(src_values.size(), dst_values.size());
-		
-		// Variable names other than dst_idx refer to the source.
-		// Process 64-bit words that span 8 rows in one column each.
-		std::size_t dst_idx{};
-		for (std::size_t row_word_idx(0); row_word_idx < col_words; ++row_word_idx)
-		{
-			for (std::uint8_t row_byte_idx(0); row_byte_idx < 8; ++row_byte_idx)
-			{
-				// Process 8 columns at a time.
-				for (std::size_t col_group(0); col_group < col_groups; ++col_group)
-				{
-					// Pack the row_byte_idx-th byte from each column in the group to the 8×8 matrix below.
-					std::uint64_t block{};
-					for (std::uint8_t col_idx(0); col_idx < 8; ++col_idx)
-					{
-						auto const col_idx_(8 * col_group + col_idx);
-						std::uint64_t src_word(src_values.word_at(col_idx_ * col_words + row_word_idx));
-						src_word >>= 8 * row_byte_idx;
-						src_word &= 0xff;
-						src_word <<= 8 * col_idx;
-						block |= src_word;
-					}
-					
-					// Transpose and store.
-					auto const block_(transpose8x8(block));
-					dst_values.word_at(dst_idx) = block_;
-					++dst_idx;
-				}
-			}
-		}
-		
-		using std::swap;
-		swap(mat, dst);
-	}
 	
 	
 	struct variant_graph
@@ -455,7 +382,7 @@ namespace {
 			graph.paths_by_chrom_copy_and_edge.resize(graph.paths_by_chrom_copy_and_edge.number_of_rows() * ncol, 0);
 		}
 		
-		transpose_matrix(graph.paths_by_chrom_copy_and_edge);
+		v2m::transpose_matrix(graph.paths_by_chrom_copy_and_edge);
 	}
 	
 	

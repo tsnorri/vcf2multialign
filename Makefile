@@ -17,27 +17,14 @@ DIST_TAR_GZ = vcf2multialign-$(VERSION)-$(OS_NAME)$(DIST_NAME_SUFFIX).tar.gz
 .PHONY: all clean-all clean clean-dependencies dependencies
 
 all:	libvcf2multialign/libvcf2multialign.a \
-		preprocess-vcf/preprocess_vcf \
-		create-variant-graph/create_variant_graph \
-		index-vcf/index_vcf \
-		inspect-variant-graph/inspect_variant_graph \
-		variant-graph-to-sequences/variant_graph_to_sequences \
-		variant-graph-to-gv/variant_graph_to_gv \
-		vcf-to-unaligned/vcf_to_unaligned \
-		combine-msa-vcf/combine_msa_vcf
+		vcf2multialign/vcf2multialign
 
 clean-all: clean clean-dependencies clean-dist
+	$(MAKE) -C tests clean
 
 clean:
 	$(MAKE) -C libvcf2multialign clean
-	$(MAKE) -C preprocess-vcf clean
-	$(MAKE) -C create-variant-graph clean
-	$(MAKE) -C index-vcf clean
-	$(MAKE) -C inspect-variant-graph clean
-	$(MAKE) -C variant-graph-to-sequences clean
-	$(MAKE) -C variant-graph-to-gv clean
-	$(MAKE) -C vcf-to-unaligned clean
-	$(MAKE) -C combine-msa-vcf clean
+	$(MAKE) -C vcf2multialign clean
 
 clean-dependencies: lib/libbio/local.mk
 	$(MAKE) -C lib/libbio clean-all
@@ -50,51 +37,19 @@ dependencies: $(DEPENDENCIES)
 
 dist: $(DIST_TAR_GZ)
 
-test:
+test: lib/libbio/lib/rapidcheck/build/librapidcheck.a
 	$(MAKE) -C libvcf2multialign
-	$(MAKE) -C combine-msa-vcf libcombinemsa.coverage.a
 	$(MAKE) -C tests
 
 libvcf2multialign/libvcf2multialign.a: $(DEPENDENCIES)
 	$(MAKE) -C libvcf2multialign
 
-combine-msa-vcf/combine_msa_vcf: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
-	$(MAKE) -C combine-msa-vcf
+vcf2multialign/vcf2multialign: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
+	$(MAKE) -C vcf2multialign
 
-create-variant-graph/create_variant_graph: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
-	$(MAKE) -C create-variant-graph
-
-index-vcf/index_vcf: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
-	$(MAKE) -C index-vcf
-
-inspect-variant-graph/inspect_variant_graph: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
-	$(MAKE) -C inspect-variant-graph
-
-preprocess-vcf/preprocess_vcf: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
-	$(MAKE) -C preprocess-vcf
-
-variant-graph-to-sequences/variant_graph_to_sequences: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
-	$(MAKE) -C variant-graph-to-sequences
-
-variant-graph-to-gv/variant_graph_to_gv: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
-	$(MAKE) -C variant-graph-to-gv
-
-vcf-to-unaligned/vcf_to_unaligned: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
-	$(MAKE) -C vcf-to-unaligned
-
-$(DIST_TAR_GZ):	preprocess-vcf/preprocess_vcf \
-				create-variant-graph/create_variant_graph \
-				inspect-variant-graph/inspect_variant_graph \
-				variant-graph-to-sequences/variant_graph_to_sequences \
-				variant-graph-to-gv/variant_graph_to_gv \
-				combine-msa-vcf/combine_msa_vcf
+$(DIST_TAR_GZ):	vcf2multialign/vcf2multialign
 	$(MKDIR) -p $(DIST_TARGET_DIR)
-	$(CP) preprocess-vcf/preprocess_vcf $(DIST_TARGET_DIR)
-	$(CP) create-variant-graph/create_variant_graph $(DIST_TARGET_DIR)
-	$(CP) inspect-variant-graph/inspect_variant_graph $(DIST_TARGET_DIR)
-	$(CP) variant-graph-to-sequences/variant_graph_to_sequences $(DIST_TARGET_DIR)
-	$(CP) variant-graph-to-gv/variant_graph_to_gv $(DIST_TARGET_DIR)
-	$(CP) combine-msa-vcf/combine_msa_vcf $(DIST_TARGET_DIR)
+	$(CP) vcf2multialign/vcf2multialign $(DIST_TARGET_DIR)
 	$(CP) README.md $(DIST_TARGET_DIR)
 	$(CP) LICENSE $(DIST_TARGET_DIR)
 	$(CP) lib/swift-corelibs-libdispatch/LICENSE $(DIST_TARGET_DIR)/swift-corelibs-libdispatch-license.txt
@@ -129,3 +84,6 @@ lib/swift-corelibs-libdispatch/build/src/libdispatch.a: lib/swift-corelibs-libdi
 		-DBUILD_SHARED_LIBS=OFF \
 		.. && \
 	$(NINJA) -v
+
+lib/libbio/lib/rapidcheck/build/librapidcheck.a:
+	$(MAKE) -C lib/libbio lib/rapidcheck/build/librapidcheck.a
