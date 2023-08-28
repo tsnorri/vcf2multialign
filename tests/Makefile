@@ -9,6 +9,7 @@ CXXFLAGS += -coverage
 LDFLAGS += -coverage
 
 OBJECTS	=	transpose_matrix.o \
+			variant_graph.o \
 			main.o
 
 GCDA = $(OBJECTS:.o=.gcda)
