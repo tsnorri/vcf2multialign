@@ -29,7 +29,8 @@ namespace v2m	= vcf2multialign;
 
 namespace {
 	
-	typedef std::vector <char>	sequence_vector;
+	typedef std::vector <char>									sequence_vector;
+	typedef lb::subprocess <lb::subprocess_handle_spec::STDIN>	subprocess_type;
 	
 	
 	void open_stream_with_file_handle(
@@ -525,28 +526,44 @@ namespace {
 	}
 	
 	
-	void handle_subprocess_exit(lb::process_handle::close_return_t const &res)
+	void exit_subprocess(subprocess_type &proc)
 	{
+		auto const res(proc.close());
 		auto const &[close_status, exit_status, pid] = res;
 		if (! (lb::process_handle::close_status::exit_called == close_status && 0 == exit_status))
 		{
-			std::cerr << "ERROR: Subprocess with PID " << pid << " exited with status " << exit_status;
-			
-			switch (close_status)
+			// Try to determine the reason for the exit status.
+			auto const &status(proc.status());
+			switch (status.execution_status)
 			{
-				case lb::process_handle::close_status::unknown:
-					std::cerr << " (exiting reason not known)";
+				case lb::execution_status_type::no_error:
+				{
+					std::cerr << "ERROR: Subprocess with PID " << pid << " exited with status " << exit_status;
+					switch (close_status)
+					{
+						case lb::process_handle::close_status::unknown:
+							std::cerr << " (exiting reason not known)";
+							break;
+						case lb::process_handle::close_status::terminated_by_signal:
+							std::cerr << " (terminated by signal)";
+							break;
+						case lb::process_handle::close_status::stopped_by_signal:
+							std::cerr << " (stopped by signal)";
+							break;
+						default:
+							break;
+					}
 					break;
-				case lb::process_handle::close_status::terminated_by_signal:
-					std::cerr << " (terminated by signal)";
+				}
+				
+				case lb::execution_status_type::file_descriptor_handling_failed:
+				case lb::execution_status_type::exec_failed:
+				{
+					std::cerr << "ERROR: Unable to start subprocess: " << strerror(status.error);
 					break;
-				case lb::process_handle::close_status::stopped_by_signal:
-					std::cerr << " (stopped by signal)";
-					break;
-				default:
-					break;
+				}
 			}
-		
+			
 			std::cerr << '\n';
 			std::exit(EXIT_FAILURE);
 		}
@@ -564,10 +581,10 @@ namespace {
 	{
 		if (pipe_cmd)
 		{
-			auto proc(lb::subprocess <lb::subprocess_handle_spec::STDIN>::subprocess_with_arguments({pipe_cmd, dst_name}));
+			auto proc(subprocess_type::subprocess_with_arguments({pipe_cmd, dst_name}));
 			auto &fh(proc.stdin_handle());
 			output_sequence(ref_seq, graph, sample_idx, chr_copy_idx, fh);
-			handle_subprocess_exit(proc.close());
+			exit_subprocess(proc);
 		}
 		else
 		{
@@ -623,7 +640,7 @@ namespace {
 	{
 		if (pipe_cmd)
 		{
-			auto proc(lb::subprocess <lb::subprocess_handle_spec::STDIN>::subprocess_with_arguments({pipe_cmd, dst_name}));
+			auto proc(subprocess_type::subprocess_with_arguments({pipe_cmd, dst_name}));
 			auto &fh(proc.stdin_handle());
 			
 			{
@@ -632,7 +649,7 @@ namespace {
 				output_sequences_a2m(ref_seq, graph, stream);
 			}
 			
-			handle_subprocess_exit(proc.close());
+			exit_subprocess(proc);
 		}
 		else
 		{
