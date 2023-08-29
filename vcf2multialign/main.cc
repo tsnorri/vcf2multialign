@@ -389,16 +389,27 @@ int main(int argc, char **argv)
 		std::cerr << '\n';
 	}
 	
-	run(
-		args_info.reference_arg,
-		args_info.variants_arg,
-		args_info.reference_sequence_arg,
-		args_info.chromosome_arg,
-		args_info.output_sequences_a2m_arg,
-		args_info.output_sequences_separate_flag,
-		args_info.pipe_arg,
-		args_info.output_graphviz_arg
-	);
+	try
+	{
+		run(
+			args_info.reference_arg,
+			args_info.variants_arg,
+			args_info.reference_sequence_arg,
+			args_info.chromosome_arg,
+			args_info.output_sequences_a2m_arg,
+			args_info.output_sequences_separate_flag,
+			args_info.pipe_arg,
+			args_info.output_graphviz_arg
+		);
+	}
+	catch (std::exception const &exc)
+	{
+		std::cerr << "ERROR: Caught an exception: " << exc.what() << '\n';
+		auto const trace(boost::get_error_info <lb::traced>(exc));
+		if (trace)
+			std::cerr << "Stack trace:\n" << (*trace) << '\n';
+		return EXIT_FAILURE;
+	}
 	
 	return EXIT_SUCCESS;
 }
