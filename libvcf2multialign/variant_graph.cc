@@ -313,7 +313,7 @@ namespace vcf2multialign {
 				}
 
 			end:
-				if (0 == var_idx % 100'000)
+				if (0 == var_idx % 1'000'000)
 					lb::log_time(std::cerr) << "Handled " << var_idx << " variants…\n";
 				return true; // Continue parsing.
 			}
