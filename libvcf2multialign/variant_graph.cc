@@ -75,7 +75,14 @@ namespace vcf2multialign {
 	}
 	
 	
-	void build_variant_graph(sequence_type const &ref_seq, char const *variants_path, char const *chr_id, variant_graph &graph, build_graph_statistics &stats)
+	void build_variant_graph(
+		sequence_type const &ref_seq,
+		char const *variants_path,
+		char const *chr_id,
+		variant_graph &graph,
+		build_graph_statistics &stats,
+		std::ostream *log_stream
+	)
 	{
 		typedef variant_graph::position_type	position_type;
 		typedef variant_graph::edge_type		edge_type;
@@ -142,6 +149,7 @@ namespace vcf2multialign {
 				chr_id,
 				&graph,
 				&stats,
+				log_stream, // Pointer
 				&var_idx,
 				&aln_pos,
 				&prev_ref_pos,
@@ -287,7 +295,8 @@ namespace vcf2multialign {
 						auto const row_idx(base_idx + chr_idx);
 						if (ref_pos < target_ref_positions_by_chrom_copy[row_idx])
 						{
-							std::cout << "Overlapping alternative alleles. Sample: " << graph.sample_names[sample_idx] << " chromosome copy: " << chr_idx << " current variant position: " << ref_pos << '\n';
+							if (log_stream)
+								(*log_stream) << "Overlapping alternative alleles. Sample: " << graph.sample_names[sample_idx] << " chromosome copy: " << chr_idx << " current variant position: " << ref_pos << '\n';
 							continue;
 						}
 						

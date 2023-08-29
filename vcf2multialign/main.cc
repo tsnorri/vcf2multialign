@@ -340,7 +340,7 @@ namespace {
 		lb::log_time(std::cerr) << "Building the variant graph…" << std::flush;
 		v2m::variant_graph graph;
 		v2m::build_graph_statistics stats;
-		v2m::build_variant_graph(ref_seq, variants_path, chr_id, graph, stats);
+		v2m::build_variant_graph(ref_seq, variants_path, chr_id, graph, stats, &std::cout);
 		std::cerr << " Done. Handled variants: " << stats.handled_variants << " chromosome ID mismatches: " << stats.chr_id_mismatches << "\n";
 		
 		if (graphviz_output_path)

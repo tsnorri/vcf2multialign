@@ -119,7 +119,7 @@ namespace vcf2multialign {
 	};
 	
 	
-	void build_variant_graph(sequence_type const &ref_seq, char const *variants_path, char const *chr_id, variant_graph &graph, build_graph_statistics &stats);
+	void build_variant_graph(sequence_type const &ref_seq, char const *variants_path, char const *chr_id, variant_graph &graph, build_graph_statistics &stats, std::ostream *log_stream);
 	
 	
 	auto variant_graph_walker::alt_edge_labels() const

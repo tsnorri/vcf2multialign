@@ -116,7 +116,7 @@ namespace {
 		
 		v2m::variant_graph graph;
 		v2m::build_graph_statistics stats;
-		v2m::build_variant_graph(ref_seq, vcf_path.c_str(), "1", graph, stats);
+		v2m::build_variant_graph(ref_seq, vcf_path.c_str(), "1", graph, stats, nullptr);
 		
 		cmp.check_graph(ref_seq, graph);
 	}
