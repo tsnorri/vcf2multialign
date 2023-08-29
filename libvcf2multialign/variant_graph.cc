@@ -268,7 +268,7 @@ namespace vcf2multialign {
 						auto const ncol(graph.paths_by_chrom_copy_and_edge.number_of_columns());
 						if (ncol <= max_edge)
 						{
-							auto const multiplier(1 + ncol / path_column_allocation);
+							auto const multiplier(4 + ncol / path_column_allocation);
 							graph.paths_by_chrom_copy_and_edge.resize(graph.paths_by_chrom_copy_and_edge.number_of_rows() * multiplier * path_column_allocation, 0);
 						}
 					}
