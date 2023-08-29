@@ -270,6 +270,7 @@ namespace {
 		output_sequence(ref_seq, graph, variant_graph::SAMPLE_MAX, 0, stream);
 		stream << '\n';
 		
+		std::uint32_t seq_count{1};
 		for (auto const &[sample_idx, sample] : rsv::enumerate(graph.sample_names))
 		{
 			auto const ploidy(graph.sample_ploidy(sample_idx));
@@ -278,6 +279,10 @@ namespace {
 				stream << '>' << sample << '-' << chr_copy_idx << '\n';
 				output_sequence(ref_seq, graph, sample_idx, chr_copy_idx, stream);
 				stream << '\n';
+
+				++seq_count;
+				if (0 == seq_count % 10)
+					lb::log_time(std::cerr) << "Handled " << seq_count << " sequences…\n";
 			}
 		}
 	}
@@ -353,9 +358,9 @@ namespace {
 		
 		if (sequence_a2m_output_path)
 		{
-			lb::log_time(std::cerr) << "Outputting sequences as A2M…" << std::flush;
+			lb::log_time(std::cerr) << "Outputting sequences as A2M…\n";
 			output_sequences_a2m(ref_seq, graph, sequence_a2m_output_path, pipe_cmd);
-			std::cerr << " Done.\n";
+			lb::log_time(std::cerr) << "Done.\n";
 		}
 		
 		if (should_output_sequences_separate)
