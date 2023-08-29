@@ -334,6 +334,6 @@ namespace vcf2multialign {
 			graph.paths_by_chrom_copy_and_edge.resize(graph.paths_by_chrom_copy_and_edge.number_of_rows() * ncol, 0);
 		}
 		
-		transpose_matrix(graph.paths_by_chrom_copy_and_edge);
+		graph.paths_by_chrom_copy_and_edge = transpose_matrix(graph.paths_by_chrom_copy_and_edge);
 	}
 }
