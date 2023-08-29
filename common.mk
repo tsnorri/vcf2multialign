@@ -37,12 +37,6 @@ CXXFLAGS		+= -std=c++2b $(OPT_FLAGS) $(WARNING_FLAGS) $(SYSTEM_CXXFLAGS)
 CPPFLAGS		+= -DHAVE_CONFIG_H -I../include -I../lib/cereal/include -I../lib/libbio/include -I../lib/libbio/lib/GSL/include -I../lib/libbio/lib/range-v3/include -I../lib/libbio/lib/rapidcheck/include -I../lib/libbio/lib/rapidcheck/extras/catch/include $(BOOST_INCLUDE) $(SYSTEM_CPPFLAGS)
 LDFLAGS			:= ../lib/libbio/src/libbio.a $(BOOST_LIBS) $(LDFLAGS) $(SYSTEM_LDFLAGS)
 
-ifeq ($(shell uname -s),Linux)
-	CPPFLAGS	+= -I../lib/swift-corelibs-libdispatch
-	LDFLAGS		:= ../lib/swift-corelibs-libdispatch/build/src/libdispatch.a ../lib/swift-corelibs-libdispatch/build/src/BlocksRuntime/libBlocksRuntime.a $(LDFLAGS)
-endif
-
-
 # FIXME: the first two likely only work with Clang; I think GCC uses something else than -coverage.
 %.cov.o: %.c
 	$(CC) -c -coverage $(CFLAGS) $(CPPFLAGS) -o $@ $<
