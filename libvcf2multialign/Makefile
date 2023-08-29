@@ -1,7 +1,8 @@
 include ../local.mk
 include ../common.mk
 
-OBJECTS =	transpose_matrix.o
+OBJECTS =	variant_graph.o \
+			transpose_matrix.o
 
 
 all: libvcf2multialign.a
