@@ -252,9 +252,7 @@ TEST_CASE(
 	rc::prop(
 		"transpose_matrix works with arbitrary input",
 		[&max_size](test_case const &tc){
-			
-			bool const have_more_than_64_rows_and_columns(64 < tc.input.number_of_rows() && 64 < tc.input.number_of_columns());
-			RC_CLASSIFY(have_more_than_64_rows_and_columns);
+			RC_TAG(tc.input.number_of_rows(), tc.input.number_of_columns());
 			
 			auto const actual(v2m::transpose_matrix(tc.input));
 			auto const &actual_values(actual.values());
