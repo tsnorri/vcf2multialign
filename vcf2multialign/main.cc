@@ -270,6 +270,7 @@ namespace {
 		output_sequence(ref_seq, graph, variant_graph::SAMPLE_MAX, 0, stream);
 		stream << '\n';
 		
+		std::uint32_t seq_count{1};
 		for (auto const &[sample_idx, sample] : rsv::enumerate(graph.sample_names))
 		{
 			auto const ploidy(graph.sample_ploidy(sample_idx));
@@ -278,6 +279,10 @@ namespace {
 				stream << '>' << sample << '-' << chr_copy_idx << '\n';
 				output_sequence(ref_seq, graph, sample_idx, chr_copy_idx, stream);
 				stream << '\n';
+
+				++seq_count;
+				if (0 == seq_count % 10)
+					lb::log_time(std::cerr) << "Handled " << seq_count << " sequences…\n";
 			}
 		}
 	}
@@ -337,11 +342,11 @@ namespace {
 			std::cerr << " Done. Reference length is " << ref_seq.size() << ".\n";
 		}
 		
-		lb::log_time(std::cerr) << "Building the variant graph…" << std::flush;
+		lb::log_time(std::cerr) << "Building the variant graph…\n";
 		v2m::variant_graph graph;
 		v2m::build_graph_statistics stats;
 		v2m::build_variant_graph(ref_seq, variants_path, chr_id, graph, stats, &std::cout);
-		std::cerr << " Done. Handled variants: " << stats.handled_variants << " chromosome ID mismatches: " << stats.chr_id_mismatches << "\n";
+		lb::log_time(std::cerr) << "Done. Handled variants: " << stats.handled_variants << " chromosome ID mismatches: " << stats.chr_id_mismatches << "\n";
 		
 		if (graphviz_output_path)
 		{
@@ -353,9 +358,9 @@ namespace {
 		
 		if (sequence_a2m_output_path)
 		{
-			lb::log_time(std::cerr) << "Outputting sequences as A2M…" << std::flush;
+			lb::log_time(std::cerr) << "Outputting sequences as A2M…\n";
 			output_sequences_a2m(ref_seq, graph, sequence_a2m_output_path, pipe_cmd);
-			std::cerr << " Done.\n";
+			lb::log_time(std::cerr) << "Done.\n";
 		}
 		
 		if (should_output_sequences_separate)
@@ -389,16 +394,27 @@ int main(int argc, char **argv)
 		std::cerr << '\n';
 	}
 	
-	run(
-		args_info.reference_arg,
-		args_info.variants_arg,
-		args_info.reference_sequence_arg,
-		args_info.chromosome_arg,
-		args_info.output_sequences_a2m_arg,
-		args_info.output_sequences_separate_flag,
-		args_info.pipe_arg,
-		args_info.output_graphviz_arg
-	);
+	try
+	{
+		run(
+			args_info.reference_arg,
+			args_info.variants_arg,
+			args_info.reference_sequence_arg,
+			args_info.chromosome_arg,
+			args_info.output_sequences_a2m_arg,
+			args_info.output_sequences_separate_flag,
+			args_info.pipe_arg,
+			args_info.output_graphviz_arg
+		);
+	}
+	catch (std::exception const &exc)
+	{
+		std::cerr << "ERROR: Caught an exception: " << exc.what() << '\n';
+		auto const trace(boost::get_error_info <lb::traced>(exc));
+		if (trace)
+			std::cerr << "Stack trace:\n" << (*trace) << '\n';
+		return EXIT_FAILURE;
+	}
 	
 	return EXIT_SUCCESS;
 }

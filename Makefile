@@ -2,9 +2,6 @@ include local.mk
 include common.mk
 
 DEPENDENCIES = lib/libbio/src/libbio.a
-ifeq ($(shell uname -s),Linux)
-	DEPENDENCIES += lib/swift-corelibs-libdispatch/build/src/libdispatch.a
-endif
 
 # “$() $()” is a literal space.
 OS_NAME = $(shell tools/os_name.sh)
@@ -28,7 +25,6 @@ clean:
 
 clean-dependencies: lib/libbio/local.mk
 	$(MAKE) -C lib/libbio clean-all
-	$(RM) -r lib/swift-corelibs-libdispatch/build
 
 clean-dist:
 	$(RM) -rf $(DIST_TARGET_DIR)
@@ -52,7 +48,6 @@ $(DIST_TAR_GZ):	vcf2multialign/vcf2multialign
 	$(CP) vcf2multialign/vcf2multialign $(DIST_TARGET_DIR)
 	$(CP) README.md $(DIST_TARGET_DIR)
 	$(CP) LICENSE $(DIST_TARGET_DIR)
-	$(CP) lib/swift-corelibs-libdispatch/LICENSE $(DIST_TARGET_DIR)/swift-corelibs-libdispatch-license.txt
 	$(CP) lib/cereal/LICENSE $(DIST_TARGET_DIR)/cereal-license.txt
 	$(TAR) czf $(DIST_TAR_GZ) $(DIST_TARGET_DIR)
 	$(RM) -rf $(DIST_TARGET_DIR)
@@ -62,28 +57,6 @@ lib/libbio/local.mk: local.mk
 
 lib/libbio/src/libbio.a: lib/libbio/local.mk
 	$(MAKE) -C lib/libbio
-
-lib/swift-corelibs-libdispatch/CMakeLists.txt.original:
-	$(CP) lib/swift-corelibs-libdispatch/CMakeLists.txt lib/swift-corelibs-libdispatch/CMakeLists.txt.original
-	$(PATCH) lib/swift-corelibs-libdispatch/CMakeLists.txt.original \
-		tools/swift-cmakelists.patch \
-		-o lib/swift-corelibs-libdispatch/CMakeLists.txt
-
-lib/swift-corelibs-libdispatch/build/src/libdispatch.a: lib/swift-corelibs-libdispatch/CMakeLists.txt.original
-	$(RM) -rf lib/swift-corelibs-libdispatch/build && \
-	cd lib/swift-corelibs-libdispatch && \
-	$(MKDIR) build && \
-	cd build && \
-	$(CP) ../../../tools/disable_warnings.cmake ../cmake/modules/V2MDisableCompilerWarnings.cmake && \
-	$(CMAKE) \
-		-G Ninja \
-		-DCMAKE_C_COMPILER="$(CC)" \
-		-DCMAKE_CXX_COMPILER="$(CXX)" \
-		-DCMAKE_C_FLAGS="$(LIBDISPATCH_CFLAGS)" \
-		-DCMAKE_CXX_FLAGS="$(LIBDISPATCH_CXXFLAGS)" \
-		-DBUILD_SHARED_LIBS=OFF \
-		.. && \
-	$(NINJA) -v
 
 lib/libbio/lib/rapidcheck/build/librapidcheck.a:
 	$(MAKE) -C lib/libbio lib/rapidcheck/build/librapidcheck.a

@@ -7,6 +7,7 @@
 #include <vcf2multialign/transpose_matrix.hh>
 #include <vcf2multialign/variant_graph.hh>
 
+namespace lb	= libbio;
 namespace rsv	= ranges::views;
 namespace vcf	= libbio::vcf;
 
@@ -166,7 +167,7 @@ namespace vcf2multialign {
 				if (var.chrom_id() != chr_id)
 				{
 					++stats.chr_id_mismatches;
-					return true; // Continue parsing.
+					goto end;
 				}
 				
 				if (!gt_field)
@@ -197,117 +198,123 @@ namespace vcf2multialign {
 					target_ref_positions_by_chrom_copy.resize(graph.ploidy_csum.back(), 0);
 				}
 				
-				++stats.handled_variants;
-				auto const ref_pos(var.zero_based_pos());
-				if (! (prev_ref_pos <= ref_pos))
 				{
-					std::cerr << "ERROR: Variant " << var_idx << " has non-increasing position (" << prev_ref_pos << " v. " << ref_pos << ").\n";
-					std::exit(EXIT_FAILURE);
-				}
-				
-				// Add nodes if needed.
-				add_target_nodes(ref_pos);
-				
-				// Add node for the current record.
-				auto const dist(ref_pos - prev_ref_pos);
-				aln_pos += dist;
-				auto const node_idx(graph.add_or_update_node(ref_pos, aln_pos));
-				
-				// Add edges.
-				// FIXME: Take END into account here?
-				auto const &ref(var.ref());
-				auto const &alts(var.alts());
-				edges_by_alt.clear();
-				edges_by_alt.resize(alts.size(), variant_graph::EDGE_MAX);
-				edge_type min_edge{}, max_edge{};
-				current_edge_targets.clear();
-				{
-					bool is_first{true};
-					for (auto const &[alt_idx, alt] : rsv::enumerate(alts))
+					++stats.handled_variants;
+					auto const ref_pos(var.zero_based_pos());
+					if (! (prev_ref_pos <= ref_pos))
 					{
-						switch (alt.alt_sv_type)
+						std::cerr << "ERROR: Variant " << var_idx << " has non-increasing position (" << prev_ref_pos << " v. " << ref_pos << ").\n";
+						std::exit(EXIT_FAILURE);
+					}
+				
+					// Add nodes if needed.
+					add_target_nodes(ref_pos);
+					
+					// Add node for the current record.
+					auto const dist(ref_pos - prev_ref_pos);
+					aln_pos += dist;
+					auto const node_idx(graph.add_or_update_node(ref_pos, aln_pos));
+					
+					// Add edges.
+					// FIXME: Take END into account here?
+					auto const &ref(var.ref());
+					auto const &alts(var.alts());
+					edges_by_alt.clear();
+					edges_by_alt.resize(alts.size(), variant_graph::EDGE_MAX);
+					edge_type min_edge{}, max_edge{};
+					current_edge_targets.clear();
+					{
+						bool is_first{true};
+						for (auto const &[alt_idx, alt] : rsv::enumerate(alts))
 						{
-							case vcf::sv_type::NONE:
-							case vcf::sv_type::DEL:
+							switch (alt.alt_sv_type)
 							{
-								auto const ref_target_pos(ref_pos + ref.size());
-								auto const edge_idx([&](){
-									if (vcf::sv_type::NONE == alt.alt_sv_type)
-									{
-										auto const edge_idx(graph.add_edge(alt.alt));
-										next_aligned_positions.emplace(ref_target_pos, edge_destination{edge_idx, aln_pos + alt.alt.size()});
-										return edge_idx;
-									}
-									else
-									{
-										auto const edge_idx(graph.add_edge());
-										next_aligned_positions.emplace(ref_target_pos, edge_destination{edge_idx, aln_pos});
-										return edge_idx;
-									}
-								}());
+								case vcf::sv_type::NONE:
+								case vcf::sv_type::DEL:
+								{
+									auto const ref_target_pos(ref_pos + ref.size());
+									auto const edge_idx([&](){
+										if (vcf::sv_type::NONE == alt.alt_sv_type)
+										{
+											auto const edge_idx(graph.add_edge(alt.alt));
+											next_aligned_positions.emplace(ref_target_pos, edge_destination{edge_idx, aln_pos + alt.alt.size()});
+											return edge_idx;
+										}
+										else
+										{
+											auto const edge_idx(graph.add_edge());
+											next_aligned_positions.emplace(ref_target_pos, edge_destination{edge_idx, aln_pos});
+											return edge_idx;
+										}
+									}());
+									
+									edges_by_alt[alt_idx] = edge_idx;
+									current_edge_targets.emplace_back(ref_target_pos);
+									
+									if (is_first)
+										min_edge = edge_idx;
+									max_edge = edge_idx;
+									break;
+								}
 								
-								edges_by_alt[alt_idx] = edge_idx;
-								current_edge_targets.emplace_back(ref_target_pos);
-								
-								if (is_first)
-									min_edge = edge_idx;
-								max_edge = edge_idx;
-								break;
+								default:
+									break;
+							}
+						}
+					}
+					
+					// Check that we have enough space for the paths.
+					{
+						auto const ncol(graph.paths_by_chrom_copy_and_edge.number_of_columns());
+						if (ncol <= max_edge)
+						{
+							auto const multiplier(4 + ncol / path_column_allocation);
+							graph.paths_by_chrom_copy_and_edge.resize(graph.paths_by_chrom_copy_and_edge.number_of_rows() * multiplier * path_column_allocation, 0);
+						}
+					}
+					
+					// Paths.
+					for (auto const &[sample_idx, sample] : rsv::enumerate(var.samples()))
+					{
+						auto const &gt((*gt_field)(sample));
+						libbio_assert_lt(sample_idx, graph.ploidy_csum.size());
+						auto const base_idx(graph.ploidy_csum[sample_idx]); // Base index for this sample.
+						
+						for (auto const &[chr_idx, sample_gt] : rsv::enumerate(gt))
+						{
+							if (0 == sample_gt.alt)
+								continue;
+							
+							if (vcf::sample_genotype::NULL_ALLELE == sample_gt.alt)
+								continue;
+							
+							// Check that the alternative allele was handled.
+							auto const edge_idx(edges_by_alt[sample_gt.alt - 1]);
+							if (variant_graph::EDGE_MAX == edge_idx)
+								continue;
+							
+							// Check for overlapping edges for the current sample.
+							auto const row_idx(base_idx + chr_idx);
+							if (ref_pos < target_ref_positions_by_chrom_copy[row_idx])
+							{
+								if (log_stream)
+									(*log_stream) << "Overlapping alternative alleles. Sample: " << graph.sample_names[sample_idx] << " chromosome copy: " << chr_idx << " current variant position: " << ref_pos << '\n';
+								continue;
 							}
 							
-							default:
-								break;
+							// Update the target position for this chromosome copy and the path information.
+							auto const target_pos(current_edge_targets[edge_idx - min_edge]);
+							target_ref_positions_by_chrom_copy[row_idx] = target_pos;
+							graph.paths_by_chrom_copy_and_edge(row_idx, edge_idx) |= 1;
 						}
 					}
-				}
-				
-				// Check that we have enough space for the paths.
-				{
-					auto const ncol(graph.paths_by_chrom_copy_and_edge.number_of_columns());
-					if (ncol <= max_edge)
-					{
-						auto const multiplier(1 + ncol / path_column_allocation);
-						graph.paths_by_chrom_copy_and_edge.resize(graph.paths_by_chrom_copy_and_edge.number_of_rows() * multiplier * path_column_allocation, 0);
-					}
-				}
-				
-				// Paths.
-				for (auto const &[sample_idx, sample] : rsv::enumerate(var.samples()))
-				{
-					auto const &gt((*gt_field)(sample));
-					libbio_assert_lt(sample_idx, graph.ploidy_csum.size());
-					auto const base_idx(graph.ploidy_csum[sample_idx]); // Base index for this sample.
 					
-					for (auto const &[chr_idx, sample_gt] : rsv::enumerate(gt))
-					{
-						if (0 == sample_gt.alt)
-							continue;
-						
-						if (vcf::sample_genotype::NULL_ALLELE == sample_gt.alt)
-							continue;
-						
-						// Check that the alternative allele was handled.
-						auto const edge_idx(edges_by_alt[sample_gt.alt - 1]);
-						if (variant_graph::EDGE_MAX == edge_idx)
-							continue;
-						
-						// Check for overlapping edges for the current sample.
-						auto const row_idx(base_idx + chr_idx);
-						if (ref_pos < target_ref_positions_by_chrom_copy[row_idx])
-						{
-							if (log_stream)
-								(*log_stream) << "Overlapping alternative alleles. Sample: " << graph.sample_names[sample_idx] << " chromosome copy: " << chr_idx << " current variant position: " << ref_pos << '\n';
-							continue;
-						}
-						
-						// Update the target position for this chromosome copy and the path information.
-						auto const target_pos(current_edge_targets[edge_idx - min_edge]);
-						target_ref_positions_by_chrom_copy[row_idx] = target_pos;
-						graph.paths_by_chrom_copy_and_edge(row_idx, edge_idx) |= 1;
-					}
+					prev_ref_pos = ref_pos;
 				}
-				
-				prev_ref_pos = ref_pos;
+
+			end:
+				if (0 == var_idx % 1'000'000)
+					lb::log_time(std::cerr) << "Handled " << var_idx << " variants…\n";
 				return true; // Continue parsing.
 			}
 		);
@@ -327,6 +334,6 @@ namespace vcf2multialign {
 			graph.paths_by_chrom_copy_and_edge.resize(graph.paths_by_chrom_copy_and_edge.number_of_rows() * ncol, 0);
 		}
 		
-		transpose_matrix(graph.paths_by_chrom_copy_and_edge);
+		graph.paths_by_chrom_copy_and_edge = transpose_matrix(graph.paths_by_chrom_copy_and_edge);
 	}
 }

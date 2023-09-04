@@ -11,7 +11,7 @@
 
 namespace vcf2multialign {
 	
-	libbio::bit_matrix transpose_matrix(libbio::bit_matrix const &mat);
+	[[nodiscard]] libbio::bit_matrix transpose_matrix(libbio::bit_matrix const &mat);
 }
 
 #endif
