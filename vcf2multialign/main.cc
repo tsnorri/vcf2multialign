@@ -9,6 +9,7 @@
 #include <libbio/fasta_reader.hh>
 #include <libbio/file_handle.hh>
 #include <libbio/file_handling.hh>
+#include <libbio/generic_parser.hh>
 #include <libbio/subprocess.hh>
 #include <map>
 #include <range/v3/view/enumerate.hpp>
@@ -21,6 +22,7 @@
 
 namespace ios	= boost::iostreams;
 namespace lb	= libbio;
+namespace lbp	= libbio::parsing;
 namespace rsv	= ranges::views;
 namespace v2m	= vcf2multialign;
 
@@ -311,6 +313,82 @@ namespace {
 			output_sequences_a2m(ref_seq, graph, stream);
 		}
 	}
+
+
+	template <typename t_string>
+	struct sample_identifier_tpl
+	{
+		t_string		sample;
+		std::uint32_t	chromosome_copy_index{};
+
+		template <typename t_other_string>
+		sample_identifier_tpl(t_other_string &&sample_, std::uint32_t const chromosome_copy_index_):
+			sample(std::forward <t_other_string>(sample_)),
+			chromosome_copy_index(chromosome_copy_index_)
+		{
+		}
+
+		decltype(auto) to_tuple() const { return std::tie(sample, chromosome_copy_index); }
+		bool operator<(sample_identifier_tpl const &other) const { return to_tuple() < other.to_tuple(); }
+		
+		template <typename t_other_string>
+		bool operator<(sample_identifier_tpl <t_other_string> const &other) const { return to_tuple() < other.to_tuple(); }
+	};
+
+	typedef sample_identifier_tpl <std::string>			sample_identifier;
+	typedef sample_identifier_tpl <std::string_view>	sample_identifier_sv;
+
+
+	struct build_variant_graph_delegate : public v2m::build_graph_delegate
+	{
+		std::vector <sample_identifier>	excluded_samples;
+
+		void report_overlapping_alternative(
+			std::string_view const sample_name,
+			v2m::variant_graph::ploidy_type const chrom_copy_idx,
+			v2m::variant_graph::position_type const ref_pos,
+			std::vector <std::string_view> const &var_id,
+			std::uint32_t const gt
+		) override
+		{
+			std::cout << "Overlapping alternative alleles. Sample: " << sample_name << " chromosome copy: " << chrom_copy_idx << " current variant position: " << ref_pos << " genotype: " << gt << '\n';
+		}
+
+		bool should_include(std::string_view const sample_name, v2m::variant_graph::ploidy_type const chrom_copy_idx) const override
+		{
+			return !std::binary_search(excluded_samples.begin(), excluded_samples.end(), sample_identifier_sv{sample_name, chrom_copy_idx});
+		}
+	};
+
+
+	void read_excluded_samples(char const *exclude_samples_tsv_path, char const *chr_id, std::vector <sample_identifier> &excluded_samples)
+	{
+		lb::file_istream stream;
+		lb::open_file_for_reading(exclude_samples_tsv_path, stream);
+
+		typedef lbp::parser <
+			lbp::traits::delimited <lbp::delimiter <'\t'>>,
+			lbp::fields::text <>,
+			lbp::fields::text <>,
+			lbp::fields::integer <std::uint32_t>
+		> parser_type;
+		typedef parser_type::record_type record_type;
+
+		{
+			std::istreambuf_iterator it(stream.rdbuf());
+			std::istreambuf_iterator <decltype(it)::value_type> const sentinel;
+			parser_type parser;
+			record_type rec;
+			while (true)
+			{
+				if (!parser.parse(it, sentinel, rec))
+					break;
+
+				if (chr_id == std::get <0>(rec))
+					excluded_samples.emplace_back(std::get <1>(rec), std::get <2>(rec));
+			}
+		}
+	}
 	
 	
 	void run(
@@ -320,6 +398,7 @@ namespace {
 		char const *chr_id,
 		char const *sequence_a2m_output_path,
 		bool const should_output_sequences_separate,
+		char const *exclude_samples_tsv_path,
 		char const *pipe_cmd,
 		char const *graphviz_output_path
 	)
@@ -341,11 +420,19 @@ namespace {
 			
 			std::cerr << " Done. Reference length is " << ref_seq.size() << ".\n";
 		}
+
+		build_variant_graph_delegate delegate;
+		if (exclude_samples_tsv_path)
+		{
+			lb::log_time(std::cerr) << "Reading the excluded sample list…" << std::flush;
+			read_excluded_samples(exclude_samples_tsv_path, chr_id, delegate.excluded_samples);
+			std::cerr << " Done.\n";
+		}
 		
 		lb::log_time(std::cerr) << "Building the variant graph…\n";
 		v2m::variant_graph graph;
 		v2m::build_graph_statistics stats;
-		v2m::build_variant_graph(ref_seq, variants_path, chr_id, graph, stats, &std::cout);
+		v2m::build_variant_graph(ref_seq, variants_path, chr_id, graph, stats, delegate);
 		lb::log_time(std::cerr) << "Done. Handled variants: " << stats.handled_variants << " chromosome ID mismatches: " << stats.chr_id_mismatches << "\n";
 		
 		if (graphviz_output_path)
@@ -403,6 +490,7 @@ int main(int argc, char **argv)
 			args_info.chromosome_arg,
 			args_info.output_sequences_a2m_arg,
 			args_info.output_sequences_separate_flag,
+			args_info.exclude_samples_arg,
 			args_info.pipe_arg,
 			args_info.output_graphviz_arg
 		);

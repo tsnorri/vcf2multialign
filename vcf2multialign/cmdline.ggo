@@ -14,6 +14,7 @@ option		"output-sequences-a2m"		s	"Output reference-guided multipla alignment as
 option		"output-sequences-separate"	-	"Output reference-guided multiple alignment one sequence at a time"					flag	off
 option		"pipe"						-	"Instead of writing sequences to files, pipe the output to the given command"		string	typestr = "command"			optional
 option		"output-graphviz"			d	"Output the variant graph in Graphviz format"										string	typestr = "filename"		optional
+option		"exclude-samples"			x	"Exclude the samples listed in the given TSV file (chrom, sample, copy_idx)"		string	typestr = "filename"		optional
 #option		"overwrite"					-	"Overwrite output files"															flag	off
 #option		"log"						-	"Variant handling log file path"													string	typestr = "filename"		optional
 #option		"filter-fields-set"			-	"Remove variants with any value for the given field (used with e.g. CIPOS, CIEND)"	string	typestr = "identifier"		optional	multiple
