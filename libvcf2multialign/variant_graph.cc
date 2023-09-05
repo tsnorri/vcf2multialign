@@ -42,14 +42,14 @@ namespace {
 	}
 
 
-	struct sample_index
+	struct sample_chromosome_index
 	{
 		std::uint32_t	sample_index{};
 		std::uint32_t	chromosome_copy_vcf_index{};
 		std::uint32_t	chromosome_copy_output_index{};
 
-		auto to_tuple() const { return std::make_tuple(sample_index, chromosome_copy_vcf_index, chromsome_copy_output_index); }
-		bool operator<(sample_index const &other) const { return to_tuple() < other.to_tuple(); }
+		auto to_tuple() const { return std::make_tuple(sample_index, chromosome_copy_vcf_index, chromosome_copy_output_index); }
+		bool operator<(sample_chromosome_index const &other) const { return to_tuple() < other.to_tuple(); }
 	};
 }
 
@@ -135,7 +135,7 @@ namespace vcf2multialign {
 		std::vector <position_type> target_ref_positions_by_chrom_copy;
 		std::vector <position_type> current_edge_targets;
 		std::multimap <position_type, edge_destination> next_aligned_positions; // Aligned positions by reference position.
-		std::vector <sample_index> included_samples;
+		std::vector <sample_chromosome_index> included_samples;
 		
 		auto add_target_nodes([&graph, &aln_pos, &prev_ref_pos, &next_aligned_positions](position_type const ref_pos){
 			auto const end(next_aligned_positions.end());
@@ -235,6 +235,7 @@ namespace vcf2multialign {
 
 						using std::swap;
 						swap(graph.sample_names, new_sample_names);
+					}
 					
 					{
 						// Make sure the row count is divisible by path_matrix_row_col_divisor.
@@ -331,7 +332,7 @@ namespace vcf2multialign {
 						auto const &sample(var.samples()[sample_idx]);
 						auto const &gt((*gt_field)(sample));
 						libbio_assert_lt(included_sample_idx, graph.ploidy_csum.size());
-						auto const base_idx(graph.ploidy_csum[ii]); // Base index for this sample.
+						auto const base_idx(graph.ploidy_csum[included_sample_idx]); // Base index for this sample.
 						auto const &sample_gt(gt[chr_idx_input]);
 
 						if (0 == sample_gt.alt)

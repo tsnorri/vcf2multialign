@@ -121,7 +121,7 @@ namespace vcf2multialign {
 			std::string_view const sample_name,
 			variant_graph::ploidy_type const chrom_copy_idx,
 			variant_graph::position_type const ref_pos,
-			std::string_view const var_id,
+			std::vector <std::string_view> const &var_id,
 			std::uint32_t const gt
 		) = 0;
 	};
