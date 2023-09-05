@@ -110,6 +110,21 @@ namespace vcf2multialign {
 		inline std::size_t ref_length_(std::size_t const rhs_node) const { return m_graph->reference_positions[rhs_node] - ref_position(); }
 		inline std::size_t aligned_length_(std::size_t const rhs_node) const { return m_graph->aligned_positions[rhs_node] - aligned_position(); }
 	};
+
+
+	struct build_graph_delegate
+	{
+		virtual ~build_graph_delegate() {}
+		virtual bool should_include(std::string_view const sample_name, variant_graph::ploidy_type const chrom_copy_idx) const = 0;
+
+		virtual void report_overlapping_alternative(
+			std::string_view const sample_name,
+			variant_graph::ploidy_type const chrom_copy_idx,
+			variant_graph::position_type const ref_pos,
+			std::string_view const var_id,
+			std::uint32_t const gt
+		) = 0;
+	};
 	
 	
 	struct build_graph_statistics
@@ -119,7 +134,14 @@ namespace vcf2multialign {
 	};
 	
 	
-	void build_variant_graph(sequence_type const &ref_seq, char const *variants_path, char const *chr_id, variant_graph &graph, build_graph_statistics &stats, std::ostream *log_stream);
+	void build_variant_graph(
+		sequence_type const &ref_seq,
+		char const *variants_path,
+		char const *chr_id,
+		variant_graph &graph,
+		build_graph_statistics &stats,
+		build_graph_delegate &delegate
+	);
 	
 	
 	auto variant_graph_walker::alt_edge_labels() const

@@ -40,6 +40,17 @@ namespace {
 		libbio_assert(var.reader()->has_assigned_variant_format());
 		return static_cast <variant_format const &>(var.get_format());
 	}
+
+
+	struct sample_index
+	{
+		std::uint32_t	sample_index{};
+		std::uint32_t	chromosome_copy_vcf_index{};
+		std::uint32_t	chromosome_copy_output_index{};
+
+		auto to_tuple() const { return std::make_tuple(sample_index, chromosome_copy_vcf_index, chromsome_copy_output_index); }
+		bool operator<(sample_index const &other) const { return to_tuple() < other.to_tuple(); }
+	};
 }
 
 
@@ -82,7 +93,7 @@ namespace vcf2multialign {
 		char const *chr_id,
 		variant_graph &graph,
 		build_graph_statistics &stats,
-		std::ostream *log_stream
+		build_graph_delegate &delegate
 	)
 	{
 		typedef variant_graph::position_type	position_type;
@@ -124,6 +135,7 @@ namespace vcf2multialign {
 		std::vector <position_type> target_ref_positions_by_chrom_copy;
 		std::vector <position_type> current_edge_targets;
 		std::multimap <position_type, edge_destination> next_aligned_positions; // Aligned positions by reference position.
+		std::vector <sample_index> included_samples;
 		
 		auto add_target_nodes([&graph, &aln_pos, &prev_ref_pos, &next_aligned_positions](position_type const ref_pos){
 			auto const end(next_aligned_positions.end());
@@ -150,7 +162,8 @@ namespace vcf2multialign {
 				chr_id,
 				&graph,
 				&stats,
-				log_stream, // Pointer
+				&delegate,
+				&reader,
 				&var_idx,
 				&aln_pos,
 				&prev_ref_pos,
@@ -159,6 +172,7 @@ namespace vcf2multialign {
 				&target_ref_positions_by_chrom_copy,
 				&current_edge_targets,
 				&next_aligned_positions,
+				&included_samples,
 				&add_target_nodes
 			](vcf::transient_variant const &var) -> bool {
 				++var_idx;
@@ -180,14 +194,47 @@ namespace vcf2multialign {
 				{
 					is_first = false;
 					
-					// Check the ploidy.
+					// Check the ploidy and sample inclusion.
 					graph.ploidy_csum.clear();
 					graph.ploidy_csum.resize(1 + graph.sample_names.size(), 0);
+					std::vector <std::uint32_t> removed_samples; // No chromosome copies included.
+					auto const &sample_names(reader.sample_names_by_index());
 					for (auto const &[sample_idx, sample] : rsv::enumerate(var.samples()))
 					{
 						auto const &gt((*gt_field)(sample));
-						graph.ploidy_csum[1 + sample_idx] = graph.ploidy_csum[sample_idx] + gt.size();
+						variant_graph::ploidy_type included_count{};
+						for (auto const chrom_copy_idx : rsv::iota(gt.size()))
+						{
+							if (delegate.should_include(sample_names[sample_idx], chrom_copy_idx))
+							{
+								included_samples.emplace_back(sample_idx, chrom_copy_idx, included_count);
+								++included_count;
+							}
+						}
+
+						if (included_count)
+							graph.ploidy_csum[1 + sample_idx] = graph.ploidy_csum[sample_idx] + included_count;
+						else
+							removed_samples.push_back(sample_idx);
 					}
+
+					// If sample names were removed, replace the name vector.
+					if (!removed_samples.empty())
+					{
+						auto it(removed_samples.begin());
+						variant_graph::label_vector new_sample_names;
+						new_sample_names.reserve(graph.sample_names.size() - removed_samples.size());
+
+						for (auto &&[idx, sample_name] : rsv::enumerate(graph.sample_names))
+						{
+							if (idx < *it)
+								new_sample_names.emplace_back(std::move(sample_name));
+							else
+								++it;
+						}
+
+						using std::swap;
+						swap(graph.sample_names, new_sample_names);
 					
 					{
 						// Make sure the row count is divisible by path_matrix_row_col_divisor.
@@ -216,6 +263,7 @@ namespace vcf2multialign {
 					auto const node_idx(graph.add_or_update_node(ref_pos, aln_pos));
 					
 					// Add edges.
+					// We add even if none of the paths has the edge.
 					// FIXME: Take END into account here?
 					auto const &ref(var.ref());
 					auto const &alts(var.alts());
@@ -274,39 +322,46 @@ namespace vcf2multialign {
 					}
 					
 					// Paths.
-					for (auto const &[sample_idx, sample] : rsv::enumerate(var.samples()))
+					for (auto const &[included_sample_idx, sample_chr_idx] : rsv::enumerate(included_samples))
 					{
+						auto const sample_idx(sample_chr_idx.sample_index);
+						auto const chr_idx_input(sample_chr_idx.chromosome_copy_vcf_index);
+						auto const chr_idx_output(sample_chr_idx.chromosome_copy_output_index);
+
+						auto const &sample(var.samples()[sample_idx]);
 						auto const &gt((*gt_field)(sample));
-						libbio_assert_lt(sample_idx, graph.ploidy_csum.size());
-						auto const base_idx(graph.ploidy_csum[sample_idx]); // Base index for this sample.
+						libbio_assert_lt(included_sample_idx, graph.ploidy_csum.size());
+						auto const base_idx(graph.ploidy_csum[ii]); // Base index for this sample.
+						auto const &sample_gt(gt[chr_idx_input]);
+
+						if (0 == sample_gt.alt)
+							continue;
 						
-						for (auto const &[chr_idx, sample_gt] : rsv::enumerate(gt))
+						if (vcf::sample_genotype::NULL_ALLELE == sample_gt.alt)
+							continue;
+						
+						// Check that the alternative allele was handled.
+						auto const edge_idx(edges_by_alt[sample_gt.alt - 1]);
+						if (variant_graph::EDGE_MAX == edge_idx)
+							continue;
+						
+						// Check for overlapping edges for the current sample.
+						auto const row_idx(base_idx + chr_idx_output);
+						if (ref_pos < target_ref_positions_by_chrom_copy[row_idx])
 						{
-							if (0 == sample_gt.alt)
-								continue;
-							
-							if (vcf::sample_genotype::NULL_ALLELE == sample_gt.alt)
-								continue;
-							
-							// Check that the alternative allele was handled.
-							auto const edge_idx(edges_by_alt[sample_gt.alt - 1]);
-							if (variant_graph::EDGE_MAX == edge_idx)
-								continue;
-							
-							// Check for overlapping edges for the current sample.
-							auto const row_idx(base_idx + chr_idx);
-							if (ref_pos < target_ref_positions_by_chrom_copy[row_idx])
-							{
-								if (log_stream)
-									(*log_stream) << "Overlapping alternative alleles. Sample: " << graph.sample_names[sample_idx] << " chromosome copy: " << chr_idx << " current variant position: " << ref_pos << '\n';
-								continue;
-							}
-							
-							// Update the target position for this chromosome copy and the path information.
-							auto const target_pos(current_edge_targets[edge_idx - min_edge]);
-							target_ref_positions_by_chrom_copy[row_idx] = target_pos;
-							graph.paths_by_chrom_copy_and_edge(row_idx, edge_idx) |= 1;
+							delegate.report_overlapping_alternative(
+								reader.sample_names_by_index()[sample_idx],
+								chr_idx_input,
+								ref_pos,
+								var.id(),
+								sample_gt.alt
+							);
 						}
+							
+						// Update the target position for this chromosome copy and the path information.
+						auto const target_pos(current_edge_targets[edge_idx - min_edge]);
+						target_ref_positions_by_chrom_copy[row_idx] = target_pos;
+						graph.paths_by_chrom_copy_and_edge(row_idx, edge_idx) |= 1;
 					}
 					
 					prev_ref_pos = ref_pos;
