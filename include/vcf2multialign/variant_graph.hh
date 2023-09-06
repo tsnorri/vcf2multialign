@@ -56,6 +56,7 @@ namespace vcf2multialign {
 		std::pair <edge_type, edge_type> edge_range_for_node(node_type const &node_idx) const { return {alt_edge_count_csum[node_idx], alt_edge_count_csum[1 + node_idx]}; }
 		
 		ploidy_type sample_ploidy(sample_type const sample_idx) const { return ploidy_csum[1 + sample_idx] - ploidy_csum[sample_idx]; }
+		ploidy_type total_chromosome_copies() const { return ploidy_csum.back(); }
 		
 		node_type add_node(position_type const ref_pos, position_type const aln_pos);
 		node_type add_or_update_node(position_type const ref_pos, position_type const aln_pos);
