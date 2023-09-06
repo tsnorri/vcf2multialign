@@ -19,3 +19,4 @@ option		"exclude-samples"			x	"Exclude the samples listed in the given TSV file 
 #option		"log"						-	"Variant handling log file path"													string	typestr = "filename"		optional
 #option		"filter-fields-set"			-	"Remove variants with any value for the given field (used with e.g. CIPOS, CIEND)"	string	typestr = "identifier"		optional	multiple
 option		"show-invocation"			-	"Output the invocation i.e. command line arguments."								flag	off										hidden
+option		"verbose"					-	"Output status more verbosely"														flag	off
