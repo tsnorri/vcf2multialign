@@ -203,7 +203,7 @@ namespace vcf2multialign {
 					{
 						auto const &gt((*gt_field)(sample));
 						variant_graph::ploidy_type included_count{};
-						for (auto const chrom_copy_idx : rsv::iota(gt.size()))
+						for (auto const chrom_copy_idx : rsv::iota(0U, gt.size()))
 						{
 							if (delegate.should_include(sample_names[sample_idx], chrom_copy_idx))
 							{
@@ -301,7 +301,10 @@ namespace vcf2multialign {
 									current_edge_targets.emplace_back(ref_target_pos);
 									
 									if (is_first)
+									{
 										min_edge = edge_idx;
+										is_first = false;
+									}
 									max_edge = edge_idx;
 									break;
 								}
@@ -323,7 +326,7 @@ namespace vcf2multialign {
 					}
 					
 					// Paths.
-					for (auto const &[included_sample_idx, sample_chr_idx] : rsv::enumerate(included_samples))
+					for (auto const &sample_chr_idx : included_samples)
 					{
 						auto const sample_idx(sample_chr_idx.sample_index);
 						auto const chr_idx_input(sample_chr_idx.chromosome_copy_vcf_index);
@@ -331,8 +334,8 @@ namespace vcf2multialign {
 
 						auto const &sample(var.samples()[sample_idx]);
 						auto const &gt((*gt_field)(sample));
-						libbio_assert_lt(included_sample_idx, graph.ploidy_csum.size());
-						auto const base_idx(graph.ploidy_csum[included_sample_idx]); // Base index for this sample.
+						libbio_assert_lt(sample_idx, graph.ploidy_csum.size());
+						auto const base_idx(graph.ploidy_csum[sample_idx]); // Base index for this sample.
 						auto const &sample_gt(gt[chr_idx_input]);
 
 						if (0 == sample_gt.alt)
@@ -342,6 +345,7 @@ namespace vcf2multialign {
 							continue;
 						
 						// Check that the alternative allele was handled.
+						libbio_assert_lt(sample_gt.alt - 1, edges_by_alt.size());
 						auto const edge_idx(edges_by_alt[sample_gt.alt - 1]);
 						if (variant_graph::EDGE_MAX == edge_idx)
 							continue;
@@ -360,6 +364,7 @@ namespace vcf2multialign {
 						}
 							
 						// Update the target position for this chromosome copy and the path information.
+						libbio_assert_lt(edge_idx - min_edge, current_edge_targets.size());
 						auto const target_pos(current_edge_targets[edge_idx - min_edge]);
 						target_ref_positions_by_chrom_copy[row_idx] = target_pos;
 						graph.paths_by_chrom_copy_and_edge(row_idx, edge_idx) |= 1;
