@@ -399,6 +399,8 @@ namespace {
 				std::exit(EXIT_FAILURE);
 			}
 		}
+
+		std::sort(excluded_samples.begin(), excluded_samples.end());
 	}
 	
 	
