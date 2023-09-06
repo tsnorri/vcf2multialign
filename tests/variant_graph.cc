@@ -103,6 +103,28 @@ namespace {
 			REQUIRE(!walker.advance());
 		}
 	};
+
+
+	struct build_graph_delegate final : public v2m::build_graph_delegate
+	{
+		std::uint64_t overlapping_alternatives{};
+
+		bool should_include(std::string_view const sample_name, v2m::variant_graph::ploidy_type const chrom_copy_idx) const override
+		{
+			return true;
+		}
+
+		void report_overlapping_alternative(
+			std::string_view const sample_name,
+			v2m::variant_graph::ploidy_type const chrom_copy_idx,
+			v2m::variant_graph::position_type const ref_pos,
+			std::vector <std::string_view> const &var_id,
+			std::uint32_t const gt
+		) override
+		{
+			++overlapping_alternatives;
+		}
+	};
 	
 	
 	void test_variant_graph(char const *vcf_name, char const *fasta_name, node_comparator &cmp)
@@ -116,9 +138,11 @@ namespace {
 		
 		v2m::variant_graph graph;
 		v2m::build_graph_statistics stats;
-		v2m::build_variant_graph(ref_seq, vcf_path.c_str(), "1", graph, stats, nullptr);
+		build_graph_delegate delegate;
+		v2m::build_variant_graph(ref_seq, vcf_path.c_str(), "1", graph, stats, delegate);
 		
 		cmp.check_graph(ref_seq, graph);
+		CHECK(0 == delegate.overlapping_alternatives);
 	}
 }
 
