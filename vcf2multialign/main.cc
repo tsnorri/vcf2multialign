@@ -367,7 +367,7 @@ namespace {
 		lb::open_file_for_reading(exclude_samples_tsv_path, stream);
 
 		typedef lbp::parser <
-			lbp::traits::delimited <lbp::delimiter <'\t'>>,
+			lbp::traits::delimited <lbp::delimiter <'\t'>, lbp::delimiter <'\n'>>,
 			lbp::fields::text <>,
 			lbp::fields::text <>,
 			lbp::fields::integer <std::uint32_t>
@@ -379,13 +379,23 @@ namespace {
 			std::istreambuf_iterator <decltype(it)::value_type> const sentinel;
 			parser_type parser;
 			record_type rec;
-			while (true)
+			try
 			{
-				if (!parser.parse(it, sentinel, rec))
-					break;
+				while (true)
+				{
+					if (!parser.parse(it, sentinel, rec))
+						break;
 
-				if (chr_id == std::get <0>(rec))
-					excluded_samples.emplace_back(std::get <1>(rec), std::get <2>(rec));
+					if (chr_id == std::get <0>(rec))
+						excluded_samples.emplace_back(std::get <1>(rec), std::get <2>(rec));
+				}
+			}
+			catch (lbp::parse_error const &err)
+			{
+				std::cerr << "ERROR: Parse error at position " << err.position() << ": ";
+				err.output_error(std::cerr);
+				std::cerr << '\n';
+				std::exit(EXIT_FAILURE);
 			}
 		}
 	}
@@ -427,6 +437,10 @@ namespace {
 			lb::log_time(std::cerr) << "Reading the excluded sample list…" << std::flush;
 			read_excluded_samples(exclude_samples_tsv_path, chr_id, delegate.excluded_samples);
 			std::cerr << " Done.\n";
+
+			std::cerr << "Excluded the following samples:\n";
+			for (auto const &sample_id : delegate.excluded_samples)
+				std::cerr << sample_id.sample << " (" << sample_id.chromosome_copy_index << ")\n";
 		}
 		
 		lb::log_time(std::cerr) << "Building the variant graph…\n";
