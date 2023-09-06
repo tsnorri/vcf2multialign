@@ -5,6 +5,8 @@
 
 #include <catch2/catch.hpp>
 #include <libbio/fasta_reader.hh>
+#include <range/v3/view/zip.hpp>
+#include <set>
 #include <vcf2multialign/variant_graph.hh>
 
 namespace gen	= Catch::Generators;
@@ -105,10 +107,88 @@ namespace {
 	};
 
 
+	template <typename t_string>
+	struct alternative_tpl
+	{
+		typedef std::tuple <
+			t_string,
+			v2m::variant_graph::ploidy_type,
+			v2m::variant_graph::position_type,
+			std::uint32_t
+		> rest_type;
+			
+		rest_type				rest;
+		std::vector <t_string>	identifiers;
+		
+		template <typename t_string_>
+		alternative_tpl(
+			t_string_ &&sample_name,
+			v2m::variant_graph::ploidy_type const chrom_copy_idx,
+			v2m::variant_graph::position_type const ref_pos,
+			std::vector <t_string> &&identifiers_,
+			std::uint32_t const gt
+		):
+			rest(std::forward <t_string_>(sample_name), chrom_copy_idx, ref_pos, gt),
+			identifiers(std::move(identifiers_))
+		{
+		}
+		
+		template <typename t_string_>
+		bool compare_identifiers(alternative_tpl <t_string_> const &alt) const
+		{
+			for (auto const &[lhs, rhs] : rsv::zip(identifiers, alt.identifiers))
+				if (lhs < rhs) return true;
+			
+			return false;
+		}
+	};
+	
+	typedef alternative_tpl <std::string> alternative_type;
+	typedef alternative_tpl <std::string_view> alternative_sv_type;
+	
+	
+	struct alternative_cmp
+	{
+		typedef std::true_type is_transparent;
+		
+		template <typename t_string, typename t_string_>
+		bool operator()(alternative_tpl <t_string> const &lhs, alternative_tpl <t_string_> const &rhs) const
+		{
+			auto const res(lhs.rest <=> rhs.rest);
+			if (res < 0) return true;
+			if (0 < res) return false;
+			return lhs.compare_identifiers(rhs);
+		}
+	};
+	
+	template <typename t_string, typename t_string_, typename t_string__>
+	alternative_tpl <t_string> make_alt(
+		t_string_ &&sample_name,
+		v2m::variant_graph::ploidy_type const chrom_copy_idx,
+		v2m::variant_graph::position_type const ref_pos,
+		t_string__ &&var_id,
+		std::uint32_t const gt
+	)
+	{
+		return {
+			std::forward <t_string_>(sample_name),
+			chrom_copy_idx,
+			ref_pos,
+			std::vector <t_string>({std::forward <t_string__>(var_id)}),
+			gt
+		};
+	}
+		
+	
 	struct build_graph_delegate final : public v2m::build_graph_delegate
 	{
-		std::uint64_t overlapping_alternatives{};
+		std::set <alternative_type, alternative_cmp> expected_overlapping_alternatives{};
 
+		explicit build_graph_delegate(std::initializer_list <alternative_type> expected_overlapping_alternatives_):
+			expected_overlapping_alternatives(expected_overlapping_alternatives_.begin(), expected_overlapping_alternatives_.end())
+		{
+		}
+		
 		bool should_include(std::string_view const sample_name, v2m::variant_graph::ploidy_type const chrom_copy_idx) const override
 		{
 			return true;
@@ -122,12 +202,13 @@ namespace {
 			std::uint32_t const gt
 		) override
 		{
-			++overlapping_alternatives;
+			REQUIRE(expected_overlapping_alternatives.contains(make_alt <std::string_view>(sample_name, chrom_copy_idx, ref_pos, var_id, gt)));
 		}
 	};
-	
-	
-	void test_variant_graph(char const *vcf_name, char const *fasta_name, node_comparator &cmp)
+
+
+
+	void test_variant_graph(char const *vcf_name, char const *fasta_name, node_comparator &cmp, std::initializer_list <alternative_type> expected_overlapping_alts)
 	{
 		std::string const data_dir("test-files/variant-graph/");
 		auto const vcf_path(data_dir + vcf_name);
@@ -138,11 +219,10 @@ namespace {
 		
 		v2m::variant_graph graph;
 		v2m::build_graph_statistics stats;
-		build_graph_delegate delegate;
+		build_graph_delegate delegate{expected_overlapping_alts};
 		v2m::build_variant_graph(ref_seq, vcf_path.c_str(), "1", graph, stats, delegate);
 		
 		cmp.check_graph(ref_seq, graph);
-		CHECK(0 == delegate.overlapping_alternatives);
 	}
 }
 
@@ -167,7 +247,7 @@ SCENARIO("Variant graph can be created correctly from a set of miscellaneous var
 			}
 		};
 		
-		test_variant_graph("test-1a.vcf", "test-1.fa", cmp);
+		test_variant_graph("test-1a.vcf", "test-1.fa", cmp, {make_alt <std::string>("SAMPLE2", 0, 9, "a5", 1)});
 	}
 	
 	GIVEN("A VCF file (1b)")
@@ -188,7 +268,7 @@ SCENARIO("Variant graph can be created correctly from a set of miscellaneous var
 			}
 		};
 		
-		test_variant_graph("test-1b.vcf", "test-1.fa", cmp);
+		test_variant_graph("test-1b.vcf", "test-1.fa", cmp, {make_alt <std::string>("SAMPLE2", 0, 9, "a5", 1)});
 	}
 	
 	GIVEN("A VCF file (2)")
@@ -200,7 +280,7 @@ SCENARIO("Variant graph can be created correctly from a set of miscellaneous var
 			{3,		5,	6,	"C",	{}},
 			{4,		6,	7,	"",		{}}
 		}};
-		test_variant_graph("test-2.vcf", "test-2.fa", cmp);
+		test_variant_graph("test-2.vcf", "test-2.fa", cmp, {});
 	}
 	
 	GIVEN("A VCF file (3)")
@@ -218,7 +298,7 @@ SCENARIO("Variant graph can be created correctly from a set of miscellaneous var
 			{9,		13,	15,	"CC",	{}},
 			{10,	15,	17,	"",		{}}
 		}};
-		test_variant_graph("test-3.vcf", "test-3.fa", cmp);
+		test_variant_graph("test-3.vcf", "test-3.fa", cmp, {});
 	}
 	
 	GIVEN("A VCF file (4)")
@@ -237,6 +317,6 @@ SCENARIO("Variant graph can be created correctly from a set of miscellaneous var
 			{10,	15,	17,	"GGGG",	{}},
 			{11,	19,	21,	"",		{}},
 		}};
-		test_variant_graph("test-4.vcf", "test-4.fa", cmp);
+		test_variant_graph("test-4.vcf", "test-4.fa", cmp, {});
 	}
 }
