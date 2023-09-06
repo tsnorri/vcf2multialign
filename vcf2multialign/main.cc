@@ -273,6 +273,7 @@ namespace {
 		stream << '\n';
 		
 		std::uint32_t seq_count{1};
+		auto const total_seq_count(graph.total_chromosome_copies());
 		for (auto const &[sample_idx, sample] : rsv::enumerate(graph.sample_names))
 		{
 			auto const ploidy(graph.sample_ploidy(sample_idx));
@@ -284,7 +285,7 @@ namespace {
 
 				++seq_count;
 				if (0 == seq_count % 10)
-					lb::log_time(std::cerr) << "Handled " << seq_count << " sequences…\n";
+					lb::log_time(std::cerr) << "Handled " << seq_count << " / " << total_seq_count << " sequences…\n";
 			}
 		}
 	}
