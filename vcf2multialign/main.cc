@@ -279,13 +279,14 @@ namespace {
 			auto const ploidy(graph.sample_ploidy(sample_idx));
 			for (auto const chr_copy_idx : rsv::iota(ploidy_type(0), ploidy))
 			{
+				lb::log_time(std::cerr) << "Sample: " << sample << " (" << (1 + sample_idx) << "/" << graph.sample_names.size() << ") copy index: " << chr_copy_idx << '\n';
 				stream << '>' << sample << '-' << chr_copy_idx << '\n';
 				output_sequence(ref_seq, graph, sample_idx, chr_copy_idx, stream);
 				stream << '\n';
 
 				++seq_count;
 				if (0 == seq_count % 10)
-					lb::log_time(std::cerr) << "Handled " << seq_count << " / " << total_seq_count << " sequences…\n";
+					lb::log_time(std::cerr) << "Handled " << seq_count << '/' << total_seq_count << " sequences…\n";
 			}
 		}
 	}
