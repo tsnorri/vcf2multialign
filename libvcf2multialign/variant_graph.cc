@@ -44,11 +44,12 @@ namespace {
 
 	struct sample_chromosome_index
 	{
-		std::uint32_t	sample_index{};
+		std::uint32_t	sample_vcf_index{};
+		std::uint32_t	sample_output_index{};
 		std::uint32_t	chromosome_copy_vcf_index{};
 		std::uint32_t	chromosome_copy_output_index{};
 
-		auto to_tuple() const { return std::make_tuple(sample_index, chromosome_copy_vcf_index, chromosome_copy_output_index); }
+		auto to_tuple() const { return std::make_tuple(sample_vcf_index, sample_output_index, chromosome_copy_vcf_index, chromosome_copy_output_index); }
 		bool operator<(sample_chromosome_index const &other) const { return to_tuple() < other.to_tuple(); }
 	};
 }
@@ -150,6 +151,7 @@ namespace vcf2multialign {
 				auto const dist(it->first - prev_ref_pos); // Distance from the previous node.
 				aln_pos = std::max(aln_pos + dist, it->second.position);
 				auto const node_idx(graph.add_or_update_node(it->first, aln_pos));
+				libbio_assert_lt(it->second.edge_index, graph.alt_edge_targets.size());
 				graph.alt_edge_targets[it->second.edge_index] = node_idx;
 				prev_ref_pos = it->first;
 			}
@@ -195,32 +197,41 @@ namespace vcf2multialign {
 					is_first = false;
 					
 					// Check the ploidy and sample inclusion.
-					graph.ploidy_csum.clear();
+    				graph.ploidy_csum.clear();
 					graph.ploidy_csum.resize(1 + graph.sample_names.size(), 0);
 					std::vector <std::uint32_t> removed_samples; // No chromosome copies included.
 					auto const &sample_names(reader.sample_names_by_index());
-					for (auto const &[sample_idx, sample] : rsv::enumerate(var.samples()))
+					std::size_t sample_idx_output{};
+					for (auto const &[sample_idx_input, sample] : rsv::enumerate(var.samples()))
 					{
 						auto const &gt((*gt_field)(sample));
 						variant_graph::ploidy_type included_count{};
 						for (auto const chrom_copy_idx : rsv::iota(0U, gt.size()))
 						{
-							if (delegate.should_include(sample_names[sample_idx], chrom_copy_idx))
+							if (delegate.should_include(sample_names[sample_idx_input], chrom_copy_idx))
 							{
-								included_samples.emplace_back(sample_idx, chrom_copy_idx, included_count);
+								included_samples.emplace_back(sample_idx_input, sample_idx_output, chrom_copy_idx, included_count);
 								++included_count;
 							}
 						}
 
 						if (included_count)
-							graph.ploidy_csum[1 + sample_idx] = graph.ploidy_csum[sample_idx] + included_count;
+						{
+							libbio_assert_lt(1 + sample_idx_output, graph.ploidy_csum.size());
+							graph.ploidy_csum[1 + sample_idx_output] = graph.ploidy_csum[sample_idx_output] + included_count;
+							++sample_idx_output;
+						}
 						else
-							removed_samples.push_back(sample_idx);
+						{
+							removed_samples.push_back(sample_idx_input);
+						}
 					}
 
 					// If sample names were removed, replace the name vector.
 					if (!removed_samples.empty())
 					{
+						graph.ploidy_csum.resize(graph.ploidy_csum.size() - removed_samples.size());
+						removed_samples.push_back(UINT32_MAX);
 						auto it(removed_samples.begin());
 						variant_graph::label_vector new_sample_names;
 						new_sample_names.reserve(graph.sample_names.size() - removed_samples.size());
@@ -243,6 +254,8 @@ namespace vcf2multialign {
 						graph.paths_by_chrom_copy_and_edge = variant_graph::path_matrix(path_matrix_rows, path_column_allocation);
 					}
 					
+					libbio_assert_eq(graph.ploidy_csum.size(), 1 + graph.sample_names.size());
+					libbio_assert_lte(graph.sample_names.size(), graph.ploidy_csum.back());
 					target_ref_positions_by_chrom_copy.resize(graph.ploidy_csum.back(), 0);
 				}
 				
@@ -297,6 +310,7 @@ namespace vcf2multialign {
 										}
 									}());
 									
+									libbio_assert_lt(alt_idx, edges_by_alt.size());
 									edges_by_alt[alt_idx] = edge_idx;
 									current_edge_targets.emplace_back(ref_target_pos);
 									
@@ -328,14 +342,16 @@ namespace vcf2multialign {
 					// Paths.
 					for (auto const &sample_chr_idx : included_samples)
 					{
-						auto const sample_idx(sample_chr_idx.sample_index);
+						auto const sample_idx_input(sample_chr_idx.sample_vcf_index);
+						auto const sample_idx_output(sample_chr_idx.sample_output_index);
 						auto const chr_idx_input(sample_chr_idx.chromosome_copy_vcf_index);
 						auto const chr_idx_output(sample_chr_idx.chromosome_copy_output_index);
 
-						auto const &sample(var.samples()[sample_idx]);
+						auto const &sample(var.samples()[sample_idx_input]);
 						auto const &gt((*gt_field)(sample));
-						libbio_assert_lt(sample_idx, graph.ploidy_csum.size());
-						auto const base_idx(graph.ploidy_csum[sample_idx]); // Base index for this sample.
+						libbio_assert_lt(sample_idx_output, graph.ploidy_csum.size());
+						auto const base_idx(graph.ploidy_csum[sample_idx_output]); // Base index for this sample.
+						libbio_assert_lt(chr_idx_input, gt.size());
 						auto const &sample_gt(gt[chr_idx_input]);
 
 						if (0 == sample_gt.alt)
@@ -352,10 +368,11 @@ namespace vcf2multialign {
 						
 						// Check for overlapping edges for the current sample.
 						auto const row_idx(base_idx + chr_idx_output);
+						libbio_assert_lt(row_idx, target_ref_positions_by_chrom_copy.size());
 						if (ref_pos < target_ref_positions_by_chrom_copy[row_idx])
 						{
 							delegate.report_overlapping_alternative(
-								reader.sample_names_by_index()[sample_idx],
+								reader.sample_names_by_index()[sample_idx_input],
 								chr_idx_input,
 								ref_pos,
 								var.id(),

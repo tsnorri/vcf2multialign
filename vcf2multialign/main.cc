@@ -241,7 +241,12 @@ namespace {
 	}
 	
 	
-	void output_sequence_files(v2m::sequence_type const &ref_seq, v2m::variant_graph const &graph, char const * const pipe_cmd)
+	void output_sequence_files(
+		v2m::sequence_type const &ref_seq,
+		v2m::variant_graph const &graph,
+		char const * const pipe_cmd,
+		bool const be_verbose
+	)
 	{
 		typedef v2m::variant_graph			variant_graph;
 		typedef variant_graph::ploidy_type	ploidy_type;
@@ -252,6 +257,9 @@ namespace {
 			auto const ploidy(graph.sample_ploidy(sample_idx));
 			for (auto const chr_copy_idx : rsv::iota(ploidy_type(0), ploidy))
 			{
+				if (be_verbose)
+					lb::log_time(std::cerr) << "Sample: " << sample << " (" << (1 + sample_idx) << "/" << graph.sample_names.size() << ") copy index: " << chr_copy_idx << '\n';
+
 				// FIXME: Use std::format.
 				std::stringstream dst_name;
 				dst_name << sample;
@@ -263,7 +271,12 @@ namespace {
 	}
 	
 	
-	void output_sequences_a2m(v2m::sequence_type const &ref_seq, v2m::variant_graph const &graph, lb::file_ostream &stream)
+	void output_sequences_a2m(
+		v2m::sequence_type const &ref_seq,
+		v2m::variant_graph const &graph,
+		lb::file_ostream &stream,
+		bool const be_verbose
+	)
 	{
 		typedef v2m::variant_graph			variant_graph;
 		typedef variant_graph::ploidy_type	ploidy_type;
@@ -273,24 +286,34 @@ namespace {
 		stream << '\n';
 		
 		std::uint32_t seq_count{1};
+		auto const total_seq_count(graph.total_chromosome_copies());
 		for (auto const &[sample_idx, sample] : rsv::enumerate(graph.sample_names))
 		{
 			auto const ploidy(graph.sample_ploidy(sample_idx));
 			for (auto const chr_copy_idx : rsv::iota(ploidy_type(0), ploidy))
 			{
+				if (be_verbose)
+					lb::log_time(std::cerr) << "Sample: " << sample << " (" << (1 + sample_idx) << "/" << graph.sample_names.size() << ") copy index: " << chr_copy_idx << '\n';
+
 				stream << '>' << sample << '-' << chr_copy_idx << '\n';
 				output_sequence(ref_seq, graph, sample_idx, chr_copy_idx, stream);
 				stream << '\n';
 
 				++seq_count;
 				if (0 == seq_count % 10)
-					lb::log_time(std::cerr) << "Handled " << seq_count << " sequences…\n";
+					lb::log_time(std::cerr) << "Handled " << seq_count << '/' << total_seq_count << " sequences…\n";
 			}
 		}
 	}
 	
 	
-	void output_sequences_a2m(v2m::sequence_type const &ref_seq, v2m::variant_graph const &graph, char const * const dst_name, char const * const pipe_cmd)
+	void output_sequences_a2m(
+		v2m::sequence_type const &ref_seq,
+		v2m::variant_graph const &graph,
+		char const * const dst_name,
+		char const * const pipe_cmd,
+		bool const be_verbose
+	)
 	{
 		if (pipe_cmd)
 		{
@@ -300,7 +323,7 @@ namespace {
 			{
 				lb::file_ostream stream;
 				open_stream_with_file_handle(stream, fh);
-				output_sequences_a2m(ref_seq, graph, stream);
+				output_sequences_a2m(ref_seq, graph, stream, be_verbose);
 			}
 			
 			exit_subprocess(proc);
@@ -310,7 +333,7 @@ namespace {
 			lb::file_handle fh(lb::open_file_for_writing(dst_name, lb::writing_open_mode::CREATE));
 			lb::file_ostream stream;
 			open_stream_with_file_handle(stream, fh);
-			output_sequences_a2m(ref_seq, graph, stream);
+			output_sequences_a2m(ref_seq, graph, stream, be_verbose);
 		}
 	}
 
@@ -398,6 +421,8 @@ namespace {
 				std::exit(EXIT_FAILURE);
 			}
 		}
+
+		std::sort(excluded_samples.begin(), excluded_samples.end());
 	}
 	
 	
@@ -410,7 +435,8 @@ namespace {
 		bool const should_output_sequences_separate,
 		char const *exclude_samples_tsv_path,
 		char const *pipe_cmd,
-		char const *graphviz_output_path
+		char const *graphviz_output_path,
+		bool const be_verbose
 	)
 	{
 		// Read the reference sequence.
@@ -438,9 +464,12 @@ namespace {
 			read_excluded_samples(exclude_samples_tsv_path, chr_id, delegate.excluded_samples);
 			std::cerr << " Done.\n";
 
-			std::cerr << "Excluded the following samples:\n";
-			for (auto const &sample_id : delegate.excluded_samples)
-				std::cerr << sample_id.sample << " (" << sample_id.chromosome_copy_index << ")\n";
+			if (be_verbose)
+			{
+				std::cerr << "Excluded the following samples:\n";
+				for (auto const &sample_id : delegate.excluded_samples)
+					std::cerr << sample_id.sample << " (" << sample_id.chromosome_copy_index << ")\n";
+			}
 		}
 		
 		lb::log_time(std::cerr) << "Building the variant graph…\n";
@@ -460,14 +489,14 @@ namespace {
 		if (sequence_a2m_output_path)
 		{
 			lb::log_time(std::cerr) << "Outputting sequences as A2M…\n";
-			output_sequences_a2m(ref_seq, graph, sequence_a2m_output_path, pipe_cmd);
+			output_sequences_a2m(ref_seq, graph, sequence_a2m_output_path, pipe_cmd, be_verbose);
 			lb::log_time(std::cerr) << "Done.\n";
 		}
 		
 		if (should_output_sequences_separate)
 		{
 			lb::log_time(std::cerr) << "Outputting sequences one by one…" << std::flush;
-			output_sequence_files(ref_seq, graph, pipe_cmd);
+			output_sequence_files(ref_seq, graph, pipe_cmd, be_verbose);
 			std::cerr << " Done.\n";
 		}
 	}
@@ -506,7 +535,8 @@ int main(int argc, char **argv)
 			args_info.output_sequences_separate_flag,
 			args_info.exclude_samples_arg,
 			args_info.pipe_arg,
-			args_info.output_graphviz_arg
+			args_info.output_graphviz_arg,
+			args_info.verbose_flag
 		);
 	}
 	catch (std::exception const &exc)
