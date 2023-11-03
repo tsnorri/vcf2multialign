@@ -10,7 +10,7 @@ option		"reference"					r	"Reference FASTA file path"															string	types
 option		"variants"					a	"Variant call file path"															string	typestr = "filename"		required
 option		"chromosome"				c	"Chromosome identifier"																string	typestr = "identifier"		required
 option		"reference-sequence"		e	"Reference sequence identifier in the input FASTA"									string	typestr = "identifier"		optional
-option		"output-sequences-a2m"		s	"Output reference-guided multipla alignment as A2M"									string	typestr = "filename"		optional
+option		"output-sequences-a2m"		s	"Output reference-guided multiple alignment as A2M"									string	typestr = "filename"		optional
 option		"output-sequences-separate"	-	"Output reference-guided multiple alignment one sequence at a time"					flag	off
 option		"pipe"						-	"Instead of writing sequences to files, pipe the output to the given command"		string	typestr = "command"			optional
 option		"output-graphviz"			d	"Output the variant graph in Graphviz format"										string	typestr = "filename"		optional
