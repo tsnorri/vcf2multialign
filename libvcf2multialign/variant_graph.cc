@@ -251,7 +251,7 @@ namespace vcf2multialign {
 					{
 						// Make sure the row count is divisible by path_matrix_row_col_divisor.
 						std::size_t const path_matrix_rows(path_matrix_row_col_divisor * std::ceil(1.0 * graph.ploidy_csum.back() / path_matrix_row_col_divisor)); 
-						graph.paths_by_chrom_copy_and_edge = variant_graph::path_matrix(path_matrix_rows, path_column_allocation);
+						graph.paths_by_edge_and_chrom_copy = variant_graph::path_matrix(path_matrix_rows, path_column_allocation);
 					}
 					
 					libbio_assert_eq(graph.ploidy_csum.size(), 1 + graph.sample_names.size());
@@ -331,11 +331,11 @@ namespace vcf2multialign {
 					
 					// Check that we have enough space for the paths.
 					{
-						auto const ncol(graph.paths_by_chrom_copy_and_edge.number_of_columns());
+						auto const ncol(graph.paths_by_edge_and_chrom_copy.number_of_columns());
 						if (ncol <= max_edge)
 						{
 							auto const multiplier(4 + ncol / path_column_allocation);
-							graph.paths_by_chrom_copy_and_edge.resize(graph.paths_by_chrom_copy_and_edge.number_of_rows() * multiplier * path_column_allocation, 0);
+							graph.paths_by_edge_and_chrom_copy.resize(graph.paths_by_edge_and_chrom_copy.number_of_rows() * multiplier * path_column_allocation, 0);
 						}
 					}
 					
@@ -384,7 +384,7 @@ namespace vcf2multialign {
 						libbio_assert_lt(edge_idx - min_edge, current_edge_targets.size());
 						auto const target_pos(current_edge_targets[edge_idx - min_edge]);
 						target_ref_positions_by_chrom_copy[row_idx] = target_pos;
-						graph.paths_by_chrom_copy_and_edge(row_idx, edge_idx) |= 1;
+						graph.paths_by_edge_and_chrom_copy(row_idx, edge_idx) |= 1;
 					}
 					
 					prev_ref_pos = ref_pos;
@@ -409,9 +409,9 @@ namespace vcf2multialign {
 		// Does not actually shrink to fit.
 		{
 			std::size_t const ncol(path_matrix_row_col_divisor * std::ceil(1.0 * graph.edge_count() / path_matrix_row_col_divisor));
-			graph.paths_by_chrom_copy_and_edge.resize(graph.paths_by_chrom_copy_and_edge.number_of_rows() * ncol, 0);
+			graph.paths_by_edge_and_chrom_copy.resize(graph.paths_by_edge_and_chrom_copy.number_of_rows() * ncol, 0);
 		}
 		
-		graph.paths_by_chrom_copy_and_edge = transpose_matrix(graph.paths_by_chrom_copy_and_edge);
+		graph.paths_by_chrom_copy_and_edge = transpose_matrix(graph.paths_by_edge_and_chrom_copy);
 	}
 }

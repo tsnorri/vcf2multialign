@@ -8,16 +8,19 @@
 
 #include <cstdint>
 #include <libbio/int_matrix.hh>
-#include <limits>					// std::numeric_limits
+#include <libbio/int_matrix/cereal_serialization.hh>
+#include <libbio/int_vector/cereal_serialization.hh>
+#include <limits>										// std::numeric_limits
 #include <string>
 #include <string_view>
 #include <range/v3/view/zip.hpp>
-#include <utility>					// std::pair
+#include <utility>										// std::pair
 #include <vector>
 
 
 namespace vcf2multialign {
 	
+	typedef std::uint32_t					cereal_version_type;
 	typedef std::vector <char>				sequence_type;
 	
 	
@@ -39,19 +42,22 @@ namespace vcf2multialign {
 		constexpr static inline node_type const NODE_MAX{std::numeric_limits <node_type>::max()};
 		constexpr static inline edge_type const EDGE_MAX{std::numeric_limits <edge_type>::max()};
 		constexpr static inline sample_type const SAMPLE_MAX{std::numeric_limits <sample_type>::max()};
+		constexpr static inline ploidy_type const PLOIDY_MAX{std::numeric_limits <ploidy_type>::max()};
 		
 		position_vector						reference_positions;			// Reference positions by node number.
 		position_vector						aligned_positions;				// MSA positions by node number.
 		node_vector							alt_edge_targets;				// ALT edge targets by edge number.
 		edge_vector							alt_edge_count_csum;			// Cumulative sum of ALT edge counts by 1-based node number.
 		label_vector						alt_edge_labels;				// ALT edge labels by edge number.
-		path_matrix							paths_by_chrom_copy_and_edge;	// Edges on rows, chromosome copies (samples multiplied by ploidy) in columns. (Vice-versa when constructing.)
+		path_matrix							paths_by_chrom_copy_and_edge;	// Edges on rows, chromosome copies (samples multiplied by ploidy) in columns.
+		path_matrix							paths_by_edge_and_chrom_copy;	// Chromosome copies on rows, edges in columns.
 		
 		label_vector						sample_names;					// Sample names by sample index. FIXME: In case we have variant_graph ->> chromosome at some point, this should be in the graph.
 		ploidy_csum_vector					ploidy_csum;					// Cumulative sum of ploidies by 1-based sample number (for this chromosome).
 		
 		node_type node_count() const { return reference_positions.size(); }
 		edge_type edge_count() const { return alt_edge_targets.size(); }
+		auto path_count() const { return paths_by_chrom_copy_and_edge.number_of_columns(); }
 		
 		std::pair <edge_type, edge_type> edge_range_for_node(node_type const &node_idx) const { return {alt_edge_count_csum[node_idx], alt_edge_count_csum[1 + node_idx]}; }
 		
@@ -61,6 +67,11 @@ namespace vcf2multialign {
 		node_type add_node(position_type const ref_pos, position_type const aln_pos);
 		node_type add_or_update_node(position_type const ref_pos, position_type const aln_pos);
 		edge_type add_edge(std::string_view const label = std::string_view{});
+		
+		position_type aligned_length(node_type const lhs, node_type const rhs) const { return aligned_positions[rhs] - aligned_positions[lhs]; }
+		
+		// For Cereal
+		template <typename t_archive> void serialize(t_archive &ar, cereal_version_type const version);
 	};
 	
 	
@@ -68,6 +79,7 @@ namespace vcf2multialign {
 	{
 	public:
 		typedef variant_graph::node_type		node_type;
+		typedef variant_graph::edge_type		edge_type;
 		typedef variant_graph::position_type	position_type;
 		
 		static_assert(std::is_unsigned_v <node_type>);
@@ -102,6 +114,7 @@ namespace vcf2multialign {
 		position_type ref_length(std::size_t const rhs_node) const { libbio_assert_lte(m_node, rhs_node); return ref_length_(rhs_node); }
 		position_type aligned_length() const { return aligned_length_(m_node); }
 		position_type aligned_length(std::size_t const rhs_node) const { libbio_assert_lte(m_node, rhs_node); return aligned_length_(rhs_node); }
+		edge_type alt_edge_count() const { return m_graph->alt_edge_count_csum[1 + m_node] - m_graph->alt_edge_count_csum[m_node]; }
 		inline auto alt_edge_labels() const;
 		inline auto alt_edge_targets() const;
 		inline auto alt_edges() const;
@@ -143,6 +156,21 @@ namespace vcf2multialign {
 		build_graph_statistics &stats,
 		build_graph_delegate &delegate
 	);
+	
+	
+	template <typename t_archive>
+	void variant_graph::serialize(t_archive &ar, cereal_version_type const version)
+	{
+		ar(reference_positions);
+		ar(aligned_positions);
+		ar(alt_edge_targets);
+		ar(alt_edge_count_csum);
+		ar(alt_edge_labels);
+		ar(paths_by_chrom_copy_and_edge);
+		ar(paths_by_edge_and_chrom_copy);
+		ar(sample_names);
+		ar(ploidy_csum);
+	}
 	
 	
 	auto variant_graph_walker::alt_edge_labels() const
