@@ -3,6 +3,9 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
+#include <cereal/archives/portable_binary.hpp>
+#include <cereal/types/vector.hpp>
+#include <cereal/types/string.hpp>
 #include <cstdlib>
 #include <iostream>
 #include <libbio/assert.hh>
@@ -16,6 +19,7 @@
 #include <range/v3/view/iota.hpp>
 #include <string>
 #include <string_view>
+#include <vcf2multialign/output.hh>
 #include <vcf2multialign/variant_graph.hh>
 #include <vector>
 #include "cmdline.h"
@@ -28,19 +32,6 @@ namespace v2m	= vcf2multialign;
 
 
 namespace {
-	
-	typedef lb::subprocess <lb::subprocess_handle_spec::STDIN>	subprocess_type;
-	
-	
-	void open_stream_with_file_handle(
-		lb::file_ostream &stream,
-		lb::file_handle &fh
-	)
-	{
-		stream.open(fh.get(), ios::never_close_handle);
-		stream.exceptions(std::ostream::badbit);
-	}
-	
 	
 	void output_graphviz(
 		v2m::sequence_type const &ref_seq_,
@@ -98,246 +89,6 @@ namespace {
 	}
 	
 	
-	void output_sequence(
-		v2m::sequence_type const &ref_seq,
-		v2m::variant_graph const &graph,
-		v2m::variant_graph::sample_type const sample_idx,
-		v2m::variant_graph::ploidy_type const chr_copy_idx,
-		lb::file_ostream &stream
-	)
-	{
-		typedef v2m::variant_graph				variant_graph;
-		typedef variant_graph::position_type	position_type;
-		typedef variant_graph::node_type		node_type;
-		typedef variant_graph::edge_type		edge_type;
-		
-		position_type ref_pos{};
-		position_type aln_pos{};
-		position_type next_ref_pos{};
-		position_type next_aln_pos{};
-		node_type current_node{};
-		auto const limit(graph.node_count() - 1);
-		auto const chr_copy_idx_(variant_graph::SAMPLE_MAX == sample_idx ? 0 : graph.ploidy_csum[sample_idx] + chr_copy_idx);
-		while (current_node < limit)
-		{
-			std::size_t label_size{};
-			if (variant_graph::SAMPLE_MAX != sample_idx) // Always follow REF edges if outputting the aligned reference.
-			{
-				auto const &[edge_lb, edge_rb] = graph.edge_range_for_node(current_node);
-				for (edge_type edge_idx(edge_lb); edge_idx < edge_rb; ++edge_idx)
-				{
-					if (graph.paths_by_chrom_copy_and_edge(edge_idx, chr_copy_idx_))
-					{
-						// Found an ALT edge to follow.
-						auto const target_node(graph.alt_edge_targets[edge_idx]);
-						auto const &label(graph.alt_edge_labels[edge_idx]);
-						next_ref_pos = graph.reference_positions[target_node];
-						next_aln_pos = graph.aligned_positions[target_node];
-						libbio_assert_lte(label.size(), next_aln_pos - aln_pos);
-						stream << label;
-						current_node = target_node;
-						label_size = label.size();
-						goto continue_loop;
-					}
-				}
-			}
-			
-			{
-				next_ref_pos = graph.reference_positions[current_node + 1];
-				next_aln_pos = graph.aligned_positions[current_node + 1];
-				std::string_view const ref_part(ref_seq.data() + ref_pos, next_ref_pos - ref_pos);
-				stream << ref_part;
-				label_size = ref_part.size();
-				++current_node;
-			}
-			
-		continue_loop:
-			std::fill_n(std::ostreambuf_iterator <char>(stream), next_aln_pos - aln_pos - label_size, '-');
-			ref_pos = next_ref_pos;
-			aln_pos = next_aln_pos;
-		}
-	}
-	
-	
-	void output_sequence(
-		v2m::sequence_type const &ref_seq,
-		v2m::variant_graph const &graph,
-		v2m::variant_graph::sample_type const sample_idx,
-		v2m::variant_graph::ploidy_type const chr_copy_idx,
-		lb::file_handle &fh
-	)
-	{
-		lb::file_ostream stream;
-		open_stream_with_file_handle(stream, fh);
-		output_sequence(ref_seq, graph, sample_idx, chr_copy_idx, stream);
-	}
-	
-	
-	void exit_subprocess(subprocess_type &proc)
-	{
-		auto const res(proc.close());
-		auto const &[close_status, exit_status, pid] = res;
-		if (! (lb::process_handle::close_status::exit_called == close_status && 0 == exit_status))
-		{
-			// Try to determine the reason for the exit status.
-			auto const &status(proc.status());
-			switch (status.execution_status)
-			{
-				case lb::execution_status_type::no_error:
-				{
-					std::cerr << "ERROR: Subprocess with PID " << pid << " exited with status " << exit_status;
-					switch (close_status)
-					{
-						case lb::process_handle::close_status::unknown:
-							std::cerr << " (exiting reason not known)";
-							break;
-						case lb::process_handle::close_status::terminated_by_signal:
-							std::cerr << " (terminated by signal)";
-							break;
-						case lb::process_handle::close_status::stopped_by_signal:
-							std::cerr << " (stopped by signal)";
-							break;
-						default:
-							break;
-					}
-					break;
-				}
-				
-				case lb::execution_status_type::file_descriptor_handling_failed:
-				case lb::execution_status_type::exec_failed:
-				{
-					std::cerr << "ERROR: Unable to start subprocess: " << strerror(status.error);
-					break;
-				}
-			}
-			
-			std::cerr << '\n';
-			std::exit(EXIT_FAILURE);
-		}
-	}
-	
-	
-	void output_sequence_file(
-		v2m::sequence_type const &ref_seq,
-		v2m::variant_graph const &graph,
-		v2m::variant_graph::sample_type const sample_idx,
-		v2m::variant_graph::ploidy_type const chr_copy_idx,
-		char const * const pipe_cmd,
-		char const * const dst_name
-	)
-	{
-		if (pipe_cmd)
-		{
-			auto proc(subprocess_type::subprocess_with_arguments({pipe_cmd, dst_name}));
-			auto &fh(proc.stdin_handle());
-			output_sequence(ref_seq, graph, sample_idx, chr_copy_idx, fh);
-			exit_subprocess(proc);
-		}
-		else
-		{
-			lb::file_handle fh(lb::open_file_for_writing(dst_name, lb::writing_open_mode::CREATE));
-			output_sequence(ref_seq, graph, sample_idx, chr_copy_idx, fh);
-		}
-	}
-	
-	
-	void output_sequence_files(
-		v2m::sequence_type const &ref_seq,
-		v2m::variant_graph const &graph,
-		char const * const pipe_cmd,
-		bool const be_verbose
-	)
-	{
-		typedef v2m::variant_graph			variant_graph;
-		typedef variant_graph::ploidy_type	ploidy_type;
-		
-		output_sequence_file(ref_seq, graph, variant_graph::SAMPLE_MAX, 0, pipe_cmd, "REF");
-		for (auto const &[sample_idx, sample] : rsv::enumerate(graph.sample_names))
-		{
-			auto const ploidy(graph.sample_ploidy(sample_idx));
-			for (auto const chr_copy_idx : rsv::iota(ploidy_type(0), ploidy))
-			{
-				if (be_verbose)
-					lb::log_time(std::cerr) << "Sample: " << sample << " (" << (1 + sample_idx) << "/" << graph.sample_names.size() << ") copy index: " << chr_copy_idx << '\n';
-
-				// FIXME: Use std::format.
-				std::stringstream dst_name;
-				dst_name << sample;
-				dst_name << '-';
-				dst_name << chr_copy_idx;
-				output_sequence_file(ref_seq, graph, sample_idx, chr_copy_idx, pipe_cmd, dst_name.str().data());
-			}
-		}
-	}
-	
-	
-	void output_sequences_a2m(
-		v2m::sequence_type const &ref_seq,
-		v2m::variant_graph const &graph,
-		lb::file_ostream &stream,
-		bool const be_verbose
-	)
-	{
-		typedef v2m::variant_graph			variant_graph;
-		typedef variant_graph::ploidy_type	ploidy_type;
-		
-		stream << ">REF\n";
-		output_sequence(ref_seq, graph, variant_graph::SAMPLE_MAX, 0, stream);
-		stream << '\n';
-		
-		std::uint32_t seq_count{1};
-		auto const total_seq_count(graph.total_chromosome_copies());
-		for (auto const &[sample_idx, sample] : rsv::enumerate(graph.sample_names))
-		{
-			auto const ploidy(graph.sample_ploidy(sample_idx));
-			for (auto const chr_copy_idx : rsv::iota(ploidy_type(0), ploidy))
-			{
-				if (be_verbose)
-					lb::log_time(std::cerr) << "Sample: " << sample << " (" << (1 + sample_idx) << "/" << graph.sample_names.size() << ") copy index: " << chr_copy_idx << '\n';
-
-				stream << '>' << sample << '-' << chr_copy_idx << '\n';
-				output_sequence(ref_seq, graph, sample_idx, chr_copy_idx, stream);
-				stream << '\n';
-
-				++seq_count;
-				if (0 == seq_count % 10)
-					lb::log_time(std::cerr) << "Handled " << seq_count << '/' << total_seq_count << " sequences…\n";
-			}
-		}
-	}
-	
-	
-	void output_sequences_a2m(
-		v2m::sequence_type const &ref_seq,
-		v2m::variant_graph const &graph,
-		char const * const dst_name,
-		char const * const pipe_cmd,
-		bool const be_verbose
-	)
-	{
-		if (pipe_cmd)
-		{
-			auto proc(subprocess_type::subprocess_with_arguments({pipe_cmd, dst_name}));
-			auto &fh(proc.stdin_handle());
-			
-			{
-				lb::file_ostream stream;
-				open_stream_with_file_handle(stream, fh);
-				output_sequences_a2m(ref_seq, graph, stream, be_verbose);
-			}
-			
-			exit_subprocess(proc);
-		}
-		else
-		{
-			lb::file_handle fh(lb::open_file_for_writing(dst_name, lb::writing_open_mode::CREATE));
-			lb::file_ostream stream;
-			open_stream_with_file_handle(stream, fh);
-			output_sequences_a2m(ref_seq, graph, stream, be_verbose);
-		}
-	}
-
-
 	template <typename t_string>
 	struct sample_identifier_tpl
 	{
@@ -362,7 +113,7 @@ namespace {
 	typedef sample_identifier_tpl <std::string_view>	sample_identifier_sv;
 
 
-	struct build_variant_graph_delegate : public v2m::build_graph_delegate
+	struct build_variant_graph_delegate final : public v2m::build_graph_delegate
 	{
 		std::vector <sample_identifier>	excluded_samples;
 
@@ -426,44 +177,22 @@ namespace {
 	}
 	
 	
-	void run(
-		char const *reference_path,
+	void build_variant_graph(
 		char const *variants_path,
-		char const *ref_seq_id,
 		char const *chr_id,
-		char const *sequence_a2m_output_path,
-		bool const should_output_sequences_separate,
 		char const *exclude_samples_tsv_path,
-		char const *pipe_cmd,
-		char const *graphviz_output_path,
+		v2m::sequence_type const &ref_seq,
+		v2m::variant_graph &graph,
 		bool const be_verbose
 	)
 	{
-		// Read the reference sequence.
-		v2m::sequence_type ref_seq;
-		{
-			if (ref_seq_id)
-				lb::log_time(std::cerr) << "Reading reference sequence with identifier “" << ref_seq_id << "”…" << std::flush;
-			else
-				lb::log_time(std::cerr) << "Reading the first reference sequence from the input FASTA…" << std::flush;
-			auto const res(lb::read_single_fasta_sequence(reference_path, ref_seq, ref_seq_id));
-			
-			if (!res)
-			{
-				std::cerr << " ERROR: Unable to read the reference sequence.\n";
-				std::exit(EXIT_FAILURE);
-			}
-			
-			std::cerr << " Done. Reference length is " << ref_seq.size() << ".\n";
-		}
-
 		build_variant_graph_delegate delegate;
 		if (exclude_samples_tsv_path)
 		{
 			lb::log_time(std::cerr) << "Reading the excluded sample list…" << std::flush;
 			read_excluded_samples(exclude_samples_tsv_path, chr_id, delegate.excluded_samples);
 			std::cerr << " Done.\n";
-
+			
 			if (be_verbose)
 			{
 				std::cerr << "Excluded the following samples:\n";
@@ -473,31 +202,199 @@ namespace {
 		}
 		
 		lb::log_time(std::cerr) << "Building the variant graph…\n";
-		v2m::variant_graph graph;
 		v2m::build_graph_statistics stats;
 		v2m::build_variant_graph(ref_seq, variants_path, chr_id, graph, stats, delegate);
 		lb::log_time(std::cerr) << "Done. Handled variants: " << stats.handled_variants << " chromosome ID mismatches: " << stats.chr_id_mismatches << "\n";
+	}
+	
+	
+	class output_delegate final : public v2m::output_delegate
+	{
+	private:
+		v2m::variant_graph const	*m_graph{};
+		bool						m_is_verbose{};
 		
-		if (graphviz_output_path)
+	public:
+		output_delegate(v2m::variant_graph const &graph, bool const is_verbose):
+			m_graph(&graph),
+			m_is_verbose(is_verbose)
 		{
-			lb::log_time(std::cerr) << "Outputting the variant graph in Grapnviz format…" << std::flush;
-			lb::file_handle fh(lb::open_file_for_writing(graphviz_output_path, lb::writing_open_mode::CREATE));
+		}
+		
+		
+		void will_handle_sample(std::string const &sample, sample_type const sample_idx, ploidy_type const chr_copy_idx) override
+		{
+			if (m_is_verbose)
+				lb::log_time(std::cerr) << "Sample: " << sample << " (" << (1 + sample_idx) << "/" << m_graph->sample_names.size() << ") copy index: " << chr_copy_idx << '\n';
+		}
+		
+		
+		void will_handle_founder_sequence(sample_type const sample_idx) override
+		{
+			if (m_is_verbose)
+				lb::log_time(std::cerr) << "Founder sequence " << sample_idx << '\n';
+		}
+		
+		
+		void handled_sequences(sequence_count_type const seq_count) override
+		{
+			if (0 == seq_count % 10)
+			{
+				auto const total_seq_count(m_graph->total_chromosome_copies());
+				lb::log_time(std::cerr) << "Handled " << seq_count << '/' << total_seq_count << " sequences…\n";
+			}
+		}
+		
+		
+		void exit_subprocess(v2m::subprocess_type &proc) override
+		{
+			auto const res(proc.close());
+			auto const &[close_status, exit_status, pid] = res;
+			if (! (lb::process_handle::close_status::exit_called == close_status && 0 == exit_status))
+			{
+				// Try to determine the reason for the exit status.
+				auto const &status(proc.status());
+				switch (status.execution_status)
+				{
+					case lb::execution_status_type::no_error:
+					{
+						std::cerr << "ERROR: Subprocess with PID " << pid << " exited with status " << exit_status;
+						switch (close_status)
+						{
+							case lb::process_handle::close_status::unknown:
+								std::cerr << " (exiting reason not known)";
+								break;
+							case lb::process_handle::close_status::terminated_by_signal:
+								std::cerr << " (terminated by signal)";
+								break;
+							case lb::process_handle::close_status::stopped_by_signal:
+								std::cerr << " (stopped by signal)";
+								break;
+							default:
+								break;
+						}
+						break;
+					}
+				
+					case lb::execution_status_type::file_descriptor_handling_failed:
+					case lb::execution_status_type::exec_failed:
+					{
+						std::cerr << "ERROR: Unable to start subprocess: " << strerror(status.error);
+						break;
+					}
+				}
+			
+				std::cerr << '\n';
+				std::exit(EXIT_FAILURE);
+			}
+		}
+	};
+	
+	
+	void run(gengetopt_args_info const &args_info)
+	{
+		// Read the reference sequence.
+		v2m::sequence_type ref_seq;
+		{
+			if (args_info.reference_sequence_arg)
+				lb::log_time(std::cerr) << "Reading reference sequence with identifier “" << args_info.reference_sequence_arg << "”…" << std::flush;
+			else
+				lb::log_time(std::cerr) << "Reading the first reference sequence from the input FASTA…" << std::flush;
+			auto const res(lb::read_single_fasta_sequence(args_info.input_reference_arg, ref_seq, args_info.reference_sequence_arg));
+			
+			if (!res)
+			{
+				std::cerr << " ERROR: Unable to read the reference sequence.\n";
+				std::exit(EXIT_FAILURE);
+			}
+			
+			std::cerr << " Done. Reference length is " << ref_seq.size() << ".\n";
+		}
+		
+		v2m::variant_graph graph;
+		if (args_info.input_graph_given)
+		{
+			lb::log_time(std::cerr) << "Loading the variant graph from " << args_info.input_graph_arg << "…" << std::flush;
+			lb::file_istream is;
+			lb::open_file_for_reading(args_info.input_graph_arg, is);
+			cereal::PortableBinaryInputArchive archive(is);
+			archive(graph);
+			std::cerr << " Done.\n";
+		}
+		else
+		{
+			build_variant_graph(args_info.input_variants_arg, args_info.chromosome_arg, args_info.exclude_samples_arg, ref_seq, graph, args_info.verbose_given);
+		}
+		
+		if (args_info.output_graph_given)
+		{
+			lb::log_time(std::cerr) << "Outputting the variant graph…" << std::flush;
+			lb::file_ostream os;
+			lb::open_file_for_writing(args_info.output_graph_arg, os, lb::writing_open_mode::CREATE);
+			cereal::PortableBinaryOutputArchive archive(os);
+			archive(graph);
+			std::cerr << " Done.\n";
+		}
+		
+		if (args_info.output_graphviz_given)
+		{
+			lb::log_time(std::cerr) << "Outputting the variant graph in Graphviz format…" << std::flush;
+			lb::file_handle fh(lb::open_file_for_writing(args_info.output_graphviz_arg, lb::writing_open_mode::CREATE));
 			output_graphviz(ref_seq, graph, fh);
 			std::cerr << " Done.\n";
 		}
 		
-		if (sequence_a2m_output_path)
 		{
-			lb::log_time(std::cerr) << "Outputting sequences as A2M…\n";
-			output_sequences_a2m(ref_seq, graph, sequence_a2m_output_path, pipe_cmd, be_verbose);
-			lb::log_time(std::cerr) << "Done.\n";
-		}
-		
-		if (should_output_sequences_separate)
-		{
-			lb::log_time(std::cerr) << "Outputting sequences one by one…" << std::flush;
-			output_sequence_files(ref_seq, graph, pipe_cmd, be_verbose);
-			std::cerr << " Done.\n";
+			output_delegate delegate(graph, args_info.verbose_given);
+			auto do_output([&args_info, &ref_seq, &graph](v2m::output &output){
+				if (args_info.output_sequences_a2m_given)
+				{
+					lb::log_time(std::cerr) << "Outputting sequences as A2M…\n";
+					output.output_a2m(ref_seq, graph, args_info.output_sequences_a2m_arg);
+					lb::log_time(std::cerr) << "Done.\n";
+				}
+				
+				if (args_info.output_sequences_separate_given)
+				{
+					lb::log_time(std::cerr) << "Outputting sequences one by one…" << std::flush;
+					output.output_separate(ref_seq, graph);
+					std::cerr << " Done.\n";
+				}
+			});
+			
+			if (args_info.haplotypes_given)
+			{
+				v2m::haplotype_output output(args_info.pipe_arg, delegate);
+				do_output(output);
+			}
+			else if (args_info.founder_sequences_given)
+			{
+				v2m::founder_sequence_greedy_output output(args_info.pipe_arg, delegate);
+				
+				if (args_info.input_cut_positions_given)
+					output.load_cut_positions(args_info.input_cut_positions_arg);
+				else
+				{
+					lb::log_time(std::cerr) << "Optimising cut positions…\n";
+					if (!output.find_cut_positions(graph, args_info.minimum_distance_arg))
+					{
+						std::cerr << "ERROR: Unable to optimise cut positions.\n";
+						std::exit(EXIT_FAILURE);
+					}
+					
+					lb::log_time(std::cerr) << "Finding matchings in the variant graph…\n";
+					if (!output.find_matching(graph, args_info.founder_sequences_arg))
+					{
+						std::cerr << "ERROR: Unable to find matchings.\n";
+						std::exit(EXIT_FAILURE);
+					}
+				}
+				
+				if (args_info.output_cut_positions_given)
+					output.output_cut_positions(args_info.output_cut_positions_arg);
+				
+				do_output(output);
+			}
 		}
 	}
 }
@@ -511,7 +408,7 @@ int main(int argc, char **argv)
 	
 	gengetopt_args_info args_info;
 	if (0 != cmdline_parser(argc, argv, &args_info))
-		exit(EXIT_FAILURE);
+		std::exit(EXIT_FAILURE);
 	
 	std::ios_base::sync_with_stdio(false);	// Don't use C style IO after calling cmdline_parser.
 	std::cin.tie(nullptr);					// We don't require any input from the user.
@@ -524,20 +421,51 @@ int main(int argc, char **argv)
 		std::cerr << '\n';
 	}
 	
+	if (args_info.input_variants_given && args_info.input_graph_given)
+	{
+		std::cerr << "ERROR: Only one of --input-variants and --input-graph can be specified.\n";
+		std::exit(EXIT_FAILURE);
+	}
+	
+	if (! (args_info.input_variants_given || args_info.input_graph_given))
+	{
+		std::cerr << "ERROR: One of --input-variants and --input-graph must be specified.\n";
+		std::exit(EXIT_FAILURE);
+	}
+	
+	if (args_info.input_variants_given && !args_info.chromosome_given)
+	{
+		std::cerr << "ERROR: --chromosome must be specified with --input-variants.\n";
+		std::exit(EXIT_FAILURE);
+	}
+	
+	if (! (args_info.haplotypes_given || args_info.founder_sequences_given))
+	{
+		std::cerr << "ERROR: Unknown mode.\n";
+		std::exit(EXIT_FAILURE);
+	}
+	
+	if (args_info.founder_sequences_given && args_info.founder_sequences_arg <= 0)
+	{
+		std::cerr << "ERROR: --founder-sequences must be positive.\n";
+		std::exit(EXIT_FAILURE);
+	}
+	
+	if (args_info.minimum_distance_given && args_info.input_cut_positions_given)
+	{
+		std::cerr << "ERROR: --input-cut-positions and --minimum-distance are mutually exclusive.\n";
+		std::exit(EXIT_FAILURE);
+	}
+	
+	if (args_info.minimum_distance_arg < 0)
+	{
+		std::cerr << "ERROR: --minimum-distance must be non-negative.\n";
+		std::exit(EXIT_FAILURE);
+	}
+	
 	try
 	{
-		run(
-			args_info.reference_arg,
-			args_info.variants_arg,
-			args_info.reference_sequence_arg,
-			args_info.chromosome_arg,
-			args_info.output_sequences_a2m_arg,
-			args_info.output_sequences_separate_flag,
-			args_info.exclude_samples_arg,
-			args_info.pipe_arg,
-			args_info.output_graphviz_arg,
-			args_info.verbose_flag
-		);
+		run(args_info);
 	}
 	catch (std::exception const &exc)
 	{
