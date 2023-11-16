@@ -439,12 +439,6 @@ int main(int argc, char **argv)
 		std::exit(EXIT_FAILURE);
 	}
 	
-	if (! (args_info.haplotypes_given || args_info.founder_sequences_given))
-	{
-		std::cerr << "ERROR: Unknown mode.\n";
-		std::exit(EXIT_FAILURE);
-	}
-	
 	if (args_info.founder_sequences_given && args_info.founder_sequences_arg <= 0)
 	{
 		std::cerr << "ERROR: --founder-sequences must be positive.\n";
