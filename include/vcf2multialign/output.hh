@@ -8,6 +8,7 @@
 
 #include <libbio/matrix.hh>
 #include <libbio/subprocess.hh>
+#include <vcf2multialign/find_cut_positions.hh>
 #include <vcf2multialign/variant_graph.hh>
 
 
@@ -82,6 +83,7 @@ namespace vcf2multialign {
 		{
 			cut_position_vector			cut_positions;
 			variant_graph::edge_type	min_distance{};
+			cut_position_score_type		score{};
 			
 			// For Cereal.
 			template <typename t_archive> void serialize(t_archive &ar, cereal_version_type const version);
@@ -112,6 +114,7 @@ namespace vcf2multialign {
 	{
 		ar(min_distance);
 		ar(cut_positions);
+		ar(score);
 	}
 }
 
