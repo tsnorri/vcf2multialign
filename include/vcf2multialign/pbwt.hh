@@ -62,6 +62,7 @@ namespace vcf2multialign {
 	{
 		if (count)
 		{
+			divergence[0] = 0;
 			divergence_value_counts[0] = 1;
 			if (1 < count)
 				divergence_value_counts[DIVERGENCE_MAX] = count - 1;
