@@ -57,7 +57,6 @@ namespace vcf2multialign {
 		
 		node_type node_count() const { return reference_positions.size(); }
 		edge_type edge_count() const { return alt_edge_targets.size(); }
-		ploidy_type path_count() const { return ploidy_csum.back(); }
 		
 		std::pair <edge_type, edge_type> edge_range_for_node(node_type const &node_idx) const { return {alt_edge_count_csum[node_idx], alt_edge_count_csum[1 + node_idx]}; }
 		
