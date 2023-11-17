@@ -32,6 +32,8 @@ namespace vcf2multialign {
 			static_assert(std::is_unsigned_v <divergence_type>);
 			
 			divergence_type	value{};
+
+			divergence_value() = default;
 			
 			/* implicit */ divergence_value(divergence_type const value_):
 				value(value_)
@@ -45,12 +47,12 @@ namespace vcf2multialign {
 		
 		std::vector <index_type>				permutation;
 		std::vector <index_type>				prev_permutation;
-		std::vector <divergence_type>			divergence;
-		std::vector <divergence_type>			prev_divergence;
+		std::vector <divergence_value>			divergence;
+		std::vector <divergence_value>			prev_divergence;
 		std::map <divergence_value, count_type>	divergence_value_counts;
 		
 		explicit pbwt_context(count_type const count);
-		void update_divergence(libbio::bit_matrix::const_slice_type const slice, divergence_type const kk);
+		void update_divergence(libbio::bit_matrix::const_slice_type const slice, divergence_value const kk);
 		void swap_vectors();
 	};
 	
@@ -72,10 +74,12 @@ namespace vcf2multialign {
 	
 	
 	template <typename t_index, typename t_divergence, typename t_count>
-	void pbwt_context <t_index, t_divergence, t_count>::update_divergence(libbio::bit_matrix::const_slice_type const slice, divergence_type const kk)
+	void pbwt_context <t_index, t_divergence, t_count>::update_divergence(libbio::bit_matrix::const_slice_type const slice, divergence_value const kk)
 	{
 		// Mostly following Algorithm 2 in Efficient haplotype matching and storage using the positional
 		// Burrows–Wheeler transform (PBWT).
+
+		// Note that the size of the matrix slice may be greater than that of the permutation b.c. the former must be word-aligned.
 	
 		// First count the ones.
 		t_count zero_idx{};
@@ -89,8 +93,8 @@ namespace vcf2multialign {
 		// Update the sorted order.
 		permutation.resize(prev_permutation.size());
 		divergence.resize(prev_divergence.size());
-		divergence_type pp{kk + 1};
-		divergence_type qq{kk + 1};
+		divergence_value pp{kk + 1};
+		divergence_value qq{kk + 1};
 		for (t_count ii{}; ii < prev_permutation.size(); ++ii)
 		{
 			auto const val_idx(prev_permutation[ii]);
