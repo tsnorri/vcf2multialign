@@ -7,14 +7,14 @@ usage		"vcf2multialign --haplotypes|--founder-sequences --input-reference=filena
 description	"vcf2multialign reads the variant file and produces a graph representation that may be used to generate a reference-guided multiple sequence alignment of haplotypes or founder sequences."
 
 defmode		"Haplotypes"		modedesc = "Produce predicted haplotype sequences."
-modeoption	"haplotypes"				H	"Produce predicted haplotype sequences"												mode = "Haplotypes"											required
+modeoption	"haplotypes"				H	"Produce predicted haplotype sequences"								mode = "Haplotypes"															required
 
 defmode		"Founder sequences"	modedesc = "Produce founder sequences."
 text		"  If not given as input, optimal cut positions will be calculated."
-modeoption	"founder-sequences"			F	"Produce founder sequences"															mode = "Founder sequences"	long	typestr = "count"		required
-modeoption	"minimum-distance"			d	"Minimum node distance (MSA co-ordinates)"											mode = "Founder sequences"	long	typestr = "distance"	default = "0"
-modeoption	"input-cut-positions"		p	"Cut position input"																mode = "Founder sequences"	string	typestr = "filename"	optional
-modeoption	"output-cut-positions"		t	"Output the cut positions"															mode = "Founder sequences"	string	typestr = "filename"	optional
+modeoption	"founder-sequences"			F	"Produce founder sequences"											mode = "Founder sequences"	long	typestr = "count"						required
+modeoption	"minimum-distance"			d	"Minimum node distance (MSA co-ordinates)"							mode = "Founder sequences"	long	typestr = "distance"	default = "0"	optional
+modeoption	"input-cut-positions"		p	"Cut position input"												mode = "Founder sequences"	string	typestr = "filename"					optional
+modeoption	"output-cut-positions"		t	"Output the cut positions"											mode = "Founder sequences"	string	typestr = "filename"					optional
 
 section		"Common input options"
 option		"input-reference"			r	"Reference FASTA file path"															string	typestr = "filename"								required
