@@ -222,7 +222,7 @@ namespace vcf2multialign {
 					}
 				}
 				
-				if (2 <= cut_pos_idx)
+				if (1 < cut_pos_idx)
 				{
 					// Sort by the size. (The smallest will be the first.)
 					std::sort(joined_path_eq_classes.begin(), joined_path_eq_classes.end());
