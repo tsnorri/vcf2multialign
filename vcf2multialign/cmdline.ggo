@@ -11,7 +11,7 @@ modeoption	"haplotypes"				H	"Produce predicted haplotype sequences"												
 
 defmode		"Founder sequences"	modedesc = "Produce founder sequences."
 text		"  If not given as input, optimal cut positions will be calculated."
-modeoption	"founder-sequences"			G	"Produce founder sequences"															mode = "Founder sequences"	long	typestr = "count"		required
+modeoption	"founder-sequences"			F	"Produce founder sequences"															mode = "Founder sequences"	long	typestr = "count"		required
 modeoption	"minimum-distance"			d	"Minimum node distance (MSA co-ordinates)"											mode = "Founder sequences"	long	default = "0"
 modeoption	"input-cut-positions"		p	"Cut position input"																mode = "Founder sequences"	string	typestr = "filename"	optional
 modeoption	"output-cut-positions"		t	"Output the cut positions"															mode = "Founder sequences"	string	typestr = "filename"	optional
