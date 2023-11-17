@@ -131,6 +131,7 @@ namespace vcf2multialign {
 			return false;
 		
 		m_cut_positions.min_distance = min_dist;
+		m_cut_positions.score = score;
 		return true;
 	}
 	
@@ -143,7 +144,7 @@ namespace vcf2multialign {
 		// classes of paths from the left cutting position of the pair to the right one.
 		// Finally we use the sizes of the resulting equivalence classes in the mathcing.
 		
-		if (m_cut_positions.cut_positions.size() < 3)
+		if (m_cut_positions.cut_positions.size() < 2)
 			return false;
 		
 		libbio_assert_eq(0, m_cut_positions.cut_positions.front());
@@ -159,7 +160,7 @@ namespace vcf2multialign {
 		
 		variant_graph_walker walker(graph);
 		variant_graph::edge_type edge_idx{};
-		variant_graph::edge_type prev_cut_edge_idx{variant_graph::EDGE_MAX};
+		variant_graph::edge_type prev_cut_edge_idx{};
 		variant_graph::edge_type cut_pair_edge_idx{};
 		
 		std::vector <ploidy_type> lhs_eq_classes(graph.total_chromosome_copies(), PLOIDY_MAX);
@@ -168,11 +169,11 @@ namespace vcf2multialign {
 		ploidy_type rhs_distinct_eq_classes{};
 		std::vector <joined_path_eq_class> joined_path_eq_classes;
 		
-		// m_cut_positions has a sentinel.
+		// m_cut_positions has a value for the sink node.
 		auto cut_pos_it(m_cut_positions.cut_positions.begin());
 		++cut_pos_it; // Node zero.
 		
-		pbwt_context_type pbwt_ctx(graph.path_count());
+		pbwt_context_type pbwt_ctx(graph.total_chromosome_copies());
 		
 		// Handle the rest.
 		for (variant_graph::position_type cut_pos_idx{}; walker.advance(); ++cut_pos_idx)
@@ -210,7 +211,7 @@ namespace vcf2multialign {
 						rhs_eq_classes[aa] = rep;
 						
 						// We rely on the branch predictor to take care of this.
-						if (0 < cut_pos_idx)
+						if (1 < cut_pos_idx)
 						{
 							if (cut_pair_edge_idx < dd)
 								joined_path_eq_classes.emplace_back(lhs_eq_classes[aa], rep);
@@ -221,12 +222,12 @@ namespace vcf2multialign {
 					}
 				}
 				
-				if (cut_pos_idx)
+				if (2 <= cut_pos_idx)
 				{
 					// Sort by the size. (The smallest will be the first.)
 					std::sort(joined_path_eq_classes.begin(), joined_path_eq_classes.end());
 					
-					if (1 == cut_pos_idx)
+					if (2 == cut_pos_idx)
 					{
 						// Second cut position; initial assignment.
 						
