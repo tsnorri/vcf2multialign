@@ -176,7 +176,7 @@ namespace vcf2multialign {
 		pbwt_context_type pbwt_ctx(graph.total_chromosome_copies());
 		
 		// Handle the rest.
-		for (variant_graph::position_type cut_pos_idx{}; walker.advance(); ++cut_pos_idx)
+		for (variant_graph::position_type cut_pos_idx{}; walker.advance();)
 		{
 			libbio_assert_neq(cut_pos_it, m_cut_positions.cut_positions.end());
 			
@@ -238,7 +238,7 @@ namespace vcf2multialign {
 						
 						auto const do_assign([&](joined_path_eq_class const &eq_class){
 							assignments_by_eq_class.emplace(eq_class.lhs_rep, founder_idx);
-							m_assigned_samples(cut_pos_idx - 1, founder_idx) = eq_class.lhs_rep;
+							m_assigned_samples(0, founder_idx) = eq_class.lhs_rep;
 							++founder_idx;
 						});
 						
@@ -303,7 +303,7 @@ namespace vcf2multialign {
 								// Found a suitable assignment.
 								auto const founder_idx(it->second);
 								assignments_by_eq_class.erase(it);
-								m_assigned_samples(cut_pos_idx, founder_idx) = eq_class.rhs_rep;
+								m_assigned_samples(cut_pos_idx - 1, founder_idx) = eq_class.rhs_rep;
 								return true;
 							}
 							
@@ -406,6 +406,7 @@ namespace vcf2multialign {
 					}
 				}
 				
+				++cut_pos_idx;
 				++cut_pos_it;
 				cut_pair_edge_idx = prev_cut_edge_idx;
 				prev_cut_edge_idx = edge_idx;
