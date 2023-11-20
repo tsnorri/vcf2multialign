@@ -211,7 +211,7 @@ namespace vcf2multialign {
 						rhs_eq_classes[aa] = rep;
 						
 						// We rely on the branch predictor to take care of this.
-						if (1 < cut_pos_idx)
+						if (0 < cut_pos_idx)
 						{
 							if (cut_pair_edge_idx < dd)
 								joined_path_eq_classes.emplace_back(lhs_eq_classes[aa], rep);
@@ -222,17 +222,18 @@ namespace vcf2multialign {
 					}
 				}
 				
-				if (1 < cut_pos_idx)
+				if (0 < cut_pos_idx)
 				{
 					// Sort by the size. (The smallest will be the first.)
 					std::sort(joined_path_eq_classes.begin(), joined_path_eq_classes.end());
 					
-					if (2 == cut_pos_idx)
+					if (1 == cut_pos_idx)
 					{
 						// Second cut position; initial assignment.
 						
 						auto remaining_founders(founder_count);
-						remaining_founders -= lhs_distinct_eq_classes;
+						auto remaining_reserved(std::min(remaining_founders, lhs_distinct_eq_classes));
+						remaining_founders -= remaining_reserved;
 						
 						ploidy_type founder_idx{};
 						
@@ -256,9 +257,10 @@ namespace vcf2multialign {
 									do_assign(eq_class);
 								}
 							}
-							else
+							else if (remaining_reserved)
 							{
 								// Mark seen and place a copy.
+								--remaining_reserved;
 								ref |= 0x1;
 								do_assign(eq_class);
 							}
@@ -294,7 +296,8 @@ namespace vcf2multialign {
 						arbitrarily_connected_rhs.clear();
 						
 						auto remaining_founders(founder_count);
-						remaining_founders -= rhs_distinct_eq_classes;
+						auto remaining_reserved(std::min(remaining_founders, rhs_distinct_eq_classes));
+						remaining_founders -= remaining_reserved;
 						
 						auto const try_assign([&](joined_path_eq_class const &eq_class) -> bool {
 							auto const it(assignments_by_eq_class.find(eq_class.lhs_rep));
@@ -303,7 +306,7 @@ namespace vcf2multialign {
 								// Found a suitable assignment.
 								auto const founder_idx(it->second);
 								assignments_by_eq_class.erase(it);
-								m_assigned_samples(cut_pos_idx - 1, founder_idx) = eq_class.rhs_rep;
+								m_assigned_samples(cut_pos_idx, founder_idx) = eq_class.rhs_rep;
 								return true;
 							}
 							
@@ -344,11 +347,12 @@ namespace vcf2multialign {
 											goto continue_subsequent_assignment;
 										}
 									}
-									else
+									else if (remaining_reserved)
 									{
 										// Mark seen and place a copy.
 										// Not adding to arbitrarily_connected_rhs on success is actually a small
 										// optimisation since we re-check reserved_assignments in (4) anyway.
+										--remaining_reserved;
 										if (try_assign(eq_class))
 											ref |= 0x1;
 										else
