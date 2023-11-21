@@ -8,7 +8,8 @@ CPPFLAGS += -I$(CATCH2_PREFIX)/single_include
 CXXFLAGS += -coverage
 LDFLAGS += -coverage
 
-OBJECTS	=	transpose_matrix.o \
+OBJECTS	=	founder_sequences.o \
+			transpose_matrix.o \
 			variant_graph.o \
 			main.o
 
