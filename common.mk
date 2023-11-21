@@ -16,6 +16,7 @@ PATCH			?= patch
 RAGEL			?= ragel
 TAR				?= tar
 WGET			?= wget
+GCOVR			?= gcovr
 
 CFLAGS			?=
 CXXFLAGS		?=

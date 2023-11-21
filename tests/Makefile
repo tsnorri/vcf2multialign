@@ -20,18 +20,23 @@ GCNO = $(OBJECTS:.o=.gcno)
 LIBRARIES = ../libvcf2multialign/libvcf2multialign.a ../lib/libbio/src/libbio.a ../lib/libbio/lib/rapidcheck/build/librapidcheck.a
 
 
-all: run-tests
+all: tests
 
 
-.PHONY: run-tests clean clean-tests
+.PHONY: run-tests clean clean-tests coverage
 
 
 run-tests: tests
 	./tests
 
 
+coverage: run-tests
+	$(MKDIR) -p coverage
+	$(GCOVR) --root .. --print-summary --html --html-details -o coverage/index.html .
+
+
 tests: $(OBJECTS) $(LIBRARIES)
-	$(CXX) -o $@ $(OBJECTS) $(LDFLAGS) $(LIBRARIES) $(BOOST_LIBS)
+	$(CXX) -o $@ $(OBJECTS) $(LDFLAGS) $(LIBRARIES) $(BOOST_LIBS) -lgcov
 
 
 clean: clean-tests
