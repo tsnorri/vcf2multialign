@@ -7,6 +7,7 @@
 #define VCF2MULTIALIGN_VARIANT_GRAPH_HH
 
 #include <cstdint>
+#include <filesystem>
 #include <libbio/int_matrix.hh>
 #include <libbio/int_matrix/cereal_serialization.hh>
 #include <libbio/int_vector/cereal_serialization.hh>
@@ -156,6 +157,19 @@ namespace vcf2multialign {
 		build_graph_statistics &stats,
 		build_graph_delegate &delegate
 	);
+	
+	
+	inline void build_variant_graph(
+		sequence_type const &ref_seq,
+		std::filesystem::path const &variants_path,
+		char const *chr_id,
+		variant_graph &graph,
+		build_graph_statistics &stats,
+		build_graph_delegate &delegate
+	)
+	{
+		build_variant_graph(ref_seq, variants_path.c_str(), chr_id, graph, stats, delegate);
+	}
 	
 	
 	template <typename t_archive>
