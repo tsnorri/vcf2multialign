@@ -459,7 +459,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	void founder_sequence_greedy_output::output_sequences_a2m(sequence_type const &ref_seq, variant_graph const &graph, lb::file_ostream &stream)
+	void founder_sequence_greedy_output::output_a2m(sequence_type const &ref_seq, variant_graph const &graph, std::ostream &stream)
 	{
 		typedef variant_graph::ploidy_type	ploidy_type;
 		

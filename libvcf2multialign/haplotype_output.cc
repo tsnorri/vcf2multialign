@@ -34,10 +34,10 @@ namespace {
 
 namespace vcf2multialign {
 	
-	void haplotype_output::output_sequences_a2m(
+	void haplotype_output::output_a2m(
 		sequence_type const &ref_seq,
 		variant_graph const &graph,
-		lb::file_ostream &stream
+		std::ostream &stream
 	)
 	{
 		typedef variant_graph::ploidy_type	ploidy_type;

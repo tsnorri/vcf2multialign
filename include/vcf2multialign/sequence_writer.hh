@@ -7,7 +7,7 @@
 #define VCF2MULTIALIGN_SEQUENCE_WRITER_HH
 
 #include <libbio/file_handle.hh>
-#include <libbio/file_handling.hh>
+#include <ostream>
 #include <vcf2multialign/variant_graph.hh>
 
 
@@ -47,7 +47,7 @@ namespace vcf2multialign {
 	void output_sequence(
 		sequence_type const &ref_seq,
 		variant_graph const &graph,
-		libbio::file_ostream &stream,
+		std::ostream &stream,
 		sequence_writing_delegate &delegate
 	);
 }

@@ -51,9 +51,9 @@ namespace vcf2multialign {
 		virtual void output_separate(sequence_type const &ref_seq, variant_graph const &graph) = 0;
 		
 		void output_a2m(sequence_type const &ref_seq, variant_graph const &graph, char const * const dst_name);
+		virtual void output_a2m(sequence_type const &ref_seq, variant_graph const &graph, std::ostream &stream) = 0;
 		
 	protected:
-		virtual void output_sequences_a2m(sequence_type const &ref_seq, variant_graph const &graph, libbio::file_ostream &stream) = 0;
 		void output_sequence_file(sequence_type const &ref_seq, variant_graph const &graph, char const * const dst_name, sequence_writing_delegate &delegate);
 	};
 	
@@ -64,9 +64,7 @@ namespace vcf2multialign {
 		using output::output;
 		
 		void output_separate(sequence_type const &ref_seq, variant_graph const &graph) override;
-		
-	protected:
-		void output_sequences_a2m(sequence_type const &ref_seq, variant_graph const &graph, libbio::file_ostream &stream) override;
+		void output_a2m(sequence_type const &ref_seq, variant_graph const &graph, std::ostream &stream) override;
 	};
 	
 	
@@ -75,7 +73,6 @@ namespace vcf2multialign {
 	public:
 		typedef variant_graph::ploidy_type					ploidy_type;
 		typedef libbio::matrix <ploidy_type>				ploidy_matrix;
-		typedef std::vector <variant_graph::position_type>	cut_position_vector;
 		
 		constexpr static inline auto const PLOIDY_MAX{variant_graph::PLOIDY_MAX};
 		
@@ -111,9 +108,7 @@ namespace vcf2multialign {
 		[[nodiscard]] bool find_matchings(variant_graph const &graph, ploidy_type const founder_count);
 		
 		void output_separate(sequence_type const &ref_seq, variant_graph const &graph) override;
-		
-	protected:
-		void output_sequences_a2m(sequence_type const &ref_seq, variant_graph const &graph, libbio::file_ostream &stream) override;
+		void output_a2m(sequence_type const &ref_seq, variant_graph const &graph, std::ostream &stream) override;
 	};
 	
 	

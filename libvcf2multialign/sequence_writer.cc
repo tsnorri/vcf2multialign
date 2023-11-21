@@ -3,6 +3,7 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
+#include <libbio/file_handling.hh>
 #include <vcf2multialign/sequence_writer.hh>
 
 namespace lb	= libbio;
@@ -13,7 +14,7 @@ namespace vcf2multialign {
 	void output_sequence(
 		sequence_type const &ref_seq,
 		variant_graph const &graph,
-		lb::file_ostream &stream,
+		std::ostream &stream,
 		sequence_writing_delegate &delegate
 	)
 	{

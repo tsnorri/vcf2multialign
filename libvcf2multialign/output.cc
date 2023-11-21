@@ -44,7 +44,7 @@ namespace vcf2multialign {
 			{
 				lb::file_ostream stream;
 				lb::open_stream_with_file_handle(stream, fh);
-				output_sequences_a2m(ref_seq, graph, stream);
+				output_a2m(ref_seq, graph, stream);
 			}
 			
 			m_delegate->exit_subprocess(proc);
@@ -54,7 +54,7 @@ namespace vcf2multialign {
 			lb::file_handle fh(lb::open_file_for_writing(dst_name, lb::writing_open_mode::CREATE));
 			lb::file_ostream stream;
 			lb::open_stream_with_file_handle(stream, fh);
-			output_sequences_a2m(ref_seq, graph, stream);
+			output_a2m(ref_seq, graph, stream);
 		}
 	}
 }
