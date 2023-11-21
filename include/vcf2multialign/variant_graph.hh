@@ -39,6 +39,7 @@ namespace vcf2multialign {
 		typedef std::vector <ploidy_type>	ploidy_csum_vector;
 		typedef libbio::bit_matrix			path_matrix;
 		
+		constexpr static inline position_type const POSITION_MAX{std::numeric_limits <position_type>::max()};
 		constexpr static inline node_type const NODE_MAX{std::numeric_limits <node_type>::max()};
 		constexpr static inline edge_type const EDGE_MAX{std::numeric_limits <edge_type>::max()};
 		constexpr static inline sample_type const SAMPLE_MAX{std::numeric_limits <sample_type>::max()};
