@@ -15,6 +15,7 @@ modeoption	"founder-sequences"			F	"Produce founder sequences"											mode = 
 modeoption	"minimum-distance"			d	"Minimum node distance (MSA co-ordinates)"							mode = "Founder sequences"	long	typestr = "distance"	default = "0"	optional
 modeoption	"input-cut-positions"		p	"Cut position input"												mode = "Founder sequences"	string	typestr = "filename"					optional
 modeoption	"output-cut-positions"		t	"Output the cut positions"											mode = "Founder sequences"	string	typestr = "filename"					optional
+modeoption	"keep-ref-edges"			-	"Take the reference edges into account when matching"				mode = "Founder sequences"													optional
 
 section		"Common input options"
 option		"input-reference"			r	"Reference FASTA file path"															string	typestr = "filename"								required

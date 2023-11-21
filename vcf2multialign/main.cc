@@ -369,7 +369,7 @@ namespace {
 			}
 			else if (args_info.founder_sequences_given)
 			{
-				v2m::founder_sequence_greedy_output output(args_info.pipe_arg, delegate);
+				v2m::founder_sequence_greedy_output output(args_info.pipe_arg, args_info.keep_ref_edges_given, delegate);
 				
 				if (args_info.input_cut_positions_given)
 					output.load_cut_positions(args_info.input_cut_positions_arg);
@@ -382,16 +382,38 @@ namespace {
 						std::exit(EXIT_FAILURE);
 					}
 					
-					lb::log_time(std::cerr) << "Finding matchings in the variant graph…\n";
-					if (!output.find_matching(graph, args_info.founder_sequences_arg))
+					if (args_info.verbose_flag)
 					{
-						std::cerr << "ERROR: Unable to find matchings.\n";
-						std::exit(EXIT_FAILURE);
+						std::cout << "Cut positions:";
+						for (auto const cp : output.cut_positions())
+							std::cout << ' ' << cp;
+						std::cout << '\n';
 					}
 				}
 				
 				if (args_info.output_cut_positions_given)
 					output.output_cut_positions(args_info.output_cut_positions_arg);
+				
+				lb::log_time(std::cerr) << "Finding matchings in the variant graph…\n";
+				if (!output.find_matchings(graph, args_info.founder_sequences_arg))
+				{
+					std::cerr << "ERROR: Unable to find matchings.\n";
+					std::exit(EXIT_FAILURE);
+				}
+				
+				if (args_info.verbose_flag)
+				{
+					std::cout << "Matchings:\n";
+					auto const &assigned_samples(output.assigned_samples());
+					for (auto const col_idx : rsv::iota(std::size_t(0), assigned_samples.number_of_columns()))
+					{
+						auto const col(assigned_samples.column(col_idx));
+						std::cout << col_idx << ':';
+						for (auto const val : col)
+							std::cout << '\t' << val;
+						std::cout << '\n';
+					}
+				}
 				
 				do_output(output);
 			}
