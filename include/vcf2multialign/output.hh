@@ -92,15 +92,23 @@ namespace vcf2multialign {
 	private:
 		cut_positions	m_cut_positions;
 		ploidy_matrix	m_assigned_samples;
+		bool			m_should_keep_ref_edges{};
 		
 	public:
-		using output::output;
+		founder_sequence_greedy_output(char const *pipe_cmd, bool const should_keep_ref_edges, output_delegate &delegate):
+			output(pipe_cmd, delegate),
+			m_should_keep_ref_edges(should_keep_ref_edges)
+		{
+		}
 		
+		[[nodiscard]] cut_position_vector const &cut_positions() const { return m_cut_positions.cut_positions; }
+		[[nodiscard]] ploidy_matrix const &assigned_samples() const { return m_assigned_samples; }
+
 		void load_cut_positions(char const *path);
 		void output_cut_positions(char const *path);
 		[[nodiscard]] bool find_cut_positions(variant_graph const &graph, variant_graph::position_type const minimum_distance);
 		
-		[[nodiscard]] bool find_matching(variant_graph const &graph, ploidy_type const founder_count);
+		[[nodiscard]] bool find_matchings(variant_graph const &graph, ploidy_type const founder_count);
 		
 		void output_separate(sequence_type const &ref_seq, variant_graph const &graph) override;
 		

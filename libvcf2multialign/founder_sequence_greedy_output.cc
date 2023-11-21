@@ -31,6 +31,7 @@ namespace {
 	
 	typedef v2m::founder_sequence_greedy_output::ploidy_type	ploidy_type;
 	
+	
 	typedef v2m::pbwt_context <
 		v2m::variant_graph::sample_type,
 		v2m::variant_graph::edge_type,
@@ -40,6 +41,8 @@ namespace {
 	
 	struct joined_path_eq_class
 	{
+		constexpr static inline auto const PLOIDY_MAX{v2m::variant_graph::PLOIDY_MAX};
+		
 		ploidy_type	lhs_rep{};
 		ploidy_type	rhs_rep{};
 		ploidy_type	size{};
@@ -48,6 +51,8 @@ namespace {
 			lhs_rep(lhs_rep_),
 			rhs_rep(rhs_rep_)
 		{
+			libbio_assert_neq(lhs_rep, PLOIDY_MAX);
+			libbio_assert_neq(rhs_rep, PLOIDY_MAX);
 		}
 		
 		bool operator<(joined_path_eq_class const &other) const { return size < other.size; }
@@ -72,7 +77,7 @@ namespace {
 	private:
 		ploidy_matrix_const_slice const	m_assigned_samples;
 		cut_position_vector const		&m_cut_positions;
-		position_type					m_cut_pos_index{1};
+		position_type					m_cut_pos_index{};
 		
 	public:
 		founder_sequence_writing_delegate(
@@ -93,7 +98,7 @@ namespace {
 			libbio_assert_lte(node, m_cut_positions[m_cut_pos_index]);
 			if (node == m_cut_positions[m_cut_pos_index])
 			{
-				chromosome_copy_index = m_assigned_samples[m_cut_pos_index - 1];
+				chromosome_copy_index = m_assigned_samples[m_cut_pos_index];
 				++m_cut_pos_index;
 			}
 		}
@@ -136,7 +141,7 @@ namespace vcf2multialign {
 	}
 	
 	
-	bool founder_sequence_greedy_output::find_matching(variant_graph const &graph, ploidy_type const founder_count)
+	bool founder_sequence_greedy_output::find_matchings(variant_graph const &graph, ploidy_type const founder_count)
 	{
 		// We re-calculate the pBWT in order to determine the equivalence class representatives
 		// of paths between adjacent cut positions. When we have a pair of such blocks (and lists
@@ -147,11 +152,13 @@ namespace vcf2multialign {
 		if (m_cut_positions.cut_positions.size() < 2)
 			return false;
 		
+		if (0 == graph.total_chromosome_copies())
+			return false;
+		
 		libbio_assert_eq(0, m_cut_positions.cut_positions.front());
-		libbio_assert_eq(graph.node_count() - 1, m_cut_positions.cut_positions.back());
 		
 		m_assigned_samples.clear();
-		m_assigned_samples.resize(m_cut_positions.cut_positions.size(), founder_count); // Founders in columns.
+		m_assigned_samples.resize(m_cut_positions.cut_positions.size() - 1, founder_count); // Founders in columns.
 		std::fill(m_assigned_samples.begin(), m_assigned_samples.end(), PLOIDY_MAX);
 		
 		std::multimap <ploidy_type, ploidy_type> assignments_by_eq_class;
@@ -168,6 +175,10 @@ namespace vcf2multialign {
 		ploidy_type lhs_distinct_eq_classes{};
 		ploidy_type rhs_distinct_eq_classes{};
 		std::vector <joined_path_eq_class> joined_path_eq_classes;
+		bool lhs_first_path_is_ref{true};
+		bool rhs_first_path_is_ref{true};
+		ploidy_type lhs_first_path_eq_class{};
+		ploidy_type rhs_first_path_eq_class{};
 		
 		// m_cut_positions has a value for the sink node.
 		auto cut_pos_it(m_cut_positions.cut_positions.begin());
@@ -189,7 +200,12 @@ namespace vcf2multialign {
 				{
 					using std::swap;
 					swap(lhs_eq_classes, rhs_eq_classes);
-					swap(lhs_distinct_eq_classes, rhs_distinct_eq_classes);
+					
+					lhs_distinct_eq_classes = rhs_distinct_eq_classes;
+					lhs_first_path_eq_class = rhs_first_path_eq_class;
+					
+					rhs_distinct_eq_classes = 0;
+					rhs_first_path_eq_class = pbwt_ctx.permutation.front();
 				}
 				
 				{
@@ -197,7 +213,6 @@ namespace vcf2multialign {
 					// Note that due to how these are determined, the class representatives
 					// are not interchangeable between blocks (separated by cut positions).
 					ploidy_type rep{PLOIDY_MAX};
-					rhs_distinct_eq_classes = 0;
 					for (auto const [aa, dd] : rsv::zip(pbwt_ctx.permutation, pbwt_ctx.divergence))
 					{
 						// Check if the current entry begins a new equivalence class.
@@ -226,6 +241,14 @@ namespace vcf2multialign {
 				{
 					// Sort by the size. (The smallest will be the first.)
 					std::sort(joined_path_eq_classes.begin(), joined_path_eq_classes.end());
+
+					// Remove the REF edges if needed. This is easier here than in the divergence value handling loop above.
+					if (!m_should_keep_ref_edges && lhs_first_path_is_ref && rhs_first_path_is_ref)
+					{
+						std::erase_if(joined_path_eq_classes, [lhs_first_path_eq_class, rhs_first_path_eq_class](auto const &eq_class){
+							return lhs_first_path_eq_class == eq_class.lhs_rep && rhs_first_path_eq_class == eq_class.rhs_rep;
+						});
+					}
 					
 					if (1 == cut_pos_idx)
 					{
@@ -414,6 +437,9 @@ namespace vcf2multialign {
 				++cut_pos_it;
 				cut_pair_edge_idx = prev_cut_edge_idx;
 				prev_cut_edge_idx = edge_idx;
+				
+				lhs_first_path_is_ref = rhs_first_path_is_ref;
+				rhs_first_path_is_ref = true;
 			}
 			
 			// Handle the edges.
@@ -421,6 +447,9 @@ namespace vcf2multialign {
 			{
 				pbwt_ctx.swap_vectors();
 				pbwt_ctx.update_divergence(graph.paths_by_edge_and_chrom_copy.column(edge_idx), edge_idx);
+				
+				rhs_first_path_is_ref &= (0 == graph.paths_by_edge_and_chrom_copy(pbwt_ctx.permutation.front(), edge_idx));
+				
 				++edge_idx;
 			}
 		}
