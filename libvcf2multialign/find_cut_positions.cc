@@ -39,7 +39,7 @@ namespace {
 		void update_if_needed(count_type const eq_class_count, cut_position const &prev_cut);
 	};
 	
-	typedef std::vector <cut_position> cut_position_vector;
+	typedef std::vector <cut_position> cut_position_vector_;
 	
 	struct cut_position_cmp
 	{
@@ -105,7 +105,7 @@ namespace vcf2multialign {
 
 		pbwt_context_type pbwt_ctx(path_count);
 
-		cut_position_vector cut_positions;
+		cut_position_vector_ cut_positions;
 		cut_positions.emplace_back(0, variant_graph::EDGE_MAX, 0, 0);
 
 		// Divergence value counts without the “k + 1” count.
