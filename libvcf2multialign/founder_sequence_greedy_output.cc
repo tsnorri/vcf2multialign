@@ -30,6 +30,7 @@ namespace v2m	= vcf2multialign;
 namespace {
 	
 	typedef v2m::founder_sequence_greedy_output::ploidy_type	ploidy_type;
+	constexpr static inline auto const PLOIDY_MAX{v2m::variant_graph::PLOIDY_MAX};
 	
 	
 	typedef v2m::pbwt_context <
@@ -41,8 +42,6 @@ namespace {
 	
 	struct joined_path_eq_class
 	{
-		constexpr static inline auto const PLOIDY_MAX{v2m::variant_graph::PLOIDY_MAX};
-		
 		ploidy_type	lhs_rep{};
 		ploidy_type	rhs_rep{};
 		ploidy_type	size{};
@@ -72,7 +71,7 @@ namespace {
 		typedef v2m::founder_sequence_greedy_output	output_type;
 		typedef output_type::ploidy_matrix			ploidy_matrix;
 		typedef ploidy_matrix::const_slice_type		ploidy_matrix_const_slice;
-		typedef output_type::cut_position_vector	cut_position_vector;
+		typedef v2m::cut_position_vector			cut_position_vector;
 		
 	private:
 		ploidy_matrix_const_slice const	m_assigned_samples;
@@ -200,6 +199,7 @@ namespace vcf2multialign {
 				{
 					using std::swap;
 					swap(lhs_eq_classes, rhs_eq_classes);
+					std::fill(rhs_eq_classes.begin(), rhs_eq_classes.end(), PLOIDY_MAX); // For sanity checks.
 					
 					lhs_distinct_eq_classes = rhs_distinct_eq_classes;
 					lhs_first_path_eq_class = rhs_first_path_eq_class;
@@ -213,6 +213,7 @@ namespace vcf2multialign {
 					// Note that due to how these are determined, the class representatives
 					// are not interchangeable between blocks (separated by cut positions).
 					ploidy_type rep{PLOIDY_MAX};
+					joined_path_eq_classes.clear();
 					for (auto const [aa, dd] : rsv::zip(pbwt_ctx.permutation, pbwt_ctx.divergence))
 					{
 						// Check if the current entry begins a new equivalence class.
