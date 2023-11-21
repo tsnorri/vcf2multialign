@@ -172,7 +172,7 @@ namespace vcf2multialign {
 				rightmost_seen_alt_edge_target = std::max(rightmost_seen_alt_edge_target, dst_node);
 			}
 		}
-	
+		
 		// Copy the solution if possible.
 		if (cut_positions.size() <= 1)
 			return CUT_POSITION_SCORE_MAX;
@@ -192,6 +192,12 @@ namespace vcf2multialign {
 			}
 
 			std::reverse(out_cut_positions.begin(), out_cut_positions.end());
+			
+			// Handle the (common) case where the sink node does not have any ALT-in-edges.
+			libbio_assert_lt(out_cut_positions.back(), graph.node_count());
+			if (out_cut_positions.back() != graph.node_count() - 1)
+				out_cut_positions.back() = graph.node_count() - 1;
+			
 			return retval;
 		}
 	}
