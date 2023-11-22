@@ -33,12 +33,13 @@ dependencies: $(DEPENDENCIES)
 
 dist: $(DIST_TAR_GZ)
 
-test: lib/libbio/lib/rapidcheck/build/librapidcheck.a libvcf2multialign/libvcf2multialign.coverage.a $(DEPENDENCIES)
-	$(MAKE) -C libvcf2multialign
-	$(MAKE) -C tests
+tests: tests/coverage/index.html
 
 libvcf2multialign/libvcf2multialign.a: $(DEPENDENCIES)
 	$(MAKE) -C libvcf2multialign
+
+libvcf2multialign/libvcf2multialign.coverage.a: $(DEPENDENCIES)
+	$(MAKE) -C libvcf2multialign libvcf2multialign.coverage.a
 
 vcf2multialign/vcf2multialign: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
 	$(MAKE) -C vcf2multialign
@@ -60,3 +61,6 @@ lib/libbio/src/libbio.a: lib/libbio/local.mk
 
 lib/libbio/lib/rapidcheck/build/librapidcheck.a:
 	$(MAKE) -C lib/libbio lib/rapidcheck/build/librapidcheck.a
+
+tests/coverage/index.html: lib/libbio/lib/rapidcheck/build/librapidcheck.a libvcf2multialign/libvcf2multialign.coverage.a $(DEPENDENCIES)
+	$(MAKE) -C tests coverage
