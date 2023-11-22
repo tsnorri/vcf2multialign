@@ -12,9 +12,9 @@
 #include <libbio/int_matrix/cereal_serialization.hh>
 #include <libbio/int_vector/cereal_serialization.hh>
 #include <limits>										// std::numeric_limits
+#include <range/v3/view/zip.hpp>
 #include <string>
 #include <string_view>
-#include <range/v3/view/zip.hpp>
 #include <utility>										// std::pair
 #include <vector>
 
@@ -129,9 +129,11 @@ namespace vcf2multialign {
 
 	struct build_graph_delegate
 	{
+		typedef variant_graph::position_type	position_type;
+		
 		virtual ~build_graph_delegate() {}
 		virtual bool should_include(std::string_view const sample_name, variant_graph::ploidy_type const chrom_copy_idx) const = 0;
-
+		
 		virtual void report_overlapping_alternative(
 			std::string_view const sample_name,
 			variant_graph::ploidy_type const chrom_copy_idx,
@@ -139,6 +141,9 @@ namespace vcf2multialign {
 			std::vector <std::string_view> const &var_id,
 			std::uint32_t const gt
 		) = 0;
+		
+		// FIXME: add typedef for variant index.
+		virtual bool ref_column_mismatch(std::uint64_t const var_idx, position_type const pos, std::string_view const expected, std::string_view const actual) = 0;
 	};
 	
 	

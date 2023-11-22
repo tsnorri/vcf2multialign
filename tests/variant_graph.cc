@@ -204,6 +204,12 @@ namespace {
 		{
 			REQUIRE(expected_overlapping_alternatives.contains(make_alt <std::string_view>(sample_name, chrom_copy_idx, ref_pos, var_id, gt)));
 		}
+		
+		bool ref_column_mismatch(std::uint64_t const var_idx, position_type const pos, std::string_view const expected, std::string_view const actual) override
+		{
+			FAIL("REF column contents do not match the reference sequence in variant " << var_idx << ", position " << pos << ". Expected: “" << expected << "” Actual: “" << actual << "”");
+			return false;
+		}
 	};
 
 

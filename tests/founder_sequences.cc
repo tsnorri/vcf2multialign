@@ -33,6 +33,12 @@ namespace {
 		{
 			std::cerr << "Overlapping alternative alleles. Sample: " << sample_name << " chromosome copy: " << chrom_copy_idx << " current variant position: " << ref_pos << " genotype: " << gt << '\n';
 		}
+		
+		bool ref_column_mismatch(std::uint64_t const var_idx, position_type const pos, std::string_view const expected, std::string_view const actual) override
+		{
+			FAIL("REF column contents do not match the reference sequence in variant " << var_idx << ", position " << pos << ". Expected: “" << expected << "” Actual: “" << actual << "”");
+			return false;
+		}
 	};
 	
 	
@@ -53,6 +59,9 @@ namespace {
 		char const * const expected_output
 	)
 	{
+		INFO("VCF: " << vcf_name);
+		INFO("FASTA: " << fasta_name);
+		
 		fs::path const base_path("test-files/founder-sequences");
 		
 		v2m::sequence_type ref_seq;

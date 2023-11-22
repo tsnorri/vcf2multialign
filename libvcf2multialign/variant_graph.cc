@@ -109,6 +109,8 @@ namespace vcf2multialign {
 		constexpr std::size_t const path_matrix_row_col_divisor{64}; // Make sure we can transpose the matrix with the 8×8 operation.
 		constexpr std::size_t const path_column_allocation{512};
 		
+		std::string_view const ref_seq_sv{ref_seq.data(), ref_seq.size()};
+		
 		// FIXME: Use the BCF library when it is ready.
 		// Open the variant file.
 		vcf::mmap_input vcf_input;
@@ -165,6 +167,7 @@ namespace vcf2multialign {
 				&graph,
 				&stats,
 				&delegate,
+				ref_seq_sv,
 				&reader,
 				&var_idx,
 				&aln_pos,
@@ -276,10 +279,18 @@ namespace vcf2multialign {
 					aln_pos += dist;
 					auto const node_idx(graph.add_or_update_node(ref_pos, aln_pos));
 					
-					// Add edges.
+					// Compare to the reference.
+					auto const &ref(var.ref());
+					
+					{
+						auto const expected_ref(ref_seq_sv.substr(ref_pos, ref.size()));
+						if (ref != expected_ref && !delegate.ref_column_mismatch(var_idx, ref_pos, expected_ref, ref))
+							return false;
+					}
+					
+					// Add the edges.
 					// We add even if none of the paths has the edge.
 					// FIXME: Take END into account here?
-					auto const &ref(var.ref());
 					auto const &alts(var.alts());
 					edges_by_alt.clear();
 					edges_by_alt.resize(alts.size(), variant_graph::EDGE_MAX);

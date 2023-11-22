@@ -132,6 +132,12 @@ namespace {
 		{
 			return !std::binary_search(excluded_samples.begin(), excluded_samples.end(), sample_identifier_sv{sample_name, chrom_copy_idx});
 		}
+		
+		bool ref_column_mismatch(std::uint64_t const var_idx, position_type const pos, std::string_view const expected, std::string_view const actual) override
+		{
+			std::cerr << "WARNING: REF column contents do not match the reference sequence in variant " << var_idx << ". Expected: “" << expected << "” Actual: “" << actual << "”\n";
+			return true;
+		}
 	};
 
 
