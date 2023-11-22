@@ -33,7 +33,7 @@ dependencies: $(DEPENDENCIES)
 
 dist: $(DIST_TAR_GZ)
 
-test: lib/libbio/lib/rapidcheck/build/librapidcheck.a $(DEPENDENCIES)
+test: lib/libbio/lib/rapidcheck/build/librapidcheck.a libvcf2multialign/libvcf2multialign.coverage.a $(DEPENDENCIES)
 	$(MAKE) -C libvcf2multialign
 	$(MAKE) -C tests
 

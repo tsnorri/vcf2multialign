@@ -17,7 +17,7 @@ GCDA = $(OBJECTS:.o=.gcda)
 GCNO = $(OBJECTS:.o=.gcno)
 
 
-LIBRARIES = ../libvcf2multialign/libvcf2multialign.a ../lib/libbio/src/libbio.a ../lib/libbio/lib/rapidcheck/build/librapidcheck.a
+LIBRARIES = ../libvcf2multialign/libvcf2multialign.coverage.a ../lib/libbio/src/libbio.a ../lib/libbio/lib/rapidcheck/build/librapidcheck.a
 
 
 all: tests
@@ -32,7 +32,7 @@ run-tests: tests
 
 coverage: run-tests
 	$(MKDIR) -p coverage
-	$(GCOVR) --root .. --print-summary --html --html-details -o coverage/index.html .
+	$(GCOVR) --gcov-executable $(GCOV) --root .. --filter ../include --filter ../libvcf2multialign --print-summary --html --html-details -o coverage/index.html . ../libvcf2multialign
 
 
 tests: $(OBJECTS) $(LIBRARIES)

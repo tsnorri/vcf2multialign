@@ -16,6 +16,7 @@ PATCH			?= patch
 RAGEL			?= ragel
 TAR				?= tar
 WGET			?= wget
+GCOV			?= gcov
 GCOVR			?= gcovr
 
 CFLAGS			?=
@@ -38,12 +39,11 @@ CXXFLAGS		+= -std=c++2b $(OPT_FLAGS) $(WARNING_FLAGS) $(SYSTEM_CXXFLAGS)
 CPPFLAGS		+= -DHAVE_CONFIG_H -I../include -I../lib/cereal/include -I../lib/libbio/include -I../lib/libbio/lib/GSL/include -I../lib/libbio/lib/range-v3/include -I../lib/libbio/lib/rapidcheck/include -I../lib/libbio/lib/rapidcheck/extras/catch/include $(BOOST_INCLUDE) $(SYSTEM_CPPFLAGS)
 LDFLAGS			:= ../lib/libbio/src/libbio.a $(BOOST_LIBS) $(LDFLAGS) $(SYSTEM_LDFLAGS)
 
-# FIXME: the first two likely only work with Clang; I think GCC uses something else than -coverage.
 %.cov.o: %.c
-	$(CC) -c -coverage $(CFLAGS) $(CPPFLAGS) -o $@ $<
+	$(CC) -c --coverage $(CFLAGS) $(CPPFLAGS) -o $@ $<
 
 %.cov.o: %.cc
-	$(CXX) -c -coverage $(CXXFLAGS) $(CPPFLAGS) -o $@ $<
+	$(CXX) -c --coverage $(CXXFLAGS) $(CPPFLAGS) -o $@ $<
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
