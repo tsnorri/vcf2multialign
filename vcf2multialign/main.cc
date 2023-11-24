@@ -396,6 +396,8 @@ namespace {
 						std::cout << '\n';
 					}
 				}
+
+				std::cout << "Maximum segmentation height: " << (1 + output.max_segmentation_height()) << '\n';
 				
 				if (args_info.output_cut_positions_given)
 					output.output_cut_positions(args_info.output_cut_positions_arg);

@@ -104,6 +104,7 @@ namespace vcf2multialign {
 		void load_cut_positions(char const *path);
 		void output_cut_positions(char const *path);
 		[[nodiscard]] bool find_cut_positions(variant_graph const &graph, variant_graph::position_type const minimum_distance);
+		[[nodiscard]] cut_position_score_type max_segmentation_height() const { return m_cut_positions.score; }
 		
 		[[nodiscard]] bool find_matchings(variant_graph const &graph, ploidy_type const founder_count);
 		
