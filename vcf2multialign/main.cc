@@ -370,12 +370,18 @@ namespace {
 			
 			if (args_info.haplotypes_given)
 			{
-				v2m::haplotype_output output(args_info.pipe_arg, args_info.unaligned_output_given, delegate);
+				v2m::haplotype_output output(args_info.pipe_arg, !args_info.omit_reference_output_given, args_info.unaligned_output_given, delegate);
 				do_output(output);
 			}
 			else if (args_info.founder_sequences_given)
 			{
-				v2m::founder_sequence_greedy_output output(args_info.pipe_arg, args_info.keep_ref_edges_given, args_info.unaligned_output_given, delegate);
+				v2m::founder_sequence_greedy_output output(
+					args_info.pipe_arg,
+					!args_info.omit_reference_output_given,
+					args_info.keep_ref_edges_given,
+					args_info.unaligned_output_given,
+					delegate
+				);
 				
 				if (args_info.input_cut_positions_given)
 					output.load_cut_positions(args_info.input_cut_positions_arg);

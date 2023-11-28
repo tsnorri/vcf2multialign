@@ -44,6 +44,7 @@ namespace vcf2multialign {
 		
 		std::uint32_t seq_count{1};
 		
+		if (m_should_output_reference)
 		{
 			::sequence_writing_delegate delegate;
 			output_sequence(ref_seq, graph, stream, "REF", m_should_output_unaligned, delegate);
@@ -78,6 +79,7 @@ namespace vcf2multialign {
 	{
 		typedef variant_graph::ploidy_type ploidy_type;
 		
+		if (m_should_output_reference)
 		{
 			::sequence_writing_delegate delegate;
 			output_sequence_file(ref_seq, graph, (should_include_fasta_header ? "REF.a2m" : "REF"), should_include_fasta_header, delegate);
