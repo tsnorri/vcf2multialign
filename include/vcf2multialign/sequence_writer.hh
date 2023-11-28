@@ -40,6 +40,7 @@ namespace vcf2multialign {
 		sequence_type const &ref_seq,
 		variant_graph const &graph,
 		libbio::file_handle &fh,
+		char const *fasta_identifier,
 		bool const should_output_unaligned,
 		sequence_writing_delegate &delegate
 	);
@@ -49,6 +50,7 @@ namespace vcf2multialign {
 		sequence_type const &ref_seq,
 		variant_graph const &graph,
 		std::ostream &stream,
+		char const *fasta_identifier,
 		bool const should_output_unaligned,
 		sequence_writing_delegate &delegate
 	);

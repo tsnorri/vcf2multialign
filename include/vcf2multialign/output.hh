@@ -50,13 +50,13 @@ namespace vcf2multialign {
 		}
 		
 		virtual ~output() {}
-		virtual void output_separate(sequence_type const &ref_seq, variant_graph const &graph) = 0;
+		virtual void output_separate(sequence_type const &ref_seq, variant_graph const &graph, bool const should_include_fasta_header) = 0;
 		
 		void output_a2m(sequence_type const &ref_seq, variant_graph const &graph, char const * const dst_name);
 		virtual void output_a2m(sequence_type const &ref_seq, variant_graph const &graph, std::ostream &stream) = 0;
 		
 	protected:
-		void output_sequence_file(sequence_type const &ref_seq, variant_graph const &graph, char const * const dst_name, sequence_writing_delegate &delegate);
+		void output_sequence_file(sequence_type const &ref_seq, variant_graph const &graph, char const * const dst_name, bool const should_include_fasta_header, sequence_writing_delegate &delegate);
 	};
 	
 	
@@ -65,7 +65,7 @@ namespace vcf2multialign {
 	public:
 		using output::output;
 		
-		void output_separate(sequence_type const &ref_seq, variant_graph const &graph) override;
+		void output_separate(sequence_type const &ref_seq, variant_graph const &graph, bool const should_include_fasta_header) override;
 		void output_a2m(sequence_type const &ref_seq, variant_graph const &graph, std::ostream &stream) override;
 	};
 	
@@ -110,7 +110,7 @@ namespace vcf2multialign {
 		
 		[[nodiscard]] bool find_matchings(variant_graph const &graph, ploidy_type const founder_count);
 		
-		void output_separate(sequence_type const &ref_seq, variant_graph const &graph) override;
+		void output_separate(sequence_type const &ref_seq, variant_graph const &graph, bool const should_include_fasta_header) override;
 		void output_a2m(sequence_type const &ref_seq, variant_graph const &graph, std::ostream &stream) override;
 	};
 	

@@ -45,9 +45,8 @@ namespace vcf2multialign {
 		std::uint32_t seq_count{1};
 		
 		{
-			stream << ">REF\n";
 			::sequence_writing_delegate delegate;
-			output_sequence(ref_seq, graph, stream, m_should_output_unaligned, delegate);
+			output_sequence(ref_seq, graph, stream, "REF", m_should_output_unaligned, delegate);
 			stream << '\n';
 			m_delegate->handled_sequences(seq_count);
 		}
@@ -60,9 +59,12 @@ namespace vcf2multialign {
 			{
 				m_delegate->will_handle_sample(sample, sample_idx, chr_copy_idx);
 				
-				stream << '>' << sample << '-' << chr_copy_idx << '\n';
+				// FIXME: Use std::format.
+				std::stringstream id;
+				id << sample << '-' << chr_copy_idx;
+
 				::sequence_writing_delegate delegate(graph, sample_idx, chr_copy_idx);
-				output_sequence(ref_seq, graph, stream, m_should_output_unaligned, delegate);
+				output_sequence(ref_seq, graph, stream, id.str().data(), m_should_output_unaligned, delegate);
 				stream << '\n';
 				
 				++seq_count;
@@ -72,13 +74,13 @@ namespace vcf2multialign {
 	}
 	
 	
-	void haplotype_output::output_separate(sequence_type const &ref_seq, variant_graph const &graph)
+	void haplotype_output::output_separate(sequence_type const &ref_seq, variant_graph const &graph, bool const should_include_fasta_header)
 	{
 		typedef variant_graph::ploidy_type ploidy_type;
 		
 		{
 			::sequence_writing_delegate delegate;
-			output_sequence_file(ref_seq, graph, "REF", delegate);
+			output_sequence_file(ref_seq, graph, "REF", should_include_fasta_header, delegate);
 		}
 		
 		for (auto const &[sample_idx, sample] : rsv::enumerate(graph.sample_names))
@@ -95,7 +97,7 @@ namespace vcf2multialign {
 				dst_name << chr_copy_idx;
 				
 				::sequence_writing_delegate delegate(graph, sample_idx, chr_copy_idx);
-				output_sequence_file(ref_seq, graph, dst_name.str().data(), delegate);
+				output_sequence_file(ref_seq, graph, dst_name.str().data(), should_include_fasta_header, delegate);
 			}
 		}
 	}

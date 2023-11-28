@@ -15,6 +15,7 @@ namespace vcf2multialign {
 		sequence_type const &ref_seq,
 		variant_graph const &graph,
 		std::ostream &stream,
+		char const *fasta_identifier,
 		bool const should_output_unaligned,
 		sequence_writing_delegate &delegate
 	)
@@ -22,6 +23,9 @@ namespace vcf2multialign {
 		typedef variant_graph::position_type	position_type;
 		typedef variant_graph::node_type		node_type;
 		typedef variant_graph::edge_type		edge_type;
+
+		if (fasta_identifier)
+			stream << '>' << fasta_identifier << '\n';
 		
 		position_type ref_pos{};
 		position_type aln_pos{};
@@ -77,12 +81,13 @@ namespace vcf2multialign {
 		sequence_type const &ref_seq,
 		variant_graph const &graph,
 		lb::file_handle &fh,
+		char const *fasta_identifier,
 		bool const should_output_unaligned,
 		sequence_writing_delegate &delegate
 	)
 	{
 		lb::file_ostream stream;
 		lb::open_stream_with_file_handle(stream, fh);
-		output_sequence(ref_seq, graph, stream, should_output_unaligned, delegate);
+		output_sequence(ref_seq, graph, stream, fasta_identifier, should_output_unaligned, delegate);
 	}
 }
