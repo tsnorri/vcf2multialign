@@ -490,7 +490,7 @@ namespace vcf2multialign {
 		
 		{
 			reference_sequence_writing_delegate delegate;
-			output_sequence_file(ref_seq, graph, "REF", should_include_fasta_header, delegate);
+			output_sequence_file(ref_seq, graph, (should_include_fasta_header ? "REF.a2m" : "REF"), should_include_fasta_header, delegate);
 		}
 		
 		ploidy_type const col_count(m_assigned_samples.number_of_columns());
@@ -498,9 +498,14 @@ namespace vcf2multialign {
 		{
 			m_delegate->will_handle_founder_sequence(col_idx);
 			
-			auto const dst_name{std::to_string(1 + col_idx)};
+			// FIXME: Use std::format.
+			std::stringstream dst_name;
+			dst_name << (1 + col_idx);
+			if (should_include_fasta_header)
+				dst_name << ".a2m";
+
 			founder_sequence_writing_delegate delegate(m_assigned_samples.const_column(col_idx), m_cut_positions.cut_positions);
-			output_sequence_file(ref_seq, graph, dst_name.data(), should_include_fasta_header, delegate);
+			output_sequence_file(ref_seq, graph, dst_name.str().data(), should_include_fasta_header, delegate);
 		}
 	}
 }

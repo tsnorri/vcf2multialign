@@ -80,7 +80,7 @@ namespace vcf2multialign {
 		
 		{
 			::sequence_writing_delegate delegate;
-			output_sequence_file(ref_seq, graph, "REF", should_include_fasta_header, delegate);
+			output_sequence_file(ref_seq, graph, (should_include_fasta_header ? "REF.a2m" : "REF"), should_include_fasta_header, delegate);
 		}
 		
 		for (auto const &[sample_idx, sample] : rsv::enumerate(graph.sample_names))
@@ -95,6 +95,8 @@ namespace vcf2multialign {
 				dst_name << sample;
 				dst_name << '-';
 				dst_name << chr_copy_idx;
+				if (should_include_fasta_header)
+					dst_name << ".a2m";
 				
 				::sequence_writing_delegate delegate(graph, sample_idx, chr_copy_idx);
 				output_sequence_file(ref_seq, graph, dst_name.str().data(), should_include_fasta_header, delegate);
