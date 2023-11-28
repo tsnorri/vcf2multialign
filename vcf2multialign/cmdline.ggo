@@ -29,6 +29,7 @@ option		"input-graph"				g	"Variant graph input"																string	typestr =
 section		"Common output options"
 option		"output-sequences-a2m"		s	"Output reference-guided multiple alignment as A2M"									string	typestr = "filename"								optional
 option		"output-sequences-separate"	-	"Output reference-guided multiple alignment one sequence at a time"					flag	off
+option		"separate-output-format"	-	"Output format when writing one sequence per file"			values = "A2M", "plain"	enum	dependon = "output-sequences-separate"	default = "A2M"	optional
 option		"pipe"						-	"Instead of writing sequences to files, pipe the output to the given command"		string	typestr = "command"									optional
 option		"unaligned-output"			-	"Instead of outputting MSA, output unaligned sequences"								flag	off
 option		"output-graph"				f	"Output the variant graph"															string	typestr = "filename"	dependon = "input-variants"	optional

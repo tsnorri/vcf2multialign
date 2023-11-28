@@ -363,7 +363,7 @@ namespace {
 				if (args_info.output_sequences_separate_given)
 				{
 					lb::log_time(std::cerr) << "Outputting sequences one by one…" << std::flush;
-					output.output_separate(ref_seq, graph);
+					output.output_separate(ref_seq, graph, separate_output_format_arg_A2M == args_info.separate_output_format_arg);
 					std::cerr << " Done.\n";
 				}
 			});
