@@ -466,7 +466,7 @@ namespace vcf2multialign {
 		{
 			stream << ">REF\n";
 			reference_sequence_writing_delegate delegate;
-			output_sequence(ref_seq, graph, stream, delegate);
+			output_sequence(ref_seq, graph, stream, m_should_output_unaligned, delegate);
 			stream << '\n';
 			m_delegate->handled_sequences(1);
 		}
@@ -478,7 +478,7 @@ namespace vcf2multialign {
 			
 			stream << '>' << (1 + col_idx) << '\n';
 			founder_sequence_writing_delegate delegate(m_assigned_samples.const_column(col_idx), m_cut_positions.cut_positions);
-			output_sequence(ref_seq, graph, stream, delegate);
+			output_sequence(ref_seq, graph, stream, m_should_output_unaligned, delegate);
 			stream << '\n';
 			
 			m_delegate->handled_sequences(2 + col_idx);

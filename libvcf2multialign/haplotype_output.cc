@@ -47,7 +47,7 @@ namespace vcf2multialign {
 		{
 			stream << ">REF\n";
 			::sequence_writing_delegate delegate;
-			output_sequence(ref_seq, graph, stream, delegate);
+			output_sequence(ref_seq, graph, stream, m_should_output_unaligned, delegate);
 			stream << '\n';
 			m_delegate->handled_sequences(seq_count);
 		}
@@ -62,7 +62,7 @@ namespace vcf2multialign {
 				
 				stream << '>' << sample << '-' << chr_copy_idx << '\n';
 				::sequence_writing_delegate delegate(graph, sample_idx, chr_copy_idx);
-				output_sequence(ref_seq, graph, stream, delegate);
+				output_sequence(ref_seq, graph, stream, m_should_output_unaligned, delegate);
 				stream << '\n';
 				
 				++seq_count;
