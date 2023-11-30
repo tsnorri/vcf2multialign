@@ -37,11 +37,13 @@ namespace vcf2multialign {
 	class output
 	{
 	protected:
+		char const		*m_chromosome_id{};
 		char const		*m_pipe_cmd{};
 		output_delegate	*m_delegate{};
 		
 	public:
-		output(char const *pipe_cmd, output_delegate &delegate):
+		output(char const *pipe_cmd, char const *chromosome_id, output_delegate &delegate):
+			m_chromosome_id(chromosome_id),
 			m_pipe_cmd(pipe_cmd),
 			m_delegate(&delegate)
 		{
@@ -92,8 +94,8 @@ namespace vcf2multialign {
 		bool			m_should_keep_ref_edges{};
 		
 	public:
-		founder_sequence_greedy_output(char const *pipe_cmd, bool const should_keep_ref_edges, output_delegate &delegate):
-			output(pipe_cmd, delegate),
+		founder_sequence_greedy_output(char const *chromosome_id, char const *pipe_cmd, bool const should_keep_ref_edges, output_delegate &delegate):
+			output(chromosome_id, pipe_cmd, delegate),
 			m_should_keep_ref_edges(should_keep_ref_edges)
 		{
 		}

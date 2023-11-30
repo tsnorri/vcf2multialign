@@ -464,7 +464,10 @@ namespace vcf2multialign {
 		typedef variant_graph::ploidy_type	ploidy_type;
 		
 		{
-			stream << ">REF\n";
+			stream << '>';
+			if (m_chromosome_id)
+				stream << m_chromosome_id << '\t';
+			stream << "REF\n";
 			reference_sequence_writing_delegate delegate;
 			output_sequence(ref_seq, graph, stream, delegate);
 			stream << '\n';
@@ -476,7 +479,10 @@ namespace vcf2multialign {
 		{
 			m_delegate->will_handle_founder_sequence(col_idx);
 			
-			stream << '>' << (1 + col_idx) << '\n';
+			stream << '>';
+			if (m_chromosome_id)
+				stream << m_chromosome_id << '\t';
+			stream << (1 + col_idx) << '\n';
 			founder_sequence_writing_delegate delegate(m_assigned_samples.const_column(col_idx), m_cut_positions.cut_positions);
 			output_sequence(ref_seq, graph, stream, delegate);
 			stream << '\n';
@@ -500,9 +506,14 @@ namespace vcf2multialign {
 		{
 			m_delegate->will_handle_founder_sequence(col_idx);
 			
-			auto const dst_name{std::to_string(1 + col_idx)};
+			// FIXME: Use std::format.
+			std::stringstream dst_name;
+			if (m_chromosome_id)
+				dst_name << m_chromosome_id << '-';
+			dst_name << (1 + col_idx);
+			
 			founder_sequence_writing_delegate delegate(m_assigned_samples.const_column(col_idx), m_cut_positions.cut_positions);
-			output_sequence_file(ref_seq, graph, dst_name.data(), delegate);
+			output_sequence_file(ref_seq, graph, dst_name.str().data(), delegate);
 		}
 	}
 }

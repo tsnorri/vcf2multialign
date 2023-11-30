@@ -60,7 +60,10 @@ namespace vcf2multialign {
 			{
 				m_delegate->will_handle_sample(sample, sample_idx, chr_copy_idx);
 				
-				stream << '>' << sample << '-' << chr_copy_idx << '\n';
+				stream << '>';
+				if (m_chromosome_id)
+					stream << m_chromosome_id << '\t';
+				stream << sample << '-' << chr_copy_idx << '\n';
 				::sequence_writing_delegate delegate(graph, sample_idx, chr_copy_idx);
 				output_sequence(ref_seq, graph, stream, delegate);
 				stream << '\n';
@@ -90,6 +93,8 @@ namespace vcf2multialign {
 
 				// FIXME: Use std::format.
 				std::stringstream dst_name;
+				if (m_chromosome_id)
+					dst_name << m_chromosome_id << '-';
 				dst_name << sample;
 				dst_name << '-';
 				dst_name << chr_copy_idx;
