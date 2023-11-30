@@ -44,9 +44,13 @@ libvcf2multialign/libvcf2multialign.coverage.a: $(DEPENDENCIES)
 vcf2multialign/vcf2multialign: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
 	$(MAKE) -C vcf2multialign
 
-$(DIST_TAR_GZ):	vcf2multialign/vcf2multialign
+lib/libbio/vcfcat/vcfcat: $(DEPENDENCIES)
+	$(MAKE) -C lib/libbio/vcfcat
+
+$(DIST_TAR_GZ):	vcf2multialign/vcf2multialign lib/libbio/vcfcat/vcfcat
 	$(MKDIR) -p $(DIST_TARGET_DIR)
 	$(CP) vcf2multialign/vcf2multialign $(DIST_TARGET_DIR)
+	$(CP) lib/libbio/vcfcat/vcfcat $(DIST_TARGET_DIR)
 	$(CP) README.md $(DIST_TARGET_DIR)
 	$(CP) LICENSE $(DIST_TARGET_DIR)
 	$(CP) lib/cereal/LICENSE $(DIST_TARGET_DIR)/cereal-license.txt
@@ -58,6 +62,9 @@ lib/libbio/local.mk: local.mk
 
 lib/libbio/src/libbio.a: lib/libbio/local.mk
 	$(MAKE) -C lib/libbio
+
+lib/libbio/vcfcat/vcfcat: lib/libbio/src/libbio.a
+	$(MAKE) -C lib/libbio/vcfcat
 
 lib/libbio/lib/rapidcheck/build/librapidcheck.a:
 	$(MAKE) -C lib/libbio lib/rapidcheck/build/librapidcheck.a

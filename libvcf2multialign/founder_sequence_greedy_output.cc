@@ -463,13 +463,16 @@ namespace vcf2multialign {
 	{
 		typedef variant_graph::ploidy_type	ploidy_type;
 		
+		if (m_should_output_reference)
 		{
-			stream << '>';
+			// FIXME: Use std::format.
+			std::stringstream fasta_identifier;
 			if (m_chromosome_id)
-				stream << m_chromosome_id << '\t';
-			stream << "REF\n";
+				fasta_identifier << m_chromosome_id << '\t';
+			fasta_identifier << "REF";
+			
 			reference_sequence_writing_delegate delegate;
-			output_sequence(ref_seq, graph, stream, delegate);
+			output_sequence(ref_seq, graph, stream, fasta_identifier.str().data(), m_should_output_unaligned, delegate);
 			stream << '\n';
 			m_delegate->handled_sequences(1);
 		}
@@ -479,12 +482,14 @@ namespace vcf2multialign {
 		{
 			m_delegate->will_handle_founder_sequence(col_idx);
 			
-			stream << '>';
+			// FIXME: Use std::format.
+			std::stringstream fasta_identifier;
 			if (m_chromosome_id)
-				stream << m_chromosome_id << '\t';
-			stream << (1 + col_idx) << '\n';
+				fasta_identifier << m_chromosome_id << '\t';
+			fasta_identifier << (1 + col_idx);
+			
 			founder_sequence_writing_delegate delegate(m_assigned_samples.const_column(col_idx), m_cut_positions.cut_positions);
-			output_sequence(ref_seq, graph, stream, delegate);
+			output_sequence(ref_seq, graph, stream, fasta_identifier.str().data(), m_should_output_unaligned, delegate);
 			stream << '\n';
 			
 			m_delegate->handled_sequences(2 + col_idx);
@@ -492,13 +497,22 @@ namespace vcf2multialign {
 	}
 	
 	
-	void founder_sequence_greedy_output::output_separate(sequence_type const &ref_seq, variant_graph const &graph)
+	void founder_sequence_greedy_output::output_separate(sequence_type const &ref_seq, variant_graph const &graph, bool const should_include_fasta_header)
 	{
 		typedef variant_graph::ploidy_type	ploidy_type;
 		
+		if (m_should_output_reference)
 		{
+			// FIXME: Use std::format.
+			std::stringstream dst_name;
+			if (m_chromosome_id)
+				dst_name << m_chromosome_id << '.';
+			dst_name << "REF";
+			if (should_include_fasta_header)
+				dst_name << ".a2m";
+			
 			reference_sequence_writing_delegate delegate;
-			output_sequence_file(ref_seq, graph, "REF", delegate);
+			output_sequence_file(ref_seq, graph, dst_name.str().data(), should_include_fasta_header, delegate);
 		}
 		
 		ploidy_type const col_count(m_assigned_samples.number_of_columns());
@@ -509,11 +523,13 @@ namespace vcf2multialign {
 			// FIXME: Use std::format.
 			std::stringstream dst_name;
 			if (m_chromosome_id)
-				dst_name << m_chromosome_id << '-';
+				dst_name << m_chromosome_id << '.';
 			dst_name << (1 + col_idx);
+			if (should_include_fasta_header)
+				dst_name << ".a2m";
 			
 			founder_sequence_writing_delegate delegate(m_assigned_samples.const_column(col_idx), m_cut_positions.cut_positions);
-			output_sequence_file(ref_seq, graph, dst_name.str().data(), delegate);
+			output_sequence_file(ref_seq, graph, dst_name.str().data(), should_include_fasta_header, delegate);
 		}
 	}
 }

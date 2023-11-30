@@ -33,6 +33,7 @@ TARGET_TYPE		?=
 
 BOOST_ROOT		?= /usr
 BOOST_INCLUDE	?= -I$(BOOST_ROOT)/include
+BOOST_LIBS		?= -lboost_iostreams
 
 CFLAGS			+= -std=c99   $(OPT_FLAGS) $(WARNING_FLAGS) $(SYSTEM_CFLAGS)
 CXXFLAGS		+= -std=c++2b $(OPT_FLAGS) $(WARNING_FLAGS) $(SYSTEM_CXXFLAGS)

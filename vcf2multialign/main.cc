@@ -363,19 +363,32 @@ namespace {
 				if (args_info.output_sequences_separate_given)
 				{
 					lb::log_time(std::cerr) << "Outputting sequences one by one…" << std::flush;
-					output.output_separate(ref_seq, graph);
+					output.output_separate(ref_seq, graph, separate_output_format_arg_A2M == args_info.separate_output_format_arg);
 					std::cerr << " Done.\n";
 				}
 			});
 			
 			if (args_info.haplotypes_given)
 			{
-				v2m::haplotype_output output(args_info.dst_chromosome_arg, args_info.pipe_arg, delegate);
+				v2m::haplotype_output output(
+					args_info.pipe_arg,
+					args_info.dst_chromosome_arg,
+					!args_info.omit_reference_output_given,
+					args_info.unaligned_output_given,
+					delegate
+				);
 				do_output(output);
 			}
 			else if (args_info.founder_sequences_given)
 			{
-				v2m::founder_sequence_greedy_output output(args_info.dst_chromosome_arg, args_info.pipe_arg, args_info.keep_ref_edges_given, delegate);
+				v2m::founder_sequence_greedy_output output(
+					args_info.pipe_arg,
+					args_info.dst_chromosome_arg,
+					args_info.keep_ref_edges_given,
+					!args_info.omit_reference_output_given,
+					args_info.unaligned_output_given,
+					delegate
+				);
 				
 				if (args_info.input_cut_positions_given)
 					output.load_cut_positions(args_info.input_cut_positions_arg);
@@ -396,6 +409,8 @@ namespace {
 						std::cout << '\n';
 					}
 				}
+
+				std::cout << "Maximum segmentation height: " << (1 + output.max_segmentation_height()) << '\n';
 				
 				if (args_info.output_cut_positions_given)
 					output.output_cut_positions(args_info.output_cut_positions_arg);

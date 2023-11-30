@@ -16,6 +16,7 @@ namespace vcf2multialign {
 		sequence_type const &ref_seq,
 		variant_graph const &graph,
 		char const * const dst_name,
+		bool const should_include_fasta_header,
 		sequence_writing_delegate &delegate
 	)
 	{
@@ -23,13 +24,13 @@ namespace vcf2multialign {
 		{
 			auto proc(subprocess_type::subprocess_with_arguments({m_pipe_cmd, dst_name}));
 			auto &fh(proc.stdin_handle());
-			output_sequence(ref_seq, graph, fh, delegate);
+			output_sequence(ref_seq, graph, fh, dst_name, m_should_output_unaligned, delegate);
 			m_delegate->exit_subprocess(proc);
 		}
 		else
 		{
 			lb::file_handle fh(lb::open_file_for_writing(dst_name, lb::writing_open_mode::CREATE));
-			output_sequence(ref_seq, graph, fh, delegate);
+			output_sequence(ref_seq, graph, fh, dst_name, m_should_output_unaligned, delegate);
 		}
 	}
 	

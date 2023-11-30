@@ -13,6 +13,9 @@ OBJECTS_COVERAGE	= $(OBJECTS:.o=.cov.o)
 GCDA				= $(OBJECTS_COVERAGE:.o=.gcda)
 GCNO				= $(OBJECTS_COVERAGE:.o=.gcno)
 
+CFLAGS		+= -fPIC
+CXXFLAGS	+= -fPIC
+
 
 all: libvcf2multialign.a
 
