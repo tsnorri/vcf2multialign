@@ -77,7 +77,7 @@ namespace {
 		
 		{
 			output_delegate delegate;
-			v2m::founder_sequence_greedy_output output(nullptr, nullptr, false, true, false, delegate);
+			v2m::founder_sequence_greedy_output output(nullptr, nullptr, true, false, false, delegate);
 			REQUIRE(output.find_cut_positions(graph, 0));
 			REQUIRE(expected_cut_positions == output.cut_positions());
 			REQUIRE(output.find_matchings(graph, 2));

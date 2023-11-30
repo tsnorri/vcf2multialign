@@ -101,8 +101,8 @@ namespace vcf2multialign {
 		founder_sequence_greedy_output(
 			char const *pipe_cmd,
 			char const *chromosome_id,
-			bool const should_keep_ref_edges,
 			bool const should_output_reference,
+			bool const should_keep_ref_edges,
 			bool const should_output_unaligned,
 			output_delegate &delegate
 		):

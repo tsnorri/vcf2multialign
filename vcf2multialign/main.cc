@@ -384,8 +384,8 @@ namespace {
 				v2m::founder_sequence_greedy_output output(
 					args_info.pipe_arg,
 					args_info.dst_chromosome_arg,
-					args_info.keep_ref_edges_given,
 					!args_info.omit_reference_output_given,
+					args_info.keep_ref_edges_given,
 					args_info.unaligned_output_given,
 					delegate
 				);
