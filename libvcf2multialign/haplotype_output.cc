@@ -49,7 +49,7 @@ namespace vcf2multialign {
 			std::stringstream fasta_id;
 			if (m_chromosome_id)
 				fasta_id << m_chromosome_id << '\t';
-			fasta_id << sample << "-REF";
+			fasta_id << "REF";
 			
 			::sequence_writing_delegate delegate;
 			output_sequence(ref_seq, graph, stream, fasta_id.str().data(), m_should_output_unaligned, delegate);
