@@ -509,7 +509,12 @@ namespace vcf2multialign {
 				dst_name << m_chromosome_id << '.';
 			dst_name << "REF";
 			if (should_include_fasta_header)
-				dst_name << ".a2m";
+			{
+				if (m_should_output_unaligned)
+					dst_name << ".fa";
+				else
+					dst_name << ".a2m";
+			}
 			
 			reference_sequence_writing_delegate delegate;
 			output_sequence_file(ref_seq, graph, dst_name.str().data(), should_include_fasta_header, delegate);
@@ -526,7 +531,12 @@ namespace vcf2multialign {
 				dst_name << m_chromosome_id << '.';
 			dst_name << (1 + col_idx);
 			if (should_include_fasta_header)
-				dst_name << ".a2m";
+			{
+				if (m_should_output_unaligned)
+					dst_name << ".fa";
+				else
+					dst_name << ".a2m";
+			}
 			
 			founder_sequence_writing_delegate delegate(m_assigned_samples.const_column(col_idx), m_cut_positions.cut_positions);
 			output_sequence_file(ref_seq, graph, dst_name.str().data(), should_include_fasta_header, delegate);
