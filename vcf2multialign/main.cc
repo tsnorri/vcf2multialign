@@ -15,6 +15,8 @@
 #include <libbio/generic_parser.hh>
 #include <libbio/subprocess.hh>
 #include <map>
+#include <range/v3/algorithm/copy.hpp>
+#include <range/v3/iterator/stream_iterators.hpp>
 #include <range/v3/view/enumerate.hpp>
 #include <range/v3/view/iota.hpp>
 #include <string>
@@ -115,17 +117,31 @@ namespace {
 
 	struct build_variant_graph_delegate final : public v2m::build_graph_delegate
 	{
+		lb::file_ostream				overlapping_alternatives_os;
 		std::vector <sample_identifier>	excluded_samples;
-
+		
 		void report_overlapping_alternative(
-			std::string_view const sample_name,
-			v2m::variant_graph::ploidy_type const chrom_copy_idx,
+			std::uint64_t const lineno,
 			v2m::variant_graph::position_type const ref_pos,
 			std::vector <std::string_view> const &var_id,
+			std::string_view const sample_name,
+			v2m::variant_graph::ploidy_type const chrom_copy_idx,
 			std::uint32_t const gt
 		) override
 		{
-			std::cout << "Overlapping alternative alleles. Sample: " << sample_name << " chromosome copy: " << chrom_copy_idx << " current variant position: " << ref_pos << " genotype: " << gt << '\n';
+			if (overlapping_alternatives_os)
+			{
+				// Output as TSV.
+				overlapping_alternatives_os << lineno << '\t' << ref_pos << '\t';
+				ranges::copy(var_id, ranges::make_ostream_joiner(overlapping_alternatives_os, ","));
+				overlapping_alternatives_os << '\t' << sample_name << '\t' << chrom_copy_idx << '\t' << gt << '\n';
+			}
+			else
+			{
+				std::cout << "Overlapping alternative alleles. Line number: " << lineno << " current variant position: " << ref_pos << " variant identifiers: ";
+				ranges::copy(var_id, ranges::make_ostream_joiner(std::cout, ", "));
+				std::cout << " sample: " << sample_name << " chromosome copy: " << chrom_copy_idx << " genotype: " << gt << '\n';
+			}
 		}
 
 		bool should_include(std::string_view const sample_name, v2m::variant_graph::ploidy_type const chrom_copy_idx) const override
@@ -187,12 +203,20 @@ namespace {
 		char const *variants_path,
 		char const *chr_id,
 		char const *exclude_samples_tsv_path,
+		char const *overlaps_tsv_path,
 		v2m::sequence_type const &ref_seq,
 		v2m::variant_graph &graph,
 		bool const be_verbose
 	)
 	{
 		build_variant_graph_delegate delegate;
+		
+		if (overlaps_tsv_path)
+		{
+			lb::open_file_for_writing(exclude_samples_tsv_path, delegate.overlapping_alternatives_os, lb::writing_open_mode::CREATE);
+			delegate.overlapping_alternatives_os << "LINENO\tPOS\tID\tSAMPLE\tCHROM_COPY\tGT\n";
+		}
+		
 		if (exclude_samples_tsv_path)
 		{
 			lb::log_time(std::cerr) << "Reading the excluded sample list…" << std::flush;
@@ -329,7 +353,15 @@ namespace {
 		}
 		else
 		{
-			build_variant_graph(args_info.input_variants_arg, args_info.chromosome_arg, args_info.exclude_samples_arg, ref_seq, graph, args_info.verbose_given);
+			build_variant_graph(
+				args_info.input_variants_arg,
+				args_info.chromosome_arg,
+				args_info.exclude_samples_arg,
+				args_info.output_overlaps_arg,
+				ref_seq,
+				graph,
+				args_info.verbose_given
+			);
 		}
 		
 		if (args_info.output_graph_given)
@@ -373,8 +405,8 @@ namespace {
 				v2m::haplotype_output output(
 					args_info.pipe_arg,
 					args_info.dst_chromosome_arg,
-					!args_info.omit_reference_output_given,
-					args_info.unaligned_output_given,
+					!args_info.omit_reference_given,
+					args_info.unaligned_given,
 					delegate
 				);
 				do_output(output);
@@ -384,9 +416,9 @@ namespace {
 				v2m::founder_sequence_greedy_output output(
 					args_info.pipe_arg,
 					args_info.dst_chromosome_arg,
-					!args_info.omit_reference_output_given,
+					!args_info.omit_reference_given,
 					args_info.keep_ref_edges_given,
-					args_info.unaligned_output_given,
+					args_info.unaligned_given,
 					delegate
 				);
 				
