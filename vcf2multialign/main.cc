@@ -213,7 +213,7 @@ namespace {
 		
 		if (overlaps_tsv_path)
 		{
-			lb::open_file_for_writing(exclude_samples_tsv_path, delegate.overlapping_alternatives_os, lb::writing_open_mode::CREATE);
+			lb::open_file_for_writing(overlaps_tsv_path, delegate.overlapping_alternatives_os, lb::writing_open_mode::CREATE);
 			delegate.overlapping_alternatives_os << "LINENO\tPOS\tID\tSAMPLE\tCHROM_COPY\tGT\n";
 		}
 		
