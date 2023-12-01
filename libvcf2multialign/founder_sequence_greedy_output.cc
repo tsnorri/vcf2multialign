@@ -348,9 +348,9 @@ namespace vcf2multialign {
 						// 1, 2, 3.
 						{
 							bool is_first{true};
-							bool did_assign{false};
 							while (true)
 							{
+								bool did_assign{false};
 								for (auto const &eq_class : rsv::reverse(joined_path_eq_classes))
 								{
 									auto ref(reserved_assignments[eq_class.rhs_rep]);
