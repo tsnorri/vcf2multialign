@@ -134,11 +134,13 @@ namespace vcf2multialign {
 		virtual ~build_graph_delegate() {}
 		virtual bool should_include(std::string_view const sample_name, variant_graph::ploidy_type const chrom_copy_idx) const = 0;
 		
+		// FIXME: add typedef for line number.
 		virtual void report_overlapping_alternative(
-			std::string_view const sample_name,
-			variant_graph::ploidy_type const chrom_copy_idx,
+			std::uint64_t const lineno,
 			variant_graph::position_type const ref_pos,
 			std::vector <std::string_view> const &var_id,
+			std::string_view const sample_name,
+			variant_graph::ploidy_type const chrom_copy_idx,
 			std::uint32_t const gt
 		) = 0;
 		
