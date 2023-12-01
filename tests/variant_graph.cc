@@ -195,10 +195,11 @@ namespace {
 		}
 
 		void report_overlapping_alternative(
-			std::string_view const sample_name,
-			v2m::variant_graph::ploidy_type const chrom_copy_idx,
+			std::uint64_t const lineno,
 			v2m::variant_graph::position_type const ref_pos,
 			std::vector <std::string_view> const &var_id,
+			std::string_view const sample_name,
+			v2m::variant_graph::ploidy_type const chrom_copy_idx,
 			std::uint32_t const gt
 		) override
 		{
