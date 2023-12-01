@@ -383,10 +383,11 @@ namespace vcf2multialign {
 						if (ref_pos < target_ref_positions_by_chrom_copy[row_idx])
 						{
 							delegate.report_overlapping_alternative(
-								reader.sample_names_by_index()[sample_idx_input],
-								chr_idx_input,
+								var.lineno() + reader.last_header_lineno(),
 								ref_pos,
 								var.id(),
+								reader.sample_names_by_index()[sample_idx_input],
+								chr_idx_input,
 								sample_gt.alt
 							);
 						}
