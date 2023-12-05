@@ -91,7 +91,8 @@ namespace vcf2multialign {
 	cut_position_score_type find_initial_cut_positions_lambda_min(
 		variant_graph const &graph,
 		variant_graph::edge_type const min_distance,
-		std::vector <variant_graph::position_type> &out_cut_positions
+		std::vector <variant_graph::position_type> &out_cut_positions,
+		find_cut_positions_status_delegate &delegate
 	)
 	{
 		out_cut_positions.clear();
@@ -171,6 +172,8 @@ namespace vcf2multialign {
 				++edge_idx;
 				rightmost_seen_alt_edge_target = std::max(rightmost_seen_alt_edge_target, dst_node);
 			}
+
+			delegate.handled_node(walker.node());
 		}
 		
 		// Copy the solution if possible.

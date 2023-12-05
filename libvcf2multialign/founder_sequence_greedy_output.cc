@@ -127,10 +127,11 @@ namespace vcf2multialign {
 	
 	bool founder_sequence_greedy_output::find_cut_positions(
 		variant_graph const &graph,
-		variant_graph::position_type const min_dist
+		variant_graph::position_type const min_dist,
+		find_cut_positions_status_delegate &delegate
 	)
 	{
-		auto const score(find_initial_cut_positions_lambda_min(graph, min_dist, m_cut_positions.cut_positions));
+		auto const score(find_initial_cut_positions_lambda_min(graph, min_dist, m_cut_positions.cut_positions, delegate));
 		if (CUT_POSITION_SCORE_MAX == score)
 			return false;
 		
