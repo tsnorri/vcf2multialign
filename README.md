@@ -28,7 +28,7 @@ If you use the software in an academic setting we kindly ask you to cite [Founde
 
 ## Building
 
-To clone the repository with submodules, please use git clone --recursive https://github.com/tsnorri/vcf2multialign.git.
+To clone the repository with submodules, please use `git clone --recursive https://github.com/tsnorri/vcf2multialign.git`.
 
 ### With [conda-build](https://docs.conda.io/projects/conda-build/en/stable/index.html)
 
