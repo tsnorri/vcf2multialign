@@ -50,7 +50,7 @@ The following software and libraries are required to build vcf2multialign. The t
 After installing the prerequisites, please do the following:
 
 1. Create a file called `local.mk` in the root of the cloned repository to specify build variables. One of the files [linux-static.local.mk](linux-static.local.mk) and [conda/local.mk.m4](conda/local.mk.m4) may be used as a starting point.
-2. Run Make with e.g. `make -j16`.
+2. Run Make with e.g. `make -j16 dist` to create a gzipped tar archive of the executables.
 
 ## Usage
 
