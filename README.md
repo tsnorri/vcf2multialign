@@ -54,7 +54,7 @@ After installing the prerequisites, please do the following:
 
 ## Usage
 
-Outputting a reference-guided multiple sequence alignment of predicted haplotype sequences to `haplotypes.a2m` (with only uppercase characters). Sequence `1` from `hs37d5.fa` is used as the reference and the variants of the `chr1` chromosome from `variants.vcf` as the variants:
+Outputting a reference-guided multiple sequence alignment of predicted haplotype sequences to `haplotypes.a2m` (similar to FASTA, with only uppercase characters). Sequence `1` from `hs37d5.fa` is used as the reference and the variants of the `chr1` chromosome from `variants.vcf` as the variants:
 
 ```
 vcf2multialign --haplotypes --input-reference=hs37d5.fa --reference-sequence=1 --input-variants=variants.vcf --output-sequences-a2m=founders.a2m --chromosome=chr1
