@@ -276,6 +276,16 @@ namespace {
 		}
 		
 		
+		void handled_node(v2m::variant_graph::node_type const node) override
+		{
+			if (0 == (1 + node) % 1000)
+			{
+				auto const total_node_count(m_graph->node_count());
+				lb::log_time(std::cerr) << "Handled " << (1 + node) << '/' << total_node_count << " nodes…\n";
+			}
+		}
+		
+		
 		void exit_subprocess(v2m::subprocess_type &proc) override
 		{
 			auto const res(proc.close());

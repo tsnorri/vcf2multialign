@@ -19,19 +19,12 @@ namespace vcf2multialign {
 	
 	typedef std::vector <variant_graph::position_type> cut_position_vector;
 	
-
-	struct find_cut_positions_status_delegate
-	{
-		virtual ~find_cut_positions_status_delegate() {}
-		virtual void handled_node(variant_graph::node_type const node) = 0;
-	};
-	
 	
 	cut_position_score_type find_initial_cut_positions_lambda_min(
 		variant_graph const &graph,
 		variant_graph::edge_type const min_length,
 		cut_position_vector &out_cut_positions,
-		find_cut_positions_status_delegate &delegate
+		process_graph_delegate &delegate
 	);
 }
 

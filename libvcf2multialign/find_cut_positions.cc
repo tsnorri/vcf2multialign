@@ -92,7 +92,7 @@ namespace vcf2multialign {
 		variant_graph const &graph,
 		variant_graph::edge_type const min_distance,
 		std::vector <variant_graph::position_type> &out_cut_positions,
-		find_cut_positions_status_delegate &delegate
+		process_graph_delegate &delegate
 	)
 	{
 		out_cut_positions.clear();

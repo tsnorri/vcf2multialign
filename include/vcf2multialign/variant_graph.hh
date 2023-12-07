@@ -149,6 +149,13 @@ namespace vcf2multialign {
 	};
 	
 	
+	struct process_graph_delegate
+	{
+		virtual ~process_graph_delegate() {}
+		virtual void handled_node(variant_graph::node_type const node) = 0;
+	};
+	
+	
 	struct build_graph_statistics
 	{
 		std::uint64_t	handled_variants{};

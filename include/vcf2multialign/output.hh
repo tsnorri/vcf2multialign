@@ -20,7 +20,7 @@ namespace vcf2multialign {
 	struct sequence_writing_delegate; // Fwd.
 	
 	
-	struct output_delegate
+	struct output_delegate : public process_graph_delegate
 	{
 		typedef variant_graph::sample_type	sample_type;
 		typedef variant_graph::ploidy_type	ploidy_type;
@@ -116,7 +116,7 @@ namespace vcf2multialign {
 
 		void load_cut_positions(char const *path);
 		void output_cut_positions(char const *path);
-		[[nodiscard]] bool find_cut_positions(variant_graph const &graph, variant_graph::position_type const minimum_distance, find_cut_positions_status_delegate &delegate);
+		[[nodiscard]] bool find_cut_positions(variant_graph const &graph, variant_graph::position_type const minimum_distance);
 		[[nodiscard]] cut_position_score_type max_segmentation_height() const { return m_cut_positions.score; }
 		
 		[[nodiscard]] bool find_matchings(variant_graph const &graph, ploidy_type const founder_count);
