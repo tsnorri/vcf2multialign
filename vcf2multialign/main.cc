@@ -278,7 +278,7 @@ namespace {
 		
 		void handled_node(v2m::variant_graph::node_type const node) override
 		{
-			if (0 == (1 + node) % 1000)
+			if (0 == (1 + node) % 1'000'000)
 			{
 				auto const total_node_count(m_graph->node_count());
 				lb::log_time(std::cerr) << "Handled " << (1 + node) << '/' << total_node_count << " nodes…\n";
