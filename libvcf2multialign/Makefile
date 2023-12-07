@@ -1,30 +1,29 @@
 include ../local.mk
 include ../common.mk
 
-OBJECTS =	can_handle_variant_alts.o \
-			dispatch_cli_runner.o \
-			find_first_matching_variant.o \
-			log_assertion_failure.o \
-			path_mapper.o \
-			path_sorted_variant.o \
-			preprocess_logger.o \
-			read_single_fasta_seq.o \
-			sample_sorter.o \
-			segment_connector.o \
-			variant_format.o \
-			variant_graph.o \
-			variant_graph_builder.o \
-			variant_graph_generator.o \
-			variant_partitioner.o \
-			variant_processor.o \
-			variant_processor_delegate.o \
-			vcf_processor.o
+OBJECTS =	find_cut_positions.o \
+			founder_sequence_greedy_output.o \
+			haplotype_output.o \
+			output.o \
+			sequence_writer.o \
+			transpose_matrix.o \
+			variant_graph.o
+
+OBJECTS_COVERAGE	= $(OBJECTS:.o=.cov.o)
+GCDA				= $(OBJECTS_COVERAGE:.o=.gcda)
+GCNO				= $(OBJECTS_COVERAGE:.o=.gcno)
+
+CFLAGS		+= -fPIC
+CXXFLAGS	+= -fPIC
 
 
 all: libvcf2multialign.a
 
 clean:
-	$(RM) $(OBJECTS) libvcf2multialign.a
+	$(RM) $(OBJECTS) $(OBJECTS_COVERAGE) $(GCDA) $(GCNO) libvcf2multialign.a libvcf2multialign.coverage.a
 	
 libvcf2multialign.a: $(OBJECTS)
+	$(AR) rcs $@ $^
+
+libvcf2multialign.coverage.a: $(OBJECTS_COVERAGE)
 	$(AR) rcs $@ $^

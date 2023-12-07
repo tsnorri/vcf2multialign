@@ -11,18 +11,19 @@ source:
 
 requirements:
   build:
-    - boost-cpp=1.74.0
-    - clang>=9.0.0
-    - clangxx>=9.0.0
-#    - libcxx>=9.0.0
-    - libstdcxx-ng>=9.3.0
-    - libstdcxx-devel_linux-64>=9.3.0
-    - sysroot_linux-64>=2.17
+    - boost-cpp =1.82.0
+    - gcc >=12.3.0
+    - gengetopt >=2.23
+    - gxx >=12.3.0
+    - libboost =1.82.0
+    - libstdcxx-devel_linux-64 >=12.3.0
+    - libstdcxx-ng >=12.3.0
+    - ragel >=6.10
+    - sysroot_linux-64 >=2.28
   run:
-    - zlib>=1.2.11
-    - libstdcxx-ng>=9.3.0
-    - boost-cpp>=1.74.0
-    - libgcc-ng>=9.3.0
+    - libboost =1.82.0
+    - libgcc-ng >=12.3.0
+    - libstdcxx-ng >=12.3.0
 
 about:
   home: https://github.com/tsnorri/vcf2multialign

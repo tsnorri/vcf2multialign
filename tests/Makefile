@@ -5,21 +5,17 @@ CATCH2_PREFIX			= ../lib/libbio/lib/Catch2
 CATCH2_HEADERS			= $(shell find $(CATCH2_PREFIX)/include)
 
 CPPFLAGS += -I$(CATCH2_PREFIX)/single_include
-CXXFLAGS += -coverage
-LDFLAGS += -coverage
 
-OBJECTS	=	combine_msa_vcf.o \
-			main.o \
-			variant_graph.o
-
-GCDA = $(OBJECTS:.o=.gcda)
-GCNO = $(OBJECTS:.o=.gcno)
+OBJECTS	=	founder_sequences.o \
+			transpose_matrix.o \
+			variant_graph.o \
+			main.o
 
 
-LIBRARIES = ../combine-msa-vcf/libcombinemsa.coverage.a ../libvcf2multialign/libvcf2multialign.a ../lib/libbio/src/libbio.a
+LIBRARIES = ../libvcf2multialign/libvcf2multialign.coverage.a ../lib/libbio/src/libbio.a ../lib/libbio/lib/rapidcheck/build/librapidcheck.a
 
 
-all: run-tests
+all: tests
 
 
 .PHONY: run-tests clean clean-tests
@@ -27,22 +23,24 @@ all: run-tests
 
 run-tests: tests
 	./tests
-	lcov --capture --directory . --directory ../combine-msa-vcf --output-file test-coverage.covdata --include '*/combine-msa-vcf/*'
-	genhtml --legend --title test-coverage -o test-coverage test-coverage.covdata
+
+
+coverage: coverage/index.html
 
 
 tests: $(OBJECTS) $(LIBRARIES)
-	$(CXX) -o $@ $(OBJECTS) $(LDFLAGS) $(LIBRARIES) $(BOOST_LIBS)
+	$(CXX) -o $@ $(OBJECTS) $(LDFLAGS) $(LIBRARIES) $(BOOST_LIBS) -lgcov
 
 
 clean: clean-tests
-	$(RM) $(OBJECTS) $(GCDA) tests
-
-
-clean-tests:
-	$(RM) $(GCNO) test-coverage.covdata
-	$(RM) -r test-coverage
+	$(RM) $(OBJECTS) tests
+	$(RM) -r coverage
 
 
 $(CATCH2_PREFIX)/single_include/catch2/catch.hpp: $(CATCH2_HEADERS)
 	cd $(CATCH2_PREFIX) && $(PYTHON) scripts/generateSingleHeader.py
+
+
+coverage/index.html: run-tests
+	$(MKDIR) -p coverage
+	$(GCOVR) --gcov-executable $(GCOV) --root .. --filter ../include --filter ../libvcf2multialign --print-summary --html --html-details -o coverage/index.html ../libvcf2multialign

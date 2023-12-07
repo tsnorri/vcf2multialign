@@ -2,9 +2,6 @@ include local.mk
 include common.mk
 
 DEPENDENCIES = lib/libbio/src/libbio.a
-ifeq ($(shell uname -s),Linux)
-	DEPENDENCIES += lib/swift-corelibs-libdispatch/build/src/libdispatch.a
-endif
 
 # “$() $()” is a literal space.
 OS_NAME = $(shell tools/os_name.sh)
@@ -17,31 +14,17 @@ DIST_TAR_GZ = vcf2multialign-$(VERSION)-$(OS_NAME)$(DIST_NAME_SUFFIX).tar.gz
 .PHONY: all clean-all clean clean-dependencies dependencies
 
 all:	libvcf2multialign/libvcf2multialign.a \
-		preprocess-vcf/preprocess_vcf \
-		create-variant-graph/create_variant_graph \
-		index-vcf/index_vcf \
-		inspect-variant-graph/inspect_variant_graph \
-		variant-graph-to-sequences/variant_graph_to_sequences \
-		variant-graph-to-gv/variant_graph_to_gv \
-		vcf-to-unaligned/vcf_to_unaligned \
-		combine-msa-vcf/combine_msa_vcf
+		vcf2multialign/vcf2multialign
 
 clean-all: clean clean-dependencies clean-dist
+	$(MAKE) -C tests clean
 
 clean:
 	$(MAKE) -C libvcf2multialign clean
-	$(MAKE) -C preprocess-vcf clean
-	$(MAKE) -C create-variant-graph clean
-	$(MAKE) -C index-vcf clean
-	$(MAKE) -C inspect-variant-graph clean
-	$(MAKE) -C variant-graph-to-sequences clean
-	$(MAKE) -C variant-graph-to-gv clean
-	$(MAKE) -C vcf-to-unaligned clean
-	$(MAKE) -C combine-msa-vcf clean
+	$(MAKE) -C vcf2multialign clean
 
 clean-dependencies: lib/libbio/local.mk
 	$(MAKE) -C lib/libbio clean-all
-	$(RM) -r lib/swift-corelibs-libdispatch/build
 
 clean-dist:
 	$(RM) -rf $(DIST_TARGET_DIR)
@@ -50,54 +33,26 @@ dependencies: $(DEPENDENCIES)
 
 dist: $(DIST_TAR_GZ)
 
-test:
-	$(MAKE) -C libvcf2multialign
-	$(MAKE) -C combine-msa-vcf libcombinemsa.coverage.a
-	$(MAKE) -C tests
+tests: tests/coverage/index.html lib/libbio/tests/coverage/index.html
 
 libvcf2multialign/libvcf2multialign.a: $(DEPENDENCIES)
 	$(MAKE) -C libvcf2multialign
 
-combine-msa-vcf/combine_msa_vcf: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
-	$(MAKE) -C combine-msa-vcf
+libvcf2multialign/libvcf2multialign.coverage.a: $(DEPENDENCIES)
+	$(MAKE) -C libvcf2multialign libvcf2multialign.coverage.a
 
-create-variant-graph/create_variant_graph: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
-	$(MAKE) -C create-variant-graph
+vcf2multialign/vcf2multialign: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
+	$(MAKE) -C vcf2multialign
 
-index-vcf/index_vcf: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
-	$(MAKE) -C index-vcf
+lib/libbio/vcfcat/vcfcat: $(DEPENDENCIES)
+	$(MAKE) -C lib/libbio/vcfcat
 
-inspect-variant-graph/inspect_variant_graph: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
-	$(MAKE) -C inspect-variant-graph
-
-preprocess-vcf/preprocess_vcf: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
-	$(MAKE) -C preprocess-vcf
-
-variant-graph-to-sequences/variant_graph_to_sequences: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
-	$(MAKE) -C variant-graph-to-sequences
-
-variant-graph-to-gv/variant_graph_to_gv: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
-	$(MAKE) -C variant-graph-to-gv
-
-vcf-to-unaligned/vcf_to_unaligned: $(DEPENDENCIES) libvcf2multialign/libvcf2multialign.a
-	$(MAKE) -C vcf-to-unaligned
-
-$(DIST_TAR_GZ):	preprocess-vcf/preprocess_vcf \
-				create-variant-graph/create_variant_graph \
-				inspect-variant-graph/inspect_variant_graph \
-				variant-graph-to-sequences/variant_graph_to_sequences \
-				variant-graph-to-gv/variant_graph_to_gv \
-				combine-msa-vcf/combine_msa_vcf
+$(DIST_TAR_GZ):	vcf2multialign/vcf2multialign lib/libbio/vcfcat/vcfcat
 	$(MKDIR) -p $(DIST_TARGET_DIR)
-	$(CP) preprocess-vcf/preprocess_vcf $(DIST_TARGET_DIR)
-	$(CP) create-variant-graph/create_variant_graph $(DIST_TARGET_DIR)
-	$(CP) inspect-variant-graph/inspect_variant_graph $(DIST_TARGET_DIR)
-	$(CP) variant-graph-to-sequences/variant_graph_to_sequences $(DIST_TARGET_DIR)
-	$(CP) variant-graph-to-gv/variant_graph_to_gv $(DIST_TARGET_DIR)
-	$(CP) combine-msa-vcf/combine_msa_vcf $(DIST_TARGET_DIR)
+	$(CP) vcf2multialign/vcf2multialign $(DIST_TARGET_DIR)
+	$(CP) lib/libbio/vcfcat/vcfcat $(DIST_TARGET_DIR)
 	$(CP) README.md $(DIST_TARGET_DIR)
 	$(CP) LICENSE $(DIST_TARGET_DIR)
-	$(CP) lib/swift-corelibs-libdispatch/LICENSE $(DIST_TARGET_DIR)/swift-corelibs-libdispatch-license.txt
 	$(CP) lib/cereal/LICENSE $(DIST_TARGET_DIR)/cereal-license.txt
 	$(TAR) czf $(DIST_TAR_GZ) $(DIST_TARGET_DIR)
 	$(RM) -rf $(DIST_TARGET_DIR)
@@ -108,24 +63,14 @@ lib/libbio/local.mk: local.mk
 lib/libbio/src/libbio.a: lib/libbio/local.mk
 	$(MAKE) -C lib/libbio
 
-lib/swift-corelibs-libdispatch/CMakeLists.txt.original:
-	$(CP) lib/swift-corelibs-libdispatch/CMakeLists.txt lib/swift-corelibs-libdispatch/CMakeLists.txt.original
-	$(PATCH) lib/swift-corelibs-libdispatch/CMakeLists.txt.original \
-		tools/swift-cmakelists.patch \
-		-o lib/swift-corelibs-libdispatch/CMakeLists.txt
+lib/libbio/vcfcat/vcfcat: lib/libbio/src/libbio.a
+	$(MAKE) -C lib/libbio/vcfcat
 
-lib/swift-corelibs-libdispatch/build/src/libdispatch.a: lib/swift-corelibs-libdispatch/CMakeLists.txt.original
-	$(RM) -rf lib/swift-corelibs-libdispatch/build && \
-	cd lib/swift-corelibs-libdispatch && \
-	$(MKDIR) build && \
-	cd build && \
-	$(CP) ../../../tools/disable_warnings.cmake ../cmake/modules/V2MDisableCompilerWarnings.cmake && \
-	$(CMAKE) \
-		-G Ninja \
-		-DCMAKE_C_COMPILER="$(CC)" \
-		-DCMAKE_CXX_COMPILER="$(CXX)" \
-		-DCMAKE_C_FLAGS="$(LIBDISPATCH_CFLAGS)" \
-		-DCMAKE_CXX_FLAGS="$(LIBDISPATCH_CXXFLAGS)" \
-		-DBUILD_SHARED_LIBS=OFF \
-		.. && \
-	$(NINJA) -v
+lib/libbio/lib/rapidcheck/build/librapidcheck.a:
+	$(MAKE) -C lib/libbio lib/rapidcheck/build/librapidcheck.a
+
+tests/coverage/index.html: lib/libbio/lib/rapidcheck/build/librapidcheck.a libvcf2multialign/libvcf2multialign.coverage.a $(DEPENDENCIES)
+	$(MAKE) -C tests coverage
+
+lib/libbio/tests/coverage/index.html:
+	$(MAKE) -C lib/libbio tests
