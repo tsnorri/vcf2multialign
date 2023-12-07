@@ -49,6 +49,7 @@ namespace {
 		void will_handle_founder_sequence(sample_type const idx) override {}
 		void handled_sequences(sequence_count_type const sequence_count) override {}
 		void exit_subprocess(v2m::subprocess_type &proc) override {}
+		void handled_node(v2m::variant_graph::node_type const node) override {}
 	};
 	
 	
