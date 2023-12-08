@@ -4,7 +4,7 @@ Create a set of reference-guided multiple-aligned haplotypes or founder sequence
 
 ## Academic Use
 
-If you use the software in an academic setting we kindly ask you to cite [Founder reconstruction enables scalable and seamless pangenomic analysis](https://doi.org/10.1093/bioinformatics/btab516).
+If you use the software in an academic setting, we kindly ask you to cite [Founder reconstruction enables scalable and seamless pangenomic analysis](https://doi.org/10.1093/bioinformatics/btab516).
 
 ```TeX
 @article{Norri2021FounderReconstruction,
