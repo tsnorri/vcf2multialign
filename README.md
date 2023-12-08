@@ -42,7 +42,7 @@ A conda package can be built with conda-build as follows. The build script has b
 The following software and libraries are required to build vcf2multialign. The tested versions are also listed.
 
 - Reasonably new compilers for C and C++. We use [GCC 12.3](https://gcc.gnu.org) in C++2b mode for our builds.
-- [GNU gengetopt 2.23](https://www.gnu.org/software/gengetopt/gengetopt.html) (tested with version 2.22.6)
+- [GNU gengetopt 2.23](https://www.gnu.org/software/gengetopt/gengetopt.html)
 - [Ragel State Machine Compiler 6.10](http://www.colm.net/open-source/ragel/)
 - [Boost 1.82.0](http://www.boost.org)
 - [libbsd](https://libbsd.freedesktop.org/) on Linux.
