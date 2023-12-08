@@ -1,6 +1,6 @@
 # vcf2multialign
 
-Create a set of reference-guided multiple-aligned haplotypes or founder sequences from a variant call file and a reference sequence. Please see [releases](https://github.com/tsnorri/vcf2multialign/releases) and [Anaconda.org](https://anaconda.org/tsnorri/vcf2multialign) for pre-built binaries.
+Create a set of reference-guided multiple-aligned haplotypes or founder sequences from a variant call file and a reference sequence. Please see [releases](https://github.com/tsnorri/vcf2multialign/releases) for statically linked pre-built binaries (i.e. no dependencies) and [Anaconda.org](https://anaconda.org/tsnorri/vcf2multialign) for dynamically linked ones.
 
 ## Academic Use
 
