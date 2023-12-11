@@ -129,7 +129,7 @@ namespace {
 			std::uint32_t const gt
 		) override
 		{
-			if (overlapping_alternatives_os)
+			if (overlapping_alternatives_os.is_open())
 			{
 				// Output as TSV.
 				overlapping_alternatives_os << lineno << '\t' << ref_pos << '\t';
