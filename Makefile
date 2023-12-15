@@ -63,9 +63,6 @@ lib/libbio/local.mk: local.mk
 lib/libbio/src/libbio.a: lib/libbio/local.mk
 	$(MAKE) -C lib/libbio
 
-lib/libbio/vcfcat/vcfcat: lib/libbio/src/libbio.a
-	$(MAKE) -C lib/libbio/vcfcat
-
 lib/libbio/lib/rapidcheck/build/librapidcheck.a:
 	$(MAKE) -C lib/libbio lib/rapidcheck/build/librapidcheck.a
 
