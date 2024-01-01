@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2019-2022 Tuukka Norri
+ * Copyright (c) 2019-2024 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
 #include <libbio/assert.hh>
+#include <libbio/utility.hh>
 #include <range/v3/all.hpp>
 #include <vcf2multialign/preprocess/sample_sorter.hh>
 #include <vcf2multialign/utility/can_handle_variant_alts.hh>

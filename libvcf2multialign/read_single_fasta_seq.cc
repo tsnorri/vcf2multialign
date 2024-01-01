@@ -1,10 +1,11 @@
 /*
- * Copyright (c) 2017-2023 Tuukka Norri
+ * Copyright (c) 2017-2024 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
 #include <sys/stat.h>
 #include <libbio/fasta_reader.hh>
+#include <libbio/utility.hh>
 #include <vcf2multialign/utility/read_single_fasta_seq.hh>
 #include <vcf2multialign/types.hh>
 
