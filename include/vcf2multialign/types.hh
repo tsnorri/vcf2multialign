@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2022 Tuukka Norri
+ * Copyright (c) 2017-2024 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -8,6 +8,7 @@
 
 #include <boost/iostreams/device/file_descriptor.hpp>
 #include <boost/iostreams/stream.hpp>
+#include <cstdint>
 #include <set>
 #include <vector>
 
