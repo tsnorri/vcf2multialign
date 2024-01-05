@@ -9,30 +9,16 @@ then
 	exit 1
 fi
 
-# FIXME: hack to make conda-build use Clang on Linux. This should be made platform-independent.
-clang="${PREFIX}/bin/clang"
-clangxx="${PREFIX}/bin/clang++"
-clang_version=`${PREFIX}/bin/clang -dumpversion`
-includes="--sysroot '${PREFIX}/x86_64-conda-linux-gnu/sysroot' -isystem =/../../include/c++/13.2.0 -isystem =/../include -isystem =/../../include" # -I'${SRC_DIR}/conda'"
-cppflags="${includes}"
-cflags="-fblocks -Wno-unknown-warning-option"
-cxxflags="-fblocks -Wno-unknown-warning-option"
+echo "Generating local.mk"
+m4 -D CONDA_PREFIX="${PREFIX}" conda/local.mk.m4 > local.mk
 
-echo "CC = ${clang}"																> local.mk
-echo "CXX = ${clangxx}"																>> local.mk
-echo "CPPFLAGS = ${cppflags}"														>> local.mk
-echo "CFLAGS = ${cflags}"															>> local.mk
-echo "CXXFLAGS = ${cxxflags}"														>> local.mk
-echo "LDFLAGS = -L${PREFIX}/lib -ldl"												>> local.mk
-echo "SYSTEM_CPPFLAGS = ${cppflags}"												>> local.mk
-#echo "LIBDISPATCH_CFLAGS = ${cppflags}"												>> local.mk
-#echo "LIBDISPATCH_CXXFLAGS = ${cppflags}"											>> local.mk
-echo "BOOST_ROOT = ${PREFIX}"														>> local.mk
-echo "BOOST_INCLUDE ="																>> local.mk
-echo "BOOST_LIBS = -lboost_iostreams"												>> local.mk
-echo "LIBBSD_LIB = ${PREFIX}/x86_64-conda-linux-gnu/sysroot/usr/lib64/libbsd.a"		>> local.mk
-
+echo "Contents of local.mk:"
 cat local.mk
+
+pushd "${PREFIX}/x86_64-conda-linux-gnu/sysroot/usr/lib64/"
+ln -s ../../../../lib/gcc/x86_64-conda-linux-gnu/13.2.0/crtbeginS.o ./
+ln -s ../../../../lib/gcc/x86_64-conda-linux-gnu/13.2.0/crtendS.o ./
+popd
 
 make #-j ${CPU_COUNT}
 
