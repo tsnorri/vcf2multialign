@@ -194,6 +194,9 @@ namespace vcf2multialign {
 				it = std::lower_bound(cut_positions.cbegin(), it, prev_edge, cut_position_cmp{});
 			}
 
+			if (0 != out_cut_positions.back())
+				out_cut_positions.push_back(0);
+				
 			std::reverse(out_cut_positions.begin(), out_cut_positions.end());
 			
 			// Handle the (common) case where the sink node does not have any ALT-in-edges.

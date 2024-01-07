@@ -54,6 +54,12 @@ namespace {
 			libbio_assert_neq(rhs_rep, PLOIDY_MAX);
 		}
 		
+		explicit joined_path_eq_class(ploidy_type const rhs_rep_):
+			lhs_rep(PLOIDY_MAX),
+			rhs_rep(rhs_rep_)
+		{
+		}
+		
 		bool operator<(joined_path_eq_class const &other) const { return size < other.size; }
 	};
 	
@@ -186,7 +192,8 @@ namespace vcf2multialign {
 		pbwt_context_type pbwt_ctx(graph.total_chromosome_copies());
 		
 		// Handle the rest.
-		for (variant_graph::position_type cut_pos_idx{}; walker.advance();)
+		variant_graph::position_type cut_pos_idx{};
+		while (walker.advance())
 		{
 			libbio_assert_neq(cut_pos_it, m_cut_positions.cut_positions.end());
 			
@@ -196,6 +203,8 @@ namespace vcf2multialign {
 			// Check if we are at a cut position.
 			if (node == *cut_pos_it)
 			{
+				bool const is_final_node(graph.node_count() == 1 + node);
+
 				{
 					using std::swap;
 					swap(lhs_eq_classes, rhs_eq_classes);
@@ -455,6 +464,43 @@ namespace vcf2multialign {
 			}
 			
 			m_delegate->handled_node(node);
+		}
+		
+		// Handle the trivial case.
+		if (1 == cut_pos_idx)
+		{
+			ploidy_type rep{PLOIDY_MAX};
+			joined_path_eq_classes.clear();
+			for (auto const [aa, dd] : rsv::zip(pbwt_ctx.permutation, pbwt_ctx.divergence))
+			{
+				// Check if the current entry begins a new equivalence class.
+				if (0 < dd)
+				{
+					rep = aa;
+					++rhs_distinct_eq_classes;
+					joined_path_eq_classes.emplace_back(rep);
+				}
+					
+				// Store for the next cut position.
+				rhs_eq_classes[aa] = rep;
+				
+				libbio_assert(!joined_path_eq_classes.empty());
+				++joined_path_eq_classes.back().size;
+			}
+			
+			// Sort by the size. (The smallest will be the first.)
+			std::sort(joined_path_eq_classes.begin(), joined_path_eq_classes.end());
+			
+			// Remove the REF edges if needed. This is easier here than in the divergence value handling loop above.
+			if (!m_should_keep_ref_edges && rhs_first_path_is_ref)
+			{
+				std::erase_if(joined_path_eq_classes, [rhs_first_path_eq_class](auto const &eq_class){
+					return rhs_first_path_eq_class == eq_class.rhs_rep;
+				});
+			}
+			
+			for (auto const &[founder_idx, eq_class] : rsv::reverse(joined_path_eq_classes) | rsv::take(founder_count) | rsv::enumerate)
+				m_assigned_samples(0, founder_idx) = eq_class.rhs_rep;
 		}
 		
 		return true;
