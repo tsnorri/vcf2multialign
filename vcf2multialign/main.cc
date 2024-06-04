@@ -35,6 +35,16 @@ namespace v2m	= vcf2multialign;
 
 namespace {
 	
+	void output_graphviz_label(std::ostream &stream, std::string_view const label)
+	{
+		// FIXME: Handle special characters in the label?
+		if (label.size() <= 20)
+			stream << label;
+		else
+			stream << label.substr(0, 10) << "…" << label.substr(label.size() - 10, 10) << " (" << label.size() << ')';
+	}
+	
+	
 	void output_graphviz(
 		v2m::sequence_type const &ref_seq_,
 		v2m::variant_graph const &graph,
@@ -68,12 +78,8 @@ namespace {
 			auto const rb(range[1]);
 			auto const label(ref_seq.substr(lb, rb - lb));
 
-			// FIXME: Handle special characters in the label?
 			stream << '\t' << node << " -> " << (node + 1) << " [label = \"";
-			if (label.size() <= label.size())
-				stream << label;
-			else
-				stream << label.substr(0, 10) << "…" << label.substr(label.size() - 10, 10) << " (" << label.size() << ')';
+			output_graphviz_label(stream, label);
 			stream << "\", penwidth = 2.0];\n";
 		}
 		stream << '\n';
@@ -85,7 +91,11 @@ namespace {
 			auto const edge_rb(edge_range[1]);
 			
 			for (edge_type edge_idx(edge_lb); edge_idx < edge_rb; ++edge_idx)
-				stream << '\t' << src_node << " -> " << graph.alt_edge_targets[edge_idx] << " [label = \"" << graph.alt_edge_labels[edge_idx] << "\"];\n";
+			{
+				stream << '\t' << src_node << " -> " << graph.alt_edge_targets[edge_idx] << " [label = \"";
+				output_graphviz_label(stream, graph.alt_edge_labels[edge_idx]);
+				stream << "\"];\n";
+			}
 		}
 		stream << "}\n";
 	}
