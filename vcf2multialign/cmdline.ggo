@@ -44,7 +44,7 @@ option		"output-overlaps"			-	"Output overlapping variants to the given path as 
 #option		"filter-fields-set"			-	"Remove variants with any value for the given field (used with e.g. CIPOS, CIEND)"	string	typestr = "identifier"	dependon = "input-variants"		optional	multiple
 
 defgroup	"Sample filtering"
-groupoption	"include-samples"			-	"Incude the samples listed in the given TSV file (chrom, sample, copy_idx)"			string	typestr = "filename"	dependon = "input-variants"	group = "Sample filtering"	optional
+groupoption	"include-samples"			-	"Incude only the samples listed in the given TSV file (chrom, sample, copy_idx)"	string	typestr = "filename"	dependon = "input-variants"	group = "Sample filtering"	optional
 groupoption	"exclude-samples"			x	"Exclude the samples listed in the given TSV file (chrom, sample, copy_idx)"		string	typestr = "filename"	dependon = "input-variants"	group = "Sample filtering"	optional
 
 section		"Status output"
