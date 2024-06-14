@@ -128,7 +128,8 @@ namespace {
 	struct build_variant_graph_delegate final : public v2m::build_graph_delegate
 	{
 		lb::file_ostream				overlapping_alternatives_os;
-		std::vector <sample_identifier>	excluded_samples;
+		std::vector <sample_identifier>	sample_list;
+		bool							should_exclude_listed_samples{true};
 		
 		void report_overlapping_alternative(
 			std::uint64_t const lineno,
@@ -156,7 +157,7 @@ namespace {
 
 		bool should_include(std::string_view const sample_name, v2m::variant_graph::ploidy_type const chrom_copy_idx) const override
 		{
-			return !std::binary_search(excluded_samples.begin(), excluded_samples.end(), sample_identifier_sv{sample_name, chrom_copy_idx});
+			return should_exclude_listed_samples ^ std::binary_search(sample_list.begin(), sample_list.end(), sample_identifier_sv{sample_name, chrom_copy_idx});
 		}
 		
 		bool ref_column_mismatch(std::uint64_t const var_idx, position_type const pos, std::string_view const expected, std::string_view const actual) override
@@ -207,11 +208,29 @@ namespace {
 
 		std::sort(samples.begin(), samples.end());
 	}
+
+
+	void read_filtered_samples(char const *path, char const *chr_id, build_variant_graph_delegate &delegate, bool const should_include, bool const be_verbose)
+	{
+		lb::log_time(std::cerr) << "Reading the " << (should_include ? "included" : "excluded") << " sample list…" << std::flush;
+		read_sample_list(path, chr_id, delegate.sample_list);
+		std::cerr << " Done.\n";
+
+		delegate.should_exclude_listed_samples = !should_include;
+
+		if (be_verbose)
+		{
+			std::cerr << (should_include ? "Included" : "Excluded") << " the following samples:\n";
+			for (auto const &sample_id : delegate.sample_list)
+				std::cerr << sample_id.sample << " (" << sample_id.chromosome_copy_index << ")\n";
+		}
+	}
 	
 	
 	void build_variant_graph(
 		char const *variants_path,
 		char const *chr_id,
+		char const *include_samples_tsv_path,
 		char const *exclude_samples_tsv_path,
 		char const *overlaps_tsv_path,
 		v2m::sequence_type const &ref_seq,
@@ -226,20 +245,11 @@ namespace {
 			lb::open_file_for_writing(overlaps_tsv_path, delegate.overlapping_alternatives_os, lb::writing_open_mode::CREATE);
 			delegate.overlapping_alternatives_os << "LINENO\tPOS\tID\tSAMPLE\tCHROM_COPY\tGT\n";
 		}
-		
-		if (exclude_samples_tsv_path)
-		{
-			lb::log_time(std::cerr) << "Reading the excluded sample list…" << std::flush;
-			read_sample_list(exclude_samples_tsv_path, chr_id, delegate.excluded_samples);
-			std::cerr << " Done.\n";
-			
-			if (be_verbose)
-			{
-				std::cerr << "Excluded the following samples:\n";
-				for (auto const &sample_id : delegate.excluded_samples)
-					std::cerr << sample_id.sample << " (" << sample_id.chromosome_copy_index << ")\n";
-			}
-		}
+
+		if (include_samples_tsv_path)
+			read_filtered_samples(include_samples_tsv_path, chr_id, delegate, true, be_verbose);
+		else if (exclude_samples_tsv_path)
+			read_filtered_samples(exclude_samples_tsv_path, chr_id, delegate, false, be_verbose);
 		
 		lb::log_time(std::cerr) << "Building the variant graph…\n";
 		v2m::build_graph_statistics stats;
@@ -376,6 +386,7 @@ namespace {
 			build_variant_graph(
 				args_info.input_variants_arg,
 				args_info.chromosome_arg,
+				args_info.include_samples_arg,
 				args_info.exclude_samples_arg,
 				args_info.output_overlaps_arg,
 				ref_seq,
