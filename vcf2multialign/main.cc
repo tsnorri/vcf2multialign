@@ -167,10 +167,10 @@ namespace {
 	};
 
 
-	void read_excluded_samples(char const *exclude_samples_tsv_path, char const *chr_id, std::vector <sample_identifier> &excluded_samples)
+	void read_sample_list(char const *samples_tsv_path, char const *chr_id, std::vector <sample_identifier> &samples)
 	{
 		lb::file_istream stream;
-		lb::open_file_for_reading(exclude_samples_tsv_path, stream);
+		lb::open_file_for_reading(samples_tsv_path, stream);
 
 		typedef lbp::parser <
 			lbp::traits::delimited <lbp::delimiter <'\t'>, lbp::delimiter <'\n'>>,
@@ -193,7 +193,7 @@ namespace {
 						break;
 
 					if (chr_id == std::get <0>(rec))
-						excluded_samples.emplace_back(std::get <1>(rec), std::get <2>(rec));
+						samples.emplace_back(std::get <1>(rec), std::get <2>(rec));
 				}
 			}
 			catch (lbp::parse_error const &err)
@@ -205,7 +205,7 @@ namespace {
 			}
 		}
 
-		std::sort(excluded_samples.begin(), excluded_samples.end());
+		std::sort(samples.begin(), samples.end());
 	}
 	
 	
@@ -230,7 +230,7 @@ namespace {
 		if (exclude_samples_tsv_path)
 		{
 			lb::log_time(std::cerr) << "Reading the excluded sample list…" << std::flush;
-			read_excluded_samples(exclude_samples_tsv_path, chr_id, delegate.excluded_samples);
+			read_sample_list(exclude_samples_tsv_path, chr_id, delegate.excluded_samples);
 			std::cerr << " Done.\n";
 			
 			if (be_verbose)
