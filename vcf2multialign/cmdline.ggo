@@ -40,8 +40,9 @@ option		"output-overlaps"			-	"Output overlapping variants to the given path as 
 #option		"overwrite"					-	"Overwrite output files"															flag	off
 #option		"log"						-	"Variant handling log file path"													string	typestr = "filename"									optional
 
-#section	"Common processing options"
+section	"Common processing options"
 #option		"filter-fields-set"			-	"Remove variants with any value for the given field (used with e.g. CIPOS, CIEND)"	string	typestr = "identifier"	dependon = "input-variants"		optional	multiple
+option		"ref-mismatch-handling"		-	"REF column mismatch handling"							values = "warning", "error"	enum	default = "warning"										optional
 
 defgroup	"Sample filtering"
 groupoption	"include-samples"			-	"Incude only the samples listed in the given TSV file (chrom, sample, copy_idx)"	string	typestr = "filename"	dependon = "input-variants"	group = "Sample filtering"	optional

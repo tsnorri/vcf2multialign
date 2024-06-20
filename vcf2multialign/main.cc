@@ -130,6 +130,7 @@ namespace {
 		lb::file_ostream				overlapping_alternatives_os;
 		std::vector <sample_identifier>	sample_list;
 		bool							should_exclude_listed_samples{true};
+		bool							ref_column_mismatch_is_fatal{false};
 		
 		void report_overlapping_alternative(
 			std::uint64_t const lineno,
@@ -162,7 +163,9 @@ namespace {
 		
 		bool ref_column_mismatch(std::uint64_t const var_idx, position_type const pos, std::string_view const expected, std::string_view const actual) override
 		{
-			std::cerr << "WARNING: REF column contents do not match the reference sequence in variant " << var_idx << ". Expected: “" << expected << "” Actual: “" << actual << "”\n";
+			std::cerr << (ref_column_mismatch_is_fatal ? "ERROR:" : "WARNING:") << " REF column contents do not match the reference sequence in variant " << var_idx << ". Expected: “" << expected << "” Actual: “" << actual << "”\n";
+			if (ref_column_mismatch_is_fatal)
+				std::exit(EXIT_FAILURE);
 			return true;
 		}
 	};
@@ -235,10 +238,12 @@ namespace {
 		char const *overlaps_tsv_path,
 		v2m::sequence_type const &ref_seq,
 		v2m::variant_graph &graph,
-		bool const be_verbose
+		bool const be_verbose,
+		bool const ref_mismatch_is_fatal
 	)
 	{
 		build_variant_graph_delegate delegate;
+		delegate.ref_column_mismatch_is_fatal = ref_mismatch_is_fatal;
 		
 		if (overlaps_tsv_path)
 		{
@@ -391,7 +396,8 @@ namespace {
 				args_info.output_overlaps_arg,
 				ref_seq,
 				graph,
-				args_info.verbose_given
+				args_info.verbose_given,
+				ref_mismatch_handling_arg_error == args_info.ref_mismatch_handling_arg
 			);
 		}
 		
