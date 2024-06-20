@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Tuukka Norri
+ * Copyright (c) 2023-2024 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -31,6 +31,7 @@ namespace lb	= libbio;
 namespace lbp	= libbio::parsing;
 namespace rsv	= ranges::views;
 namespace v2m	= vcf2multialign;
+namespace vcf	= libbio::vcf;
 
 
 namespace {
@@ -161,11 +162,15 @@ namespace {
 			return should_exclude_listed_samples ^ std::binary_search(sample_list.begin(), sample_list.end(), sample_identifier_sv{sample_name, chrom_copy_idx});
 		}
 		
-		bool ref_column_mismatch(std::uint64_t const var_idx, position_type const pos, std::string_view const expected, std::string_view const actual) override
+		bool ref_column_mismatch(std::uint64_t const var_idx, vcf::transient_variant const &var, std::string_view const expected) override
 		{
-			std::cerr << (ref_column_mismatch_is_fatal ? "ERROR:" : "WARNING:") << " REF column contents do not match the reference sequence in variant " << var_idx << ". Expected: “" << expected << "” Actual: “" << actual << "”\n";
+			std::cerr << (ref_column_mismatch_is_fatal ? "ERROR:" : "WARNING:");
+			std::cerr << " REF column contents do not match the reference sequence in variant";
+			std::cerr << " line: " << var.lineno() << " CHROM: " << var.chrom_id() << " POS: " << var.pos() << " REF: “" << var.ref() << "” expected: “" << expected << "”\n";
+
 			if (ref_column_mismatch_is_fatal)
 				std::exit(EXIT_FAILURE);
+
 			return true;
 		}
 	};

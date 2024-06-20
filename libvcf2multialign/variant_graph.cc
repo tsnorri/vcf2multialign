@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Tuukka Norri
+ * Copyright (c) 2023-2024 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -284,7 +284,7 @@ namespace vcf2multialign {
 					
 					{
 						auto const expected_ref(ref_seq_sv.substr(ref_pos, ref.size()));
-						if (ref != expected_ref && !delegate.ref_column_mismatch(var_idx, ref_pos, expected_ref, ref))
+						if (ref != expected_ref && !delegate.ref_column_mismatch(var_idx, var, expected_ref))
 							return false;
 					}
 					

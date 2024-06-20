@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Tuukka Norri
+ * Copyright (c) 2023-2024 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -11,6 +11,7 @@
 #include <libbio/int_matrix.hh>
 #include <libbio/int_matrix/cereal_serialization.hh>
 #include <libbio/int_vector/cereal_serialization.hh>
+#include <libbio/vcf/variant.hh>
 #include <limits>										// std::numeric_limits
 #include <range/v3/view/zip.hpp>
 #include <string>
@@ -145,7 +146,7 @@ namespace vcf2multialign {
 		) = 0;
 		
 		// FIXME: add typedef for variant index.
-		virtual bool ref_column_mismatch(std::uint64_t const var_idx, position_type const pos, std::string_view const expected, std::string_view const actual) = 0;
+		virtual bool ref_column_mismatch(std::uint64_t const var_idx, libbio::vcf::transient_variant const &var, std::string_view const expected) = 0;
 	};
 	
 	
