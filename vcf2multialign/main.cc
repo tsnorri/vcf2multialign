@@ -19,6 +19,7 @@
 #include <range/v3/iterator/stream_iterators.hpp>
 #include <range/v3/view/enumerate.hpp>
 #include <range/v3/view/iota.hpp>
+#include <signal.h>
 #include <string>
 #include <string_view>
 #include <vcf2multialign/output.hh>
@@ -355,6 +356,8 @@ namespace {
 	
 	void run(gengetopt_args_info const &args_info)
 	{
+		::signal(SIGPIPE, SIG_IGN);
+
 		// Read the reference sequence.
 		v2m::sequence_type ref_seq;
 		{
