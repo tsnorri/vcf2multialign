@@ -316,42 +316,34 @@ namespace {
 		}
 		
 		
+		void unable_to_execute_subprocess(libbio::subprocess_status const &status) override
+		{
+			std::cerr << "Unable to execute subprocess. ";
+			status.output_status(std::cerr, true);
+			std::exit(EXIT_FAILURE);
+		}
+		
+		
 		void exit_subprocess(v2m::subprocess_type &proc) override
 		{
 			auto const res(proc.close());
 			auto const &[close_status, exit_status, pid] = res;
 			if (! (lb::process_handle::close_status::exit_called == close_status && 0 == exit_status))
 			{
-				// Try to determine the reason for the exit status.
-				auto const &status(proc.status());
-				switch (status.execution_status)
+				std::cerr << "ERROR: Subprocess with PID " << pid << " exited with status " << exit_status;
+				switch (close_status)
 				{
-					case lb::execution_status_type::no_error:
-					{
-						std::cerr << "ERROR: Subprocess with PID " << pid << " exited with status " << exit_status;
-						switch (close_status)
-						{
-							case lb::process_handle::close_status::unknown:
-								std::cerr << " (exiting reason not known)";
-								break;
-							case lb::process_handle::close_status::terminated_by_signal:
-								std::cerr << " (terminated by signal)";
-								break;
-							case lb::process_handle::close_status::stopped_by_signal:
-								std::cerr << " (stopped by signal)";
-								break;
-							default:
-								break;
-						}
+					case lb::process_handle::close_status::unknown:
+						std::cerr << " (exiting reason not known)";
 						break;
-					}
-				
-					case lb::execution_status_type::file_descriptor_handling_failed:
-					case lb::execution_status_type::exec_failed:
-					{
-						std::cerr << "ERROR: Unable to start subprocess: " << strerror(status.error);
+					case lb::process_handle::close_status::terminated_by_signal:
+						std::cerr << " (terminated by signal)";
 						break;
-					}
+					case lb::process_handle::close_status::stopped_by_signal:
+						std::cerr << " (stopped by signal)";
+						break;
+					default:
+						break;
 				}
 			
 				std::cerr << '\n';

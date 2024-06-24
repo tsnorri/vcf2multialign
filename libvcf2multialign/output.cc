@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Tuukka Norri
+ * Copyright (c) 2023–2024 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -22,7 +22,12 @@ namespace vcf2multialign {
 	{
 		if (m_pipe_cmd)
 		{
-			auto proc(subprocess_type::subprocess_with_arguments({m_pipe_cmd, dst_name}));
+			subprocess_type proc;
+			if (auto const res(proc.open({m_pipe_cmd, dst_name})); !res)
+			{
+				m_delegate->unable_to_execute_subprocess(res);
+				return;
+			}
 			auto &fh(proc.stdin_handle());
 			output_sequence(ref_seq, graph, fh, dst_name, m_should_output_unaligned, delegate);
 			m_delegate->exit_subprocess(proc);
@@ -39,7 +44,13 @@ namespace vcf2multialign {
 	{
 		if (m_pipe_cmd)
 		{
-			auto proc(subprocess_type::subprocess_with_arguments({m_pipe_cmd, dst_name}));
+			subprocess_type proc;
+			if (auto const res(proc.open({m_pipe_cmd, dst_name}); !res)
+			{
+				m_delegate->unable_to_execute_subprocess(res);
+				return;
+			}
+			
 			auto &fh(proc.stdin_handle());
 			
 			{

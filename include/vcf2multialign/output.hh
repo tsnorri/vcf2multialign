@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Tuukka Norri
+ * Copyright (c) 2023–2024 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
@@ -30,6 +30,7 @@ namespace vcf2multialign {
 		virtual void will_handle_sample(std::string const &sample, sample_type const sample_idx, ploidy_type const chr_copy_idx) = 0;
 		virtual void will_handle_founder_sequence(sample_type const idx) = 0;
 		virtual void handled_sequences(sequence_count_type const sequence_count) = 0;
+		virtual void unable_to_execute_subprocess(libbio::subprocess_status const &status) = 0;
 		virtual void exit_subprocess(subprocess_type &proc) = 0;
 	};
 	
