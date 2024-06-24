@@ -23,7 +23,8 @@ namespace vcf2multialign {
 		if (m_pipe_cmd)
 		{
 			subprocess_type proc;
-			if (auto const res(proc.open({m_pipe_cmd, dst_name})); !res)
+			auto const res(proc.open({m_pipe_cmd, dst_name})); 
+			if (!res)
 			{
 				m_delegate->unable_to_execute_subprocess(res);
 				return;
@@ -45,7 +46,8 @@ namespace vcf2multialign {
 		if (m_pipe_cmd)
 		{
 			subprocess_type proc;
-			if (auto const res(proc.open({m_pipe_cmd, dst_name}); !res)
+			auto const res(proc.open({m_pipe_cmd, dst_name}));
+			if (!res)
 			{
 				m_delegate->unable_to_execute_subprocess(res);
 				return;
