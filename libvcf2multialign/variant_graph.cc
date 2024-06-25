@@ -258,7 +258,11 @@ namespace vcf2multialign {
 					{
 						// Make sure the row count is divisible by path_matrix_row_col_divisor.
 						std::size_t const path_matrix_rows(path_matrix_row_col_divisor * std::ceil(1.0 * graph.ploidy_csum.back() / path_matrix_row_col_divisor)); 
-						graph.paths_by_edge_and_chrom_copy = variant_graph::path_matrix(path_matrix_rows, path_column_allocation);
+						graph.paths_by_edge_and_chrom_copy = (
+							path_matrix_rows
+							? variant_graph::path_matrix(path_matrix_rows, path_column_allocation)
+							: variant_graph::path_matrix(1, 0)
+						);
 					}
 					
 					libbio_assert_eq(graph.ploidy_csum.size(), 1 + graph.sample_names.size());
@@ -347,7 +351,7 @@ namespace vcf2multialign {
 					// Check that we have enough space for the paths.
 					{
 						auto const ncol(graph.paths_by_edge_and_chrom_copy.number_of_columns());
-						if (ncol <= max_edge)
+						if (ncol && ncol <= max_edge)
 						{
 							auto const multiplier(4 + ncol / path_column_allocation);
 							graph.paths_by_edge_and_chrom_copy.resize(graph.paths_by_edge_and_chrom_copy.number_of_rows() * multiplier * path_column_allocation, 0);
@@ -423,6 +427,7 @@ namespace vcf2multialign {
 		
 		// Remove extra entries.
 		// Does not actually shrink to fit.
+		if (graph.paths_by_edge_and_chrom_copy.size())
 		{
 			std::size_t const ncol(path_matrix_row_col_divisor * std::ceil(1.0 * graph.edge_count() / path_matrix_row_col_divisor));
 			graph.paths_by_edge_and_chrom_copy.resize(graph.paths_by_edge_and_chrom_copy.number_of_rows() * ncol, 0);
