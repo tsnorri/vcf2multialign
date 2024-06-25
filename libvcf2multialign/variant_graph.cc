@@ -240,7 +240,7 @@ namespace vcf2multialign {
 						auto it(removed_samples.begin());
 						variant_graph::label_vector new_sample_names;
 						
-						libbio_assert_lte(removed_samples.size(), (graph.sample_names.size() - 1));
+						libbio_assert_lte((removed_samples.size() - 1), graph.sample_names.size());
 						new_sample_names.reserve(graph.sample_names.size() - (removed_samples.size() - 1));
 						
 						for (auto &&[idx, sample_name] : rsv::enumerate(graph.sample_names))
