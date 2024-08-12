@@ -13,6 +13,7 @@ namespace gen	= Catch::Generators;
 namespace lb	= libbio;
 namespace rsv	= ranges::view;
 namespace v2m	= vcf2multialign;
+namespace vcf	= libbio::vcf;
 
 
 namespace {
@@ -206,9 +207,9 @@ namespace {
 			REQUIRE(expected_overlapping_alternatives.contains(make_alt <std::string_view>(sample_name, chrom_copy_idx, ref_pos, var_id, gt)));
 		}
 		
-		bool ref_column_mismatch(std::uint64_t const var_idx, position_type const pos, std::string_view const expected, std::string_view const actual) override
+		bool ref_column_mismatch(std::uint64_t const var_idx, vcf::transient_variant const &var, std::string_view const expected) override
 		{
-			FAIL("REF column contents do not match the reference sequence in variant " << var_idx << ", position " << pos << ". Expected: “" << expected << "” Actual: “" << actual << "”");
+			FAIL("REF column contents do not match the reference sequence in variant " << var_idx << ", position " << var.pos() << ". Expected: “" << expected << "” Actual: “" << var.ref() << "”");
 			return false;
 		}
 	};
