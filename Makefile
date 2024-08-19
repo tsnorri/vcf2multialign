@@ -33,7 +33,10 @@ dependencies: $(DEPENDENCIES)
 
 dist: $(DIST_TAR_GZ)
 
-tests: tests/coverage/index.html lib/libbio/tests/coverage/index.html
+tests: tests/coverage/index.html
+
+libbio-tests:
+	$(MAKE) -C lib/libbio tests
 
 libvcf2multialign/libvcf2multialign.a: $(DEPENDENCIES)
 	$(MAKE) -C libvcf2multialign
@@ -68,6 +71,3 @@ lib/libbio/lib/rapidcheck/build/librapidcheck.a:
 
 tests/coverage/index.html: lib/libbio/lib/rapidcheck/build/librapidcheck.a libvcf2multialign/libvcf2multialign.coverage.a $(DEPENDENCIES)
 	$(MAKE) -C tests coverage
-
-lib/libbio/tests/coverage/index.html:
-	$(MAKE) -C lib/libbio tests
