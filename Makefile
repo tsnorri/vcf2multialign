@@ -57,6 +57,8 @@ $(DIST_TAR_GZ):	vcf2multialign/vcf2multialign lib/libbio/vcfcat/vcfcat
 	$(CP) README.md $(DIST_TARGET_DIR)
 	$(CP) LICENSE $(DIST_TARGET_DIR)
 	$(CP) lib/cereal/LICENSE $(DIST_TARGET_DIR)/cereal-license.txt
+	$(CP) lib/libbio/lib/GSL/LICENSE $(DIST_TARGET_DIR)/GSL-license.txt
+	$(CP) lib/libbio/lib/range-v3/LICENSE.txt $(DIST_TARGET_DIR)/range-v3-license.txt
 	$(TAR) czf $(DIST_TAR_GZ) $(DIST_TARGET_DIR)
 	$(RM) -rf $(DIST_TARGET_DIR)
 
