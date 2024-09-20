@@ -6,6 +6,7 @@ OBJECTS =	find_cut_positions.o \
 			haplotype_output.o \
 			output.o \
 			sequence_writer.o \
+			state.o \
 			transpose_matrix.o \
 			variant_graph.o
 

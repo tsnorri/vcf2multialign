@@ -23,6 +23,7 @@
 #include <string>
 #include <string_view>
 #include <vcf2multialign/output.hh>
+#include <vcf2multialign/state.hh>
 #include <vcf2multialign/variant_graph.hh>
 #include <vector>
 #include "cmdline.h"
@@ -30,6 +31,7 @@
 namespace ios	= boost::iostreams;
 namespace lb	= libbio;
 namespace lbp	= libbio::parsing;
+namespace ml	= libbio::memory_logger;
 namespace rsv	= ranges::views;
 namespace v2m	= vcf2multialign;
 namespace vcf	= libbio::vcf;
@@ -388,6 +390,7 @@ namespace {
 		}
 		else
 		{
+			ml::state_guard const guard(v2m::state::build_variant_graph);
 			build_variant_graph(
 				args_info.input_variants_arg,
 				args_info.chromosome_arg,
@@ -439,6 +442,7 @@ namespace {
 			
 			if (args_info.haplotypes_given)
 			{
+				ml::state_guard const guard(v2m::state::output_haplotypes);
 				v2m::haplotype_output output(
 					args_info.pipe_arg,
 					args_info.dst_chromosome_arg,
@@ -450,6 +454,7 @@ namespace {
 			}
 			else if (args_info.founder_sequences_given)
 			{
+				ml::state_guard const guard(v2m::state::output_founder_sequences_greedy);
 				v2m::founder_sequence_greedy_output output(
 					args_info.pipe_arg,
 					args_info.dst_chromosome_arg,
@@ -463,6 +468,7 @@ namespace {
 					output.load_cut_positions(args_info.input_cut_positions_arg);
 				else
 				{
+					ml::state_guard const guard(v2m::state::find_cut_positions);
 					lb::log_time(std::cerr) << "Optimising cut positions…\n";
 					if (!output.find_cut_positions(graph, args_info.minimum_distance_arg))
 					{
@@ -484,24 +490,27 @@ namespace {
 				if (args_info.output_cut_positions_given)
 					output.output_cut_positions(args_info.output_cut_positions_arg);
 				
-				lb::log_time(std::cerr) << "Finding matchings in the variant graph…\n";
-				if (!output.find_matchings(graph, args_info.founder_sequences_arg))
 				{
-					std::cerr << "ERROR: Unable to find matchings.\n";
-					std::exit(EXIT_FAILURE);
-				}
-				
-				if (args_info.verbose_flag)
-				{
-					std::cout << "Matchings:\n";
-					auto const &assigned_samples(output.assigned_samples());
-					for (auto const col_idx : rsv::iota(std::size_t(0), assigned_samples.number_of_columns()))
+					ml::state_guard const guard(v2m::state::find_matchings);
+					lb::log_time(std::cerr) << "Finding matchings in the variant graph…\n";
+					if (!output.find_matchings(graph, args_info.founder_sequences_arg))
 					{
-						auto const col(assigned_samples.column(col_idx));
-						std::cout << col_idx << ':';
-						for (auto const val : col)
-							std::cout << '\t' << val;
-						std::cout << '\n';
+						std::cerr << "ERROR: Unable to find matchings.\n";
+						std::exit(EXIT_FAILURE);
+					}
+				
+					if (args_info.verbose_flag)
+					{
+						std::cout << "Matchings:\n";
+						auto const &assigned_samples(output.assigned_samples());
+						for (auto const col_idx : rsv::iota(std::size_t(0), assigned_samples.number_of_columns()))
+						{
+							auto const col(assigned_samples.column(col_idx));
+							std::cout << col_idx << ':';
+							for (auto const val : col)
+								std::cout << '\t' << val;
+							std::cout << '\n';
+						}
 					}
 				}
 				
@@ -571,6 +580,11 @@ int main(int argc, char **argv)
 	
 	try
 	{
+		{
+			v2m::memory_logger_header_writer_delegate delegate;
+			lb::setup_allocated_memory_logging(delegate); // No-op unless LIBBIO_LOG_ALLOCATED_MEMORY is defined.
+		}
+		
 		run(args_info);
 	}
 	catch (std::exception const &exc)
