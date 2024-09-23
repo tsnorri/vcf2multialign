@@ -10,7 +10,10 @@
 #include <filesystem>
 #include <libbio/int_matrix.hh>
 #include <libbio/int_matrix/cereal_serialization.hh>
+#include <libbio/int_matrix/size_calculation.hh>
 #include <libbio/int_vector/cereal_serialization.hh>
+#include <libbio/int_vector/size_calculation.hh>
+#include <libbio/size_calculator.hh>
 #include <libbio/vcf/variant.hh>
 #include <limits>										// std::numeric_limits
 #include <range/v3/view/zip.hpp>
@@ -162,8 +165,8 @@ namespace vcf2multialign {
 		std::uint64_t	handled_variants{};
 		std::uint64_t	chr_id_mismatches{};
 	};
-	
-	
+
+
 	void build_variant_graph(
 		sequence_type const &ref_seq,
 		char const *variants_path,
@@ -220,6 +223,16 @@ namespace vcf2multialign {
 	{
 		return ranges::views::zip(alt_edge_targets(), alt_edge_labels());
 	}
+}
+
+
+namespace libbio::size_calculation {
+
+	template <>
+	struct value_size_calculator <vcf2multialign::variant_graph>
+	{
+		void operator()(size_calculator &sc, size_calculator_entry &entry, vcf2multialign::variant_graph const &graph) const;
+	};
 }
 
 #endif

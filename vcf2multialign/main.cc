@@ -13,6 +13,7 @@
 #include <libbio/file_handle.hh>
 #include <libbio/file_handling.hh>
 #include <libbio/generic_parser.hh>
+#include <libbio/size_calculator.hh>
 #include <libbio/subprocess.hh>
 #include <map>
 #include <range/v3/algorithm/copy.hpp>
@@ -411,6 +412,19 @@ namespace {
 			lb::open_file_for_writing(args_info.output_graph_arg, os, lb::writing_open_mode::CREATE);
 			cereal::PortableBinaryOutputArchive archive(os);
 			archive(graph);
+			std::cerr << " Done.\n";
+		}
+
+		if (args_info.output_memory_breakdown_given)
+		{
+			lb::log_time(std::cerr) << "Outputting the memory breakdown…" << std::flush;
+			lb::file_ostream os;
+			lb::open_file_for_writing(args_info.output_memory_breakdown_arg, os, lb::writing_open_mode::CREATE);
+			lb::size_calculator sc;
+			auto &root(sc.add_root_entry());
+			sc.add_entry_for(root, "variant_graph", graph);
+			sc.sum_sizes();
+			sc.output_entries(os);
 			std::cerr << " Done.\n";
 		}
 		

@@ -1,7 +1,7 @@
 include ../local.mk
 include ../common.mk
 
-#CPPFLAGS += -DLIBBIO_LOG_ALLOCATED_MEMORY
+CPPFLAGS += -DLIBBIO_LOG_ALLOCATED_MEMORY
 
 OBJECTS		=	cmdline.o \
 				log_memory_usage.o \

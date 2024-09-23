@@ -1,4 +1,4 @@
-# Copyright (c) 2023 Tuukka Norri
+# Copyright (c) 2023-2024 Tuukka Norri
 # This code is licensed under MIT license (see LICENSE for details).
 
 package		"vcf2multialign"
@@ -37,6 +37,7 @@ option		"pipe"						-	"Instead of writing sequences to files, pipe the output to
 option		"output-graph"				f	"Output the variant graph"															string	typestr = "filename"	dependon = "input-variants"		optional
 option		"output-graphviz"			v	"Output the variant graph in Graphviz format"										string	typestr = "filename"									optional
 option		"output-overlaps"			-	"Output overlapping variants to the given path as TSV instead of stdout"			string	typestr = "filename"	dependon = "input-variants"		optional
+option		"output-memory-breakdown"	-	"Output breakdown of the relevant data structures (currently the variant graph)"	string	typestr = "filename"									optional	hidden
 #option		"overwrite"					-	"Overwrite output files"															flag	off
 #option		"log"						-	"Variant handling log file path"													string	typestr = "filename"									optional
 
