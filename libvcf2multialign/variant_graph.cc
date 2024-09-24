@@ -442,18 +442,18 @@ namespace libbio::size_calculation {
 
 	void value_size_calculator <vcf2multialign::variant_graph>::operator()(
 		size_calculator &sc,
-		size_calculator_entry &entry,
+		entry_index_type const entry_idx,
 		vcf2multialign::variant_graph const &graph
 	) const
 	{
-		sc.add_entry_for(entry, "reference_positions", graph.reference_positions);
-		sc.add_entry_for(entry, "aligned_positions", graph.aligned_positions);
-		sc.add_entry_for(entry, "alt_edge_targets", graph.alt_edge_targets);
-		sc.add_entry_for(entry, "alt_edge_count_csum", graph.alt_edge_count_csum);
-		sc.add_entry_for(entry, "alt_edge_labels", graph.alt_edge_labels);
-		sc.add_entry_for(entry, "paths_by_chrom_copy_and_edge", graph.paths_by_chrom_copy_and_edge);
-		sc.add_entry_for(entry, "paths_by_edge_and_chrom_copy", graph.paths_by_edge_and_chrom_copy);
+		sc.add_entry_for(entry_idx, "reference_positions", graph.reference_positions);
+		sc.add_entry_for(entry_idx, "aligned_positions", graph.aligned_positions);
+		sc.add_entry_for(entry_idx, "alt_edge_targets", graph.alt_edge_targets);
+		sc.add_entry_for(entry_idx, "alt_edge_count_csum", graph.alt_edge_count_csum);
+		sc.add_entry_for(entry_idx, "alt_edge_labels", graph.alt_edge_labels);
+		sc.add_entry_for(entry_idx, "paths_by_chrom_copy_and_edge", graph.paths_by_chrom_copy_and_edge);
+		sc.add_entry_for(entry_idx, "paths_by_edge_and_chrom_copy", graph.paths_by_edge_and_chrom_copy);
 		// FIXME: add sample_names
-		sc.add_entry_for(entry, "ploidy_csum", graph.ploidy_csum);
+		sc.add_entry_for(entry_idx, "ploidy_csum", graph.ploidy_csum);
 	}
 }

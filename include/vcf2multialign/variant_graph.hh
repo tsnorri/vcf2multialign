@@ -231,7 +231,7 @@ namespace libbio::size_calculation {
 	template <>
 	struct value_size_calculator <vcf2multialign::variant_graph>
 	{
-		void operator()(size_calculator &sc, size_calculator_entry &entry, vcf2multialign::variant_graph const &graph) const;
+		void operator()(size_calculator &sc, entry_index_type const entry_idx, vcf2multialign::variant_graph const &graph) const;
 	};
 }
 

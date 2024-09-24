@@ -421,8 +421,8 @@ namespace {
 			lb::file_ostream os;
 			lb::open_file_for_writing(args_info.output_memory_breakdown_arg, os, lb::writing_open_mode::CREATE);
 			lb::size_calculator sc;
-			auto &root(sc.add_root_entry());
-			sc.add_entry_for(root, "variant_graph", graph);
+			auto res(sc.add_root_entry());
+			sc.add_entry_for(res.index, "variant_graph", graph);
 			sc.sum_sizes();
 			sc.output_entries(os);
 			std::cerr << " Done.\n";
