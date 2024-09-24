@@ -414,6 +414,15 @@ namespace {
 			archive(graph);
 			std::cerr << " Done.\n";
 		}
+		
+		if (args_info.output_graph_statistics_flag)
+		{
+			lb::log_time(std::cerr) << "Outputting variant graph statistics to stdout…\n";
+			
+			std::cout << "Nodes:        " << graph.reference_positions.size() << '\n';
+			std::cout << "ALT edges:    " << graph.alt_edge_targets.size() << '\n';
+			std::cout << "Total ploidy: " << graph.ploidy_csum.back() << '\n';
+		}
 
 		if (args_info.output_memory_breakdown_given)
 		{
