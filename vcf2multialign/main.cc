@@ -432,7 +432,6 @@ namespace {
 			lb::size_calculator sc;
 			auto res(sc.add_root_entry());
 			sc.add_entry_for(res.index, "variant_graph", graph);
-			sc.sum_sizes();
 			sc.output_entries(os);
 			std::cerr << " Done.\n";
 		}
