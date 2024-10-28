@@ -1,13 +1,22 @@
 /*
- * Copyright (c) 2023 Tuukka Norri
+ * Copyright (c) 2023-2024 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#include <catch2/catch.hpp>
+#include <catch2/catch_all.hpp>
+#include <cstdint>
 #include <filesystem>
+#include <iostream>
 #include <libbio/fasta_reader.hh>
+#include <libbio/subprocess.hh>
+#include <ostream>
+#include <sstream>
+#include <string>
+#include <string_view>
+#include <vcf2multialign/find_cut_positions.hh>
 #include <vcf2multialign/output.hh>
 #include <vcf2multialign/variant_graph.hh>
+#include <vector>
 
 namespace fs	= std::filesystem;
 namespace lb	= libbio;
@@ -16,21 +25,21 @@ namespace vcf	= libbio::vcf;
 
 
 namespace {
-	
+
 	typedef v2m::founder_sequence_greedy_output::ploidy_matrix	ploidy_matrix;
-	
-	
+
+
 	std::ostream &operator<<(std::ostream &os, lb::subprocess_status const &st)
 	{
 		st.output_status(os, true);
 		return os;
 	}
-	
-	
+
+
 	struct build_variant_graph_delegate final : public v2m::build_graph_delegate
 	{
 		bool should_include(std::string_view const sample_name, v2m::variant_graph::ploidy_type const chrom_copy_idx) const override { return true; }
-		
+
 		void report_overlapping_alternative(
 			std::uint64_t const lineno,
 			v2m::variant_graph::position_type const ref_pos,
@@ -42,15 +51,15 @@ namespace {
 		{
 			std::cerr << "Overlapping alternative alleles. Sample: " << sample_name << " chromosome copy: " << chrom_copy_idx << " current variant position: " << ref_pos << " genotype: " << gt << '\n';
 		}
-		
+
 		bool ref_column_mismatch(std::uint64_t const var_idx, vcf::transient_variant const &var, std::string_view const expected) override
 		{
 			FAIL("REF column contents do not match the reference sequence in variant " << var_idx << ", position " << var.pos() << ". Expected: “" << expected << "” Actual: “" << var.ref() << "”");
 			return false;
 		}
 	};
-	
-	
+
+
 	struct output_delegate final : public v2m::output_delegate
 	{
 		void will_handle_sample(std::string const &sample, sample_type const sample_idx, ploidy_type const chr_copy_idx) override {}
@@ -58,14 +67,14 @@ namespace {
 		void handled_sequences(sequence_count_type const sequence_count) override {}
 		void exit_subprocess(v2m::subprocess_type &proc) override {}
 		void handled_node(v2m::variant_graph::node_type const node) override {}
-		
+
 		void unable_to_execute_subprocess(libbio::subprocess_status const &status) override
 		{
 			FAIL("Unable to execute subprocess: " << status);
 		}
 	};
-	
-	
+
+
 	void test_founders(
 		char const * const vcf_name,
 		char const * const fasta_name,
@@ -76,20 +85,20 @@ namespace {
 	{
 		INFO("VCF: " << vcf_name);
 		INFO("FASTA: " << fasta_name);
-		
+
 		fs::path const base_path("test-files/founder-sequences");
-		
+
 		v2m::sequence_type ref_seq;
 		REQUIRE(lb::read_single_fasta_sequence(base_path / fasta_name, ref_seq, nullptr));
-		
+
 		v2m::variant_graph graph;
-		
+
 		{
 			build_variant_graph_delegate delegate;
 			v2m::build_graph_statistics stats;
 			v2m::build_variant_graph(ref_seq, base_path / vcf_name, "1", graph, stats, delegate);
 		}
-		
+
 		{
 			output_delegate delegate;
 			v2m::founder_sequence_greedy_output output(nullptr, nullptr, true, false, false, delegate);
@@ -97,7 +106,7 @@ namespace {
 			REQUIRE(expected_cut_positions == output.cut_positions());
 			REQUIRE(output.find_matchings(graph, 2));
 			REQUIRE(expected_matchings == output.assigned_samples());
-			
+
 			std::stringstream os;
 			output.output_a2m(ref_seq, graph, os);
 			REQUIRE(expected_output == os.view());
@@ -120,8 +129,8 @@ SCENARIO("Founder sequences can be generated from predef test input")
 		);
 		test_founders("test-1.vcf", "test-1.fa", {0, 1, 3, 5}, {{0, 6, 6, 3, 5, 8}, 3}, expected_output);
 	}
-	
-	
+
+
 	GIVEN("A VCF file and a reference (1, 1-2)")
 	{
 		auto const * const expected_output(
@@ -134,8 +143,8 @@ SCENARIO("Founder sequences can be generated from predef test input")
 		);
 		test_founders("test-1.vcf", "test-1-2.fa", {0, 1, 3, 6}, {{0, 6, 6, 3, 5, 8}, 3}, expected_output);
 	}
-	
-	
+
+
 	GIVEN("A VCF file and a reference (2, 2)")
 	{
 		auto const * const expected_output(
@@ -148,8 +157,8 @@ SCENARIO("Founder sequences can be generated from predef test input")
 		);
 		test_founders("test-2.vcf", "test-2.fa", {0, 3, 5}, {{6, 8, 0, 7}, 2}, expected_output);
 	}
-	
-	
+
+
 	GIVEN("A VCF file and a reference (3, 3)")
 	{
 		auto const * const expected_output(
@@ -162,8 +171,8 @@ SCENARIO("Founder sequences can be generated from predef test input")
 		);
 		test_founders("test-3.vcf", "test-3.fa", {0, 1, 2, 3}, {{0, 6, 6, 3, 5, 8}, 3}, expected_output);
 	}
-	
-	
+
+
 	GIVEN("A VCF file and a reference (4, 4)")
 	{
 		auto const * const expected_output(

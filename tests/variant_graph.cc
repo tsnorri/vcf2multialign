@@ -1,15 +1,24 @@
 /*
- * Copyright (c) 2020-2023 Tuukka Norri
+ * Copyright (c) 2020-2024 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
-#include <catch2/catch.hpp>
+#include <catch2/catch_all.hpp>
+#include <cstddef>
+#include <cstdint>
+#include <initializer_list>
 #include <libbio/fasta_reader.hh>
+#include <libbio/vcf/variant/variant_decl.hh>
+#include <range/v3/view/enumerate.hpp>
 #include <range/v3/view/zip.hpp>
 #include <set>
+#include <string>
+#include <string_view>
+#include <tuple>
+#include <utility>
 #include <vcf2multialign/variant_graph.hh>
+#include <vector>
 
-namespace gen	= Catch::Generators;
 namespace lb	= libbio;
 namespace rsv	= ranges::view;
 namespace v2m	= vcf2multialign;
@@ -17,22 +26,22 @@ namespace vcf	= libbio::vcf;
 
 
 namespace {
-	
+
 	struct alt_edge
 	{
 		std::size_t	target_node{};
 		std::string	label;
-		
+
 		alt_edge() = default;
-		
+
 		alt_edge(std::size_t const target_node_, std::string const &label_):
 			target_node(target_node_),
 			label(label_)
 		{
 		}
 	};
-	
-	
+
+
 	struct node_description
 	{
 		std::vector <alt_edge>	alt_edges;
@@ -40,9 +49,9 @@ namespace {
 		std::size_t				node{};
 		std::size_t				pos{};
 		std::size_t				aln_pos{};
-		
+
 		node_description() = default;
-		
+
 		node_description(
 			std::size_t node_,
 			std::size_t pos_,
@@ -58,21 +67,21 @@ namespace {
 		{
 		}
 	};
-	
-	
+
+
 	class node_comparator
 	{
 	protected:
 		std::vector <node_description>	m_node_descriptions;
-		
+
 	public:
 		node_comparator() = default;
-		
+
 		node_comparator(std::vector <node_description> node_descriptions):
 			m_node_descriptions(std::move(node_descriptions))
 		{
 		}
-		
+
 		void check_graph(v2m::sequence_type const &reference, v2m::variant_graph const &graph)
 		{
 			v2m::variant_graph_walker walker(reference, graph);
@@ -80,12 +89,12 @@ namespace {
 			{
 				REQUIRE(walker.advance());
 				CHECK(desc.node == walker.node());
-				INFO("Node " << desc.node)
+				INFO("Node " << desc.node);
 				CHECK(desc.pos == walker.ref_position());
 				INFO("Ref pos " << desc.pos);
 				CHECK(desc.aln_pos == walker.aligned_position());
 				INFO("Aln pos " << desc.aln_pos);
-				
+
 				auto const &expected_alt_edges(desc.alt_edges);
 				auto const &actual_alt_edges(walker.alt_edges());
 				CHECK(expected_alt_edges.size() == actual_alt_edges.size());
@@ -102,7 +111,7 @@ namespace {
 					CHECK(expected_edge.label == actual_label);
 				}
 			}
-			
+
 			REQUIRE(!walker.advance());
 		}
 	};
@@ -117,10 +126,10 @@ namespace {
 			v2m::variant_graph::position_type,
 			std::uint32_t
 		> rest_type;
-			
+
 		rest_type				rest;
 		std::vector <t_string>	identifiers;
-		
+
 		template <typename t_string_>
 		alternative_tpl(
 			t_string_ &&sample_name,
@@ -133,25 +142,25 @@ namespace {
 			identifiers(std::move(identifiers_))
 		{
 		}
-		
+
 		template <typename t_string_>
 		bool compare_identifiers(alternative_tpl <t_string_> const &alt) const
 		{
 			for (auto const &[lhs, rhs] : rsv::zip(identifiers, alt.identifiers))
 				if (lhs < rhs) return true;
-			
+
 			return false;
 		}
 	};
-	
+
 	typedef alternative_tpl <std::string> alternative_type;
 	typedef alternative_tpl <std::string_view> alternative_sv_type;
-	
-	
+
+
 	struct alternative_cmp
 	{
 		typedef std::true_type is_transparent;
-		
+
 		template <typename t_string, typename t_string_>
 		bool operator()(alternative_tpl <t_string> const &lhs, alternative_tpl <t_string_> const &rhs) const
 		{
@@ -161,7 +170,7 @@ namespace {
 			return lhs.compare_identifiers(rhs);
 		}
 	};
-	
+
 	template <typename t_string, typename t_string_, typename t_string__>
 	alternative_tpl <t_string> make_alt(
 		t_string_ &&sample_name,
@@ -179,8 +188,8 @@ namespace {
 			gt
 		};
 	}
-		
-	
+
+
 	struct build_graph_delegate final : public v2m::build_graph_delegate
 	{
 		std::set <alternative_type, alternative_cmp> expected_overlapping_alternatives{};
@@ -189,7 +198,7 @@ namespace {
 			expected_overlapping_alternatives(expected_overlapping_alternatives_.begin(), expected_overlapping_alternatives_.end())
 		{
 		}
-		
+
 		bool should_include(std::string_view const sample_name, v2m::variant_graph::ploidy_type const chrom_copy_idx) const override
 		{
 			return true;
@@ -206,7 +215,7 @@ namespace {
 		{
 			REQUIRE(expected_overlapping_alternatives.contains(make_alt <std::string_view>(sample_name, chrom_copy_idx, ref_pos, var_id, gt)));
 		}
-		
+
 		bool ref_column_mismatch(std::uint64_t const var_idx, vcf::transient_variant const &var, std::string_view const expected) override
 		{
 			FAIL("REF column contents do not match the reference sequence in variant " << var_idx << ", position " << var.pos() << ". Expected: “" << expected << "” Actual: “" << var.ref() << "”");
@@ -221,15 +230,15 @@ namespace {
 		std::string const data_dir("test-files/variant-graph/");
 		auto const vcf_path(data_dir + vcf_name);
 		auto const fasta_path(data_dir + fasta_name);
-		
+
 		v2m::sequence_type ref_seq;
 		REQUIRE(lb::read_single_fasta_sequence(fasta_path.c_str(), ref_seq));
-		
+
 		v2m::variant_graph graph;
 		v2m::build_graph_statistics stats;
 		build_graph_delegate delegate{expected_overlapping_alts};
 		v2m::build_variant_graph(ref_seq, vcf_path.c_str(), "1", graph, stats, delegate);
-		
+
 		cmp.check_graph(ref_seq, graph);
 	}
 }
@@ -254,10 +263,10 @@ SCENARIO("Variant graph can be created correctly from a set of miscellaneous var
 				{10,	14,	18,	"",		{}}
 			}
 		};
-		
+
 		test_variant_graph("test-1a.vcf", "test-1.fa", cmp, {make_alt <std::string>("SAMPLE2", 0, 9, "a5", 1)});
 	}
-	
+
 	GIVEN("A VCF file (1b)")
 	{
 		node_comparator cmp{
@@ -275,10 +284,10 @@ SCENARIO("Variant graph can be created correctly from a set of miscellaneous var
 				{10,	14,	18,	"",		{}}
 			}
 		};
-		
+
 		test_variant_graph("test-1b.vcf", "test-1.fa", cmp, {make_alt <std::string>("SAMPLE2", 0, 9, "a5", 1)});
 	}
-	
+
 	GIVEN("A VCF file (2)")
 	{
 		node_comparator cmp{{
@@ -290,7 +299,7 @@ SCENARIO("Variant graph can be created correctly from a set of miscellaneous var
 		}};
 		test_variant_graph("test-2.vcf", "test-2.fa", cmp, {});
 	}
-	
+
 	GIVEN("A VCF file (3)")
 	{
 		node_comparator cmp{{
@@ -308,7 +317,7 @@ SCENARIO("Variant graph can be created correctly from a set of miscellaneous var
 		}};
 		test_variant_graph("test-3.vcf", "test-3.fa", cmp, {});
 	}
-	
+
 	GIVEN("A VCF file (4)")
 	{
 		node_comparator cmp{{
