@@ -3,15 +3,18 @@
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
+#include <libbio/file_handle.hh>
 #include <libbio/file_handling.hh>
+#include <libbio/subprocess.hh>
 #include <vcf2multialign/output.hh>
 #include <vcf2multialign/sequence_writer.hh>
+#include <vcf2multialign/variant_graph.hh>
 
 namespace lb	= libbio;
 
 
 namespace vcf2multialign {
-	
+
 	void output::output_sequence_file(
 		sequence_type const &ref_seq,
 		variant_graph const &graph,
@@ -39,8 +42,8 @@ namespace vcf2multialign {
 			output_sequence(ref_seq, graph, fh, dst_name, m_should_output_unaligned, delegate);
 		}
 	}
-	
-	
+
+
 	void output::output_a2m(sequence_type const &ref_seq, variant_graph const &graph, char const * const dst_name)
 	{
 		if (m_pipe_cmd)
@@ -52,15 +55,15 @@ namespace vcf2multialign {
 				m_delegate->unable_to_execute_subprocess(res);
 				return;
 			}
-			
+
 			auto &fh(proc.stdin_handle());
-			
+
 			{
 				lb::file_ostream stream;
 				lb::open_stream_with_file_handle(stream, fh);
 				output_a2m(ref_seq, graph, stream);
 			}
-			
+
 			m_delegate->exit_subprocess(proc);
 		}
 		else

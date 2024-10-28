@@ -5,11 +5,9 @@
 
 #include <vcf2multialign/state.hh>
 
-namespace ml	= libbio::memory_logger;
-
 
 namespace vcf2multialign {
-	
+
 	char const *to_chars(state const state_)
 	{
 		switch (state_)
@@ -22,7 +20,7 @@ namespace vcf2multialign {
 			case state::find_matchings: 					return "find_matchings";
 			case state::state_limit:						return "state_limit";
 		}
-		
+
 		return "unknown";
 	}
 }

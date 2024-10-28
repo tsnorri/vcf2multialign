@@ -1,28 +1,30 @@
 /*
- * Copyright (c) 2023 Tuukka Norri
+ * Copyright (c) 2023-2024 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
 #include <algorithm>							// std::lower_bound, std::max, std::reverse, std::upper_bound
+#include <libbio/assert.hh>
 #include <range/v3/view/reverse.hpp>
 #include <range/v3/view/subrange.hpp>
 #include <vcf2multialign/find_cut_positions.hh>
 #include <vcf2multialign/pbwt.hh>
+#include <vcf2multialign/variant_graph.hh>
+#include <vector>
 
-namespace lb	= libbio;
 namespace rsv	= ranges::views;
 namespace v2m	= vcf2multialign;
 
 
 namespace {
-	
+
 	typedef v2m::pbwt_context <
 		v2m::variant_graph::sample_type,
 		v2m::variant_graph::edge_type,
 		v2m::variant_graph::ploidy_type
 	>										pbwt_context_type;
-	
-	
+
+
 	// We calculate positions by edge numbers due to the fact that a path using a given edge is a binary property
 	// and hence we would like to maintain the pBWT divergence values for them.
 	struct cut_position
@@ -30,26 +32,26 @@ namespace {
 		typedef v2m::variant_graph::node_type	node_type;
 		typedef v2m::variant_graph::edge_type	edge_type;
 		typedef v2m::variant_graph::ploidy_type	count_type;
-		
+
 		edge_type	edge{};										// The first edge in the node by which to cut.
 		edge_type	prev_edge{v2m::variant_graph::EDGE_MAX};
 		node_type	node{};
 		count_type	score{};
-		
+
 		void update_if_needed(count_type const eq_class_count, cut_position const &prev_cut);
 	};
-	
+
 	typedef std::vector <cut_position> cut_position_vector_;
-	
+
 	struct cut_position_cmp
 	{
 		typedef v2m::variant_graph::edge_type	edge_type;
-		
+
 		bool operator()(cut_position const &lhs, cut_position const &rhs) const { return lhs.edge < rhs.edge; }
 		bool operator()(cut_position const &lhs, edge_type const rhs) const { return lhs.edge < rhs; }
 		bool operator()(edge_type const lhs, cut_position const &rhs) const { return lhs < rhs.edge; }
 	};
-	
+
 	void cut_position::update_if_needed(count_type const eq_class_count, cut_position const &prev_cut)
 	{
 		auto const candidate_score{std::max(eq_class_count, prev_cut.score)};
@@ -63,7 +65,7 @@ namespace {
 
 
 namespace vcf2multialign {
-	
+
 	// Find cut positions in the graph minimising the block height.
 	// The algorithm uses pBWT to determine the number of equivalence classes
 	// of the sequence segments between candidate cut positions. To use the
@@ -96,7 +98,7 @@ namespace vcf2multialign {
 	)
 	{
 		out_cut_positions.clear();
-	
+
 		auto const path_count(graph.total_chromosome_copies());
 
 		variant_graph::node_type rightmost_seen_alt_edge_target{};
@@ -117,7 +119,7 @@ namespace vcf2multialign {
 			--end;
 			return rsv::reverse(ranges::subrange(it, end));
 		});
-	
+
 		while (walker.advance())
 		{
 			// Check if the current node is a potential cut position.
@@ -128,7 +130,7 @@ namespace vcf2multialign {
 				{
 					auto &current_cut(cut_positions.emplace_back(edge_idx, variant_graph::EDGE_MAX, walker.node(), path_count));
 					prev_cut_pos_id = edge_idx;
-				
+
 					auto const cut_pos_begin(cut_positions.begin());
 					auto cut_pos_rb(cut_positions.end());
 					// If there is a path of reference edges, we get an equivalence class for it, but it does not matter.
@@ -142,7 +144,7 @@ namespace vcf2multialign {
 						if (it != cut_pos_rb)
 						{
 							cut_pos_rb = it;
-						
+
 							// Check if the distance to the previous node is at least min_distance.
 							// FIXME: alternatively we could use the minimum path length between said nodes. Calculating it is more difficult, though.
 							if (min_distance <= graph.aligned_length(it->node, walker.node()))
@@ -151,10 +153,10 @@ namespace vcf2multialign {
 								current_cut.update_if_needed(eq_class_count, *it);
 							}
 						}
-					
+
 						eq_class_count += div_count;
 					}
-				
+
 					// Check the cut position immediately to the left from cut_pos_rb.
 					if (cut_pos_begin != cut_pos_rb)
 					{
@@ -163,7 +165,7 @@ namespace vcf2multialign {
 					}
 				}
 			}
-		
+
 			// Handle the edges.
 			for (auto const dst_node : walker.alt_edge_targets())
 			{
@@ -175,11 +177,11 @@ namespace vcf2multialign {
 
 			delegate.handled_node(walker.node());
 		}
-		
+
 		// Copy the solution if possible.
 		if (cut_positions.size() <= 1)
 			return CUT_POSITION_SCORE_MAX;
-		
+
 		{
 			auto it(cut_positions.cend() - 1);
 			auto const retval(it->score);
@@ -190,20 +192,20 @@ namespace vcf2multialign {
 				auto const prev_edge(it->prev_edge);
 				if (variant_graph::EDGE_MAX == prev_edge)
 					break;
-			
+
 				it = std::lower_bound(cut_positions.cbegin(), it, prev_edge, cut_position_cmp{});
 			}
 
 			if (0 != out_cut_positions.back())
 				out_cut_positions.push_back(0);
-				
+
 			std::reverse(out_cut_positions.begin(), out_cut_positions.end());
-			
+
 			// Handle the (common) case where the sink node does not have any ALT-in-edges.
 			libbio_assert_lt(out_cut_positions.back(), graph.node_count());
 			if (out_cut_positions.back() != graph.node_count() - 1)
 				out_cut_positions.back() = graph.node_count() - 1;
-			
+
 			return retval;
 		}
 	}

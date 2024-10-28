@@ -1,16 +1,24 @@
 /*
- * Copyright (c) 2023 Tuukka Norri
+ * Copyright (c) 2023-2024 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
+#include <algorithm>
+#include <cstddef>
+#include <iterator>
+#include <libbio/assert.hh>
+#include <libbio/file_handle.hh>
 #include <libbio/file_handling.hh>
+#include <ostream>
+#include <string_view>
 #include <vcf2multialign/sequence_writer.hh>
+#include <vcf2multialign/variant_graph.hh>
 
 namespace lb	= libbio;
 
 
 namespace vcf2multialign {
-	
+
 	void output_sequence(
 		sequence_type const &ref_seq,
 		variant_graph const &graph,
@@ -26,7 +34,7 @@ namespace vcf2multialign {
 
 		if (fasta_identifier)
 			stream << '>' << fasta_identifier << '\n';
-		
+
 		position_type ref_pos{};
 		position_type aln_pos{};
 		position_type next_ref_pos{};
@@ -36,7 +44,7 @@ namespace vcf2multialign {
 		while (current_node < limit)
 		{
 			delegate.handle_node(graph, current_node);
-			
+
 			std::size_t label_size{};
 			if (sequence_writing_delegate::PLOIDY_MAX != delegate.chromosome_copy_index) // Always follow REF edges if outputting the aligned reference.
 			{
@@ -58,7 +66,7 @@ namespace vcf2multialign {
 					}
 				}
 			}
-			
+
 			{
 				next_ref_pos = graph.reference_positions[current_node + 1];
 				next_aln_pos = graph.aligned_positions[current_node + 1];
@@ -67,7 +75,7 @@ namespace vcf2multialign {
 				label_size = ref_part.size();
 				++current_node;
 			}
-			
+
 		continue_loop:
 			if (!should_output_unaligned)
 				std::fill_n(std::ostreambuf_iterator <char>(stream), next_aln_pos - aln_pos - label_size, '-');
@@ -75,8 +83,8 @@ namespace vcf2multialign {
 			aln_pos = next_aln_pos;
 		}
 	}
-	
-	
+
+
 	void output_sequence(
 		sequence_type const &ref_seq,
 		variant_graph const &graph,

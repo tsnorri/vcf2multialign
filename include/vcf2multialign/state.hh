@@ -6,11 +6,12 @@
 #ifndef VCF2MULTIALIGN_STATE_HH
 #define VCF2MULTIALIGN_STATE_HH
 
+#include <cstdint>
 #include <libbio/log_memory_usage.hh>
 
 
 namespace vcf2multialign {
-	
+
 	// For the memory logger
 	enum class state : std::uint64_t
 	{
@@ -22,10 +23,10 @@ namespace vcf2multialign {
 		find_matchings,
 		state_limit
 	};
-	
-	
+
+
 	char const *to_chars(state const state_);
-	
+
 	typedef libbio::memory_logger::header_writer_delegate_ <state> memory_logger_header_writer_delegate;
 }
 

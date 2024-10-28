@@ -1,8 +1,12 @@
 /*
- * Copyright (c) 2023 Tuukka Norri
+ * Copyright (c) 2023-2024 Tuukka Norri
  * This code is licensed under MIT license (see LICENSE for details).
  */
 
+#include <cstddef>
+#include <cstdint>
+#include <libbio/assert.hh>
+#include <libbio/int_matrix/int_matrix.hh>
 #include <type_traits>
 #include <vcf2multialign/transpose_matrix.hh>
 
@@ -10,7 +14,7 @@ namespace lb	= libbio;
 
 
 namespace vcf2multialign {
-	
+
 	constexpr std::uint64_t transpose8x8(std::uint64_t const word)
 	{
 		// Partially from https://stackoverflow.com/a/41046873/856976
@@ -32,12 +36,12 @@ namespace vcf2multialign {
 			| (word & 0x0000'0000'0000'0080) << 49
 		);
 	}
-	
-	
+
+
 	lb::bit_matrix transpose_matrix(lb::bit_matrix const &mat)
 	{
 		static_assert(std::is_same_v <std::uint64_t, lb::bit_matrix::value_type>);
-		
+
 		// Doing this in place would be quite difficult (esp. for non-rectangular matrices).
 		auto const src_nrow(mat.number_of_rows());
 		auto const src_ncol(mat.number_of_columns());
@@ -45,17 +49,17 @@ namespace vcf2multialign {
 			return lb::bit_matrix{};
 
 		lb::bit_matrix dst(src_ncol, src_nrow);
-		
+
 		libbio_assert_eq(0, src_nrow % 64);
 		libbio_assert_eq(0, src_ncol % 64);
 		auto const src_col_groups(src_ncol / 64);
 		auto const src_col_words(src_nrow / 64);
 		auto const dst_col_words(src_ncol / 64);
-		
+
 		auto const &src_values(mat.values());
 		auto &dst_values(dst.values());
 		libbio_assert_eq(src_values.size(), dst_values.size());
-		
+
 		for (std::size_t src_row_word_idx(0); src_row_word_idx < src_col_words; ++src_row_word_idx)
 		{
 			for (std::uint8_t src_row_byte_idx(0); src_row_byte_idx < 8; ++src_row_byte_idx)
@@ -79,10 +83,10 @@ namespace vcf2multialign {
 							src_word <<= 8 * src_col_idx_add;
 							src_blocks[block_idx] |= src_word;
 						}
-						
+
 						dst_blocks[block_idx] = transpose8x8(src_blocks[block_idx]);
 					}
-					
+
 					for (std::uint8_t block_col_idx(0); block_col_idx < 8; ++block_col_idx)
 					{
 						// Add src_col_group to get the correct word in the current column.
@@ -100,7 +104,7 @@ namespace vcf2multialign {
 				}
 			}
 		}
-		
+
 		return dst;
 	}
 }
