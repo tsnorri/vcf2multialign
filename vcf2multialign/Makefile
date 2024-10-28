@@ -12,8 +12,8 @@ all: vcf2multialign
 clean:
 	$(RM) $(OBJECTS) vcf2multialign cmdline.c cmdline.h version.h config.h
 
-vcf2multialign: $(OBJECTS) ../libvcf2multialign/libvcf2multialign.a
-	$(CXX) -o $@ $(OBJECTS) ../libvcf2multialign/libvcf2multialign.a $(LDFLAGS)
+vcf2multialign: $(OBJECTS) ../libvcf2multialign/libvcf2multialign.a ../lib/libbio/src/libbio.a
+	$(CXX) -o $@ $^ $(BOOST_LIBS) $(LDFLAGS)
 
 main.cc : cmdline.c
 cmdline.c : config.h

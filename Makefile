@@ -68,8 +68,11 @@ lib/libbio/local.mk: local.mk
 lib/libbio/src/libbio.a: lib/libbio/local.mk
 	$(MAKE) -C lib/libbio
 
+lib/libbio/lib/Catch2/build/src/libCatch2.a:
+	$(MAKE) -C lib/libbio lib/Catch2/build/src/libCatch2.a
+
 lib/libbio/lib/rapidcheck/build/librapidcheck.a:
 	$(MAKE) -C lib/libbio lib/rapidcheck/build/librapidcheck.a
 
-tests/coverage/index.html: lib/libbio/lib/rapidcheck/build/librapidcheck.a libvcf2multialign/libvcf2multialign.coverage.a $(DEPENDENCIES)
+tests/coverage/index.html: lib/libbio/lib/Catch2/build/src/libCatch2.a lib/libbio/lib/rapidcheck/build/librapidcheck.a libvcf2multialign/libvcf2multialign.coverage.a $(DEPENDENCIES)
 	$(MAKE) -C tests coverage
