@@ -217,7 +217,7 @@ namespace vcf2multialign {
 					is_first = false;
 
 					// Check the ploidy and sample inclusion.
-    				graph.ploidy_csum.clear();
+					graph.ploidy_csum.clear();
 					graph.ploidy_csum.resize(1 + graph.sample_names.size(), 0);
 					std::vector <std::uint32_t> removed_samples; // No chromosome copies included.
 					auto const &sample_names(reader.sample_names_by_index());

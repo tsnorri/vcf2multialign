@@ -124,6 +124,7 @@ namespace vcf2multialign {
 		position_type aligned_length() const { return aligned_length_(m_node); }
 		position_type aligned_length(std::size_t const rhs_node) const { libbio_assert_lte(m_node, rhs_node); return aligned_length_(rhs_node); }
 		edge_type alt_edge_count() const { return m_graph->alt_edge_count_csum[1 + m_node] - m_graph->alt_edge_count_csum[m_node]; }
+		edge_type alt_edge_base() const { return m_graph->alt_edge_count_csum[m_node]; }
 		inline auto alt_edge_labels() const;
 		inline auto alt_edge_targets() const;
 		inline auto alt_edges() const;
@@ -192,6 +193,9 @@ namespace vcf2multialign {
 	{
 		build_variant_graph(ref_seq, variants_path.c_str(), chr_id, graph, stats, delegate);
 	}
+
+
+	void phase(variant_graph &graph, std::uint16_t const ploidy);
 
 
 	template <typename t_archive>

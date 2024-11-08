@@ -5,10 +5,12 @@ OBJECTS =	find_cut_positions.o \
 			founder_sequence_greedy_output.o \
 			haplotype_output.o \
 			output.o \
+			phase.o \
 			sequence_writer.o \
 			state.o \
 			transpose_matrix.o \
-			variant_graph.o
+			variant_graph.o \
+			variant_graph_flow_network.o
 
 OBJECTS_COVERAGE	= $(OBJECTS:.o=.cov.o)
 GCDA				= $(OBJECTS_COVERAGE:.o=.gcda)
@@ -22,7 +24,7 @@ all: libvcf2multialign.a
 
 clean:
 	$(RM) $(OBJECTS) $(OBJECTS_COVERAGE) $(GCDA) $(GCNO) libvcf2multialign.a libvcf2multialign.coverage.a
-	
+
 libvcf2multialign.a: $(OBJECTS)
 	$(AR) rcs $@ $^
 

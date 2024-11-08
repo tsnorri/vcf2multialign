@@ -45,6 +45,7 @@ option		"output-memory-breakdown"	-	"Output breakdown of the relevant data struc
 section	"Common processing options"
 #option		"filter-fields-set"			-	"Remove variants with any value for the given field (used with e.g. CIPOS, CIEND)"	string	typestr = "identifier"	dependon = "input-variants"		optional	multiple
 option		"ref-mismatch-handling"		-	"REF column mismatch handling"							values = "warning", "error"	enum	default = "warning"										optional
+option		"phase"						-	"Phase the variants in the graph; works with one sample (not checked)."				flag	off
 
 defgroup	"Sample filtering"
 groupoption	"include-samples"			-	"Incude only the samples listed in the given TSV file (chrom, sample, copy_idx)"	string	typestr = "filename"	dependon = "input-variants"	group = "Sample filtering"	optional

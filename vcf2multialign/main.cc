@@ -415,6 +415,25 @@ namespace {
 			);
 		}
 
+		if (args_info.output_graph_statistics_flag)
+		{
+			lb::log_time(std::cerr) << "Outputting variant graph statistics to stdout…\n";
+
+			std::cout << "Nodes:        " << graph.reference_positions.size() << '\n';
+			std::cout << "ALT edges:    " << graph.alt_edge_targets.size() << '\n';
+			std::cout << "Total ploidy: " << graph.ploidy_csum.back() << '\n';
+		}
+
+		if (args_info.phase_given)
+		{
+			if (graph.ploidy_csum.size() < 2)
+			{
+				std::cerr << "ERROR: Unable to phase since the graph does not have any samples.\n";
+				std::exit(EXIT_FAILURE);
+			}
+			v2m::phase(graph, graph.ploidy_csum[1]);
+		}
+
 		if (args_info.output_graph_given)
 		{
 			lb::log_time(std::cerr) << "Outputting the variant graph…" << std::flush;
@@ -423,15 +442,6 @@ namespace {
 			cereal::PortableBinaryOutputArchive archive(os);
 			archive(graph);
 			std::cerr << " Done.\n";
-		}
-
-		if (args_info.output_graph_statistics_flag)
-		{
-			lb::log_time(std::cerr) << "Outputting variant graph statistics to stdout…\n";
-
-			std::cout << "Nodes:        " << graph.reference_positions.size() << '\n';
-			std::cout << "ALT edges:    " << graph.alt_edge_targets.size() << '\n';
-			std::cout << "Total ploidy: " << graph.ploidy_csum.back() << '\n';
 		}
 
 		if (args_info.output_memory_breakdown_given)
