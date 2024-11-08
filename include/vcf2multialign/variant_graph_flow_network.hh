@@ -6,6 +6,7 @@
 #ifndef VCF2MULTIALIGN_VARIANT_GRAPH_FLOW_NETWORK_HH
 #define VCF2MULTIALIGN_VARIANT_GRAPH_FLOW_NETWORK_HH
 
+#include <climits>
 #include <cstddef>
 #include <cstdint>
 #include <utility>
@@ -25,29 +26,42 @@ namespace vcf2multialign::variant_graphs {
 
 		constexpr static inline node_type const NODE_MAX{variant_graph::NODE_MAX};
 		constexpr static inline edge_type const EDGE_MAX{variant_graph::EDGE_MAX};
-		constexpr static inline edge_type const REF_EDGE{EDGE_MAX - 1};
+
+		enum edge_property_mask : edge_type
+		{
+			special			= edge_type(1) << (CHAR_BIT * sizeof(edge_type) - 1),
+			property_value	= special - 1
+		};
+
+		enum edge_property : edge_type
+		{
+			ref_edge					= edge_property_mask::special | 1,
+			reverse_ref_edge			= edge_property_mask::special | 2,
+			reverse_alt_edge			= edge_property_mask::special | 3,
+			supplementary_edge			= edge_property_mask::special | 4,
+			reverse_supplementary_edge	= edge_property_mask::special | 5
+		};
 
 		variant_graph const		&graph;
 		node_vector				edge_sources;
 		node_vector				edge_targets;
-		edge_vector				variant_graph_edge_indices;	// From the flow network edges
-		edge_vector				flow_network_edge_indices;	// From the original graph edges
-		edge_vector				edge_count_csum;			// Cumulative sum of ALT edge counts by 1-based node number.
+		edge_vector				edge_properties;
+		edge_vector				reverse_edges;				// Reverse edges
+		edge_vector				out_edge_count_csum;		// Cumulative sum of out-edge counts by 1-based node number.
 
-		capacity_type			requested_flow{};
-
-		flow_network(variant_graph const &graph_, capacity_type const requested_flow_):
-			graph(graph_),
-			requested_flow(requested_flow_)
+		explicit flow_network(variant_graph const &graph_):
+			graph(graph_)
 		{
 		}
 
 		void prepare();
 
-		std::size_t node_count() const { return edge_count_csum.size() - 1; }
-		std::size_t edge_count() const { return edge_count_csum.back(); }
+		std::size_t node_count() const { return out_edge_count_csum.size() - 1; }
+		std::size_t edge_count() const { return out_edge_count_csum.back(); }
 
-		std::pair <edge_type, edge_type> out_edge_range(node_type const node) const { return {edge_count_csum[node], edge_count_csum[node + 1]}; }
+		std::pair <edge_type, edge_type> out_edge_range(node_type const node) const { return {out_edge_count_csum[node], out_edge_count_csum[node + 1]}; }
+
+		edge_type properties(edge_type edge) const { return edge_properties[edge]; }
 	};
 }
 

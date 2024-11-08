@@ -6,8 +6,10 @@
 #include <algorithm>
 #include <boost/graph/boykov_kolmogorov_max_flow.hpp>
 #include <boost/graph/cycle_canceling.hpp>
+#include <boost/graph/edmonds_karp_max_flow.hpp>
 #include <boost/graph/named_function_params.hpp>
 #include <boost/graph/properties.hpp>
+#include <boost/graph/push_relabel_max_flow.hpp>
 #include <boost/property_map/vector_property_map.hpp>
 #include <cstdint>
 #include <cstdlib>
@@ -36,8 +38,10 @@ namespace {
 		typedef flow_network_type::capacity_type	value_type;
 
 		flow_network_type const &flow_network;
+		value_type max_capacity{};
 
 		value_type operator[](key_type const key) const;
+		void output(flow_network_type const &) const;
 	};
 
 
@@ -49,50 +53,87 @@ namespace {
 		flow_network_type const &flow_network;
 
 		value_type operator[](key_type const key) const;
+		void output(flow_network_type const &) const;
 	};
 
 
-	auto edge_capacity_map::operator[](key_type const key) const -> value_type
+	auto edge_capacity_map::operator[](key_type const edge_idx) const -> value_type
 	{
-		if (0 == key)
-			return flow_network.requested_flow;
+		auto const properties(flow_network.edge_properties[edge_idx]);
+		switch (properties)
+		{
+			case flow_network_type::edge_property::ref_edge:
+			case flow_network_type::edge_property::supplementary_edge:
+				return max_capacity;
 
-		auto const is_reverse(1 == key % 2);
-		if (is_reverse)
-			return 0;
+			case flow_network_type::edge_property::reverse_ref_edge:
+			case flow_network_type::edge_property::reverse_supplementary_edge:
+			case flow_network_type::edge_property::reverse_alt_edge:
+				return 0;
 
-		auto const edge_idx(flow_network.variant_graph_edge_indices[key / 2]);
-		auto const col(flow_network.graph.paths_by_edge_and_chrom_copy.column(edge_idx));
-		auto const capacity(std::accumulate(col.word_begin(), col.word_end(), value_type(0), [](value_type acc, auto word) -> value_type {
-			return acc + libbio::bits::count_bits_set(word);
-		}));
-		return capacity;
+			default: // ALT edge index
+			{
+				libbio_assert(! (flow_network_type::edge_property_mask::special & properties));
+				auto const col(flow_network.graph.paths_by_edge_and_chrom_copy.column(properties));
+				auto const capacity(std::accumulate(col.word_begin(), col.word_end(), value_type(0), [](value_type acc, auto word) -> value_type {
+					return acc + libbio::bits::count_bits_set(word);
+				}));
+				return capacity;
+			}
+		}
 	}
 
 
-	auto edge_weight_map::operator[](key_type const key) const -> value_type
+	auto edge_weight_map::operator[](key_type const edge_idx) const -> value_type
 	{
-		auto const is_reverse(1 == key % 2);
-		if (is_reverse)
-			return 0;
+		auto const properties(flow_network.edge_properties[edge_idx]);
+		switch (properties)
+		{
+			case flow_network_type::edge_property::ref_edge:
+			case flow_network_type::edge_property::reverse_ref_edge:
+			case flow_network_type::edge_property::supplementary_edge:
+			case flow_network_type::edge_property::reverse_supplementary_edge:
+				return 0;
 
-		auto const edge_idx(key / 2);
-		auto const edge_idx_(flow_network.variant_graph_edge_indices[edge_idx]);
-		if (flow_network_type::EDGE_MAX == edge_idx_ || flow_network_type::REF_EDGE == edge_idx_)
-			return 0;
+			case flow_network_type::edge_property::reverse_alt_edge:
+				return -1 * operator[](flow_network.reverse_edges[edge_idx]);
 
-		auto const src_idx(flow_network.edge_sources[edge_idx] - 1);
-		auto const dst_idx(flow_network.edge_targets[edge_idx] - 1);
+			default: // ALT edge index
+			{
+				libbio_assert(! (flow_network_type::edge_property_mask::special & properties));
 
-		auto const &ref_positions(flow_network.graph.reference_positions);
-		value_type const ref_len(ref_positions[dst_idx] - ref_positions[src_idx]);
-		value_type const alt_len(flow_network.graph.alt_edge_labels[edge_idx_].size());
+				auto const src_idx(flow_network.edge_sources[edge_idx] - 1);
+				auto const dst_idx(flow_network.edge_targets[edge_idx] - 1);
 
-		// Other options for applying weights to the edges include:
-		// – Unit score for ALT edges, zero for REF edges
-		// – Absolute value of ALT length minus REF length (works for indels, not for substitutions)
-		// – Edit distance (difficult to calculate)
-		return -1 * std::max(ref_len, alt_len);
+				auto const &ref_positions(flow_network.graph.reference_positions);
+				value_type const ref_len(ref_positions[dst_idx] - ref_positions[src_idx]);
+				value_type const alt_len(flow_network.graph.alt_edge_labels[properties].size());
+
+				// Other options for applying weights to the edges include:
+				// – Unit score for ALT edges, zero for REF edges
+				// – Absolute value of ALT length minus REF length (works for indels, not for substitutions)
+				// – Edit distance (difficult to calculate)
+				return -1 * std::max(ref_len, alt_len);
+			}
+		}
+	}
+
+
+	void edge_capacity_map::output(flow_network_type const &flow_network) const
+	{
+		std::cerr << "Edge capacities:\n";
+		auto const edge_limit(flow_network.edge_count());
+		for (flow_network_type::edge_type edge{}; edge < edge_limit; ++edge)
+			std::cerr << "[" << edge << "]:\t" << this->operator[](edge) << '\n';
+	}
+
+
+	void edge_weight_map::output(flow_network_type const &flow_network) const
+	{
+		std::cerr << "Edge weights:\n";
+		auto const edge_limit(flow_network.edge_count());
+		for (flow_network_type::edge_type edge{}; edge < edge_limit; ++edge)
+			std::cerr << "[" << edge << "]:\t" << this->operator[](edge) << '\n';
 	}
 
 
@@ -149,8 +190,11 @@ namespace vcf2multialign {
 	// – A minimum cost flow through the network is then calculated and edges are assigned to each chromosome copy based on positive flow.
 	void phase(variant_graph &graph, std::uint16_t const ploidy)
 	{
-		variant_graphs::flow_network flow_network(graph, ploidy);
-		edge_capacity_map const edge_capacities(flow_network);
+		variant_graphs::flow_network flow_network(graph);
+		lb::log_time(std::cerr) << "Building a flow network to phase the variants…\n";
+		flow_network.prepare();
+
+		edge_capacity_map const edge_capacities(flow_network, ploidy);
 		edge_weight_map const edge_weights(flow_network);
 		boost::vector_property_map <variant_graphs::flow_network::node_type> vertex_predecessors(flow_network.node_count());
 		boost::vector_property_map <variant_graphs::flow_network::capacity_type> edge_residual_capacities(flow_network.edge_count());
@@ -169,22 +213,25 @@ namespace vcf2multialign {
 			++edge_residual_capacities[edge_idx];
 		});
 
-		lb::log_time(std::cerr) << "Building the flow network…\n";
-		flow_network.prepare();
-
-		lb::log_time(std::cerr) << "Calculating the maximum flow…\n";
-		boost::boykov_kolmogorov_max_flow(
+		lb::log_time(std::cerr) << "Calculating the maximum flow to phase the variants…\n";
+		auto const calculated_flow(boost::boykov_kolmogorov_max_flow(
 			flow_network,
 			0,
 			flow_network.node_count() - 1,
 			boost::capacity_map(edge_capacities)
 			.residual_capacity_map(edge_residual_capacities)
-			.predecessor_map(vertex_predecessors)
 			.color_map(vertex_colors)
+			.predecessor_map(vertex_predecessors)
 			.distance_map(vertex_distances)
-		);
+		));
 
-		lb::log_time(std::cerr) << "Calculating the minimum weight flow…\n";
+		if (calculated_flow != ploidy)
+		{
+			std::cerr << "ERROR: Unable to find " << ploidy << " paths through the variant graph; found " << calculated_flow << ".\n";
+			std::exit(EXIT_FAILURE);
+		}
+
+		lb::log_time(std::cerr) << "Calculating the minimum weight flow to phase the variants…\n";
 		boost::cycle_canceling(
 			flow_network,
 			boost::residual_capacity_map(edge_residual_capacities)
@@ -193,15 +240,11 @@ namespace vcf2multialign {
 			.distance_inf(vertex_distances)
 		);
 
-		auto const calculated_flow(flow_value(0));
-		if (calculated_flow < ploidy)
-		{
-			std::cerr << "ERROR: Unable to find " << ploidy << " paths through the variant graph; found " << calculated_flow << ".\n";
-			std::exit(EXIT_FAILURE);
-		}
-
+		lb::log_time(std::cerr) << "Determining the paths through the flow network…\n";
+		constexpr std::size_t const path_matrix_row_col_divisor{64}; // Make sure we can transpose the matrix with the 8×8 operation.
+		std::size_t const path_matrix_cols(path_matrix_row_col_divisor * std::ceil(1.0 * ploidy / path_matrix_row_col_divisor));
 		auto const &paths_by_edge_and_chrom_copy(graph.paths_by_edge_and_chrom_copy); // Edges on rows, chromosome copies (samples multiplied by ploidy) in columns.
-		variant_graph::path_matrix new_paths_by_edge_and_chrom_copy(paths_by_edge_and_chrom_copy.number_of_rows(), ploidy);
+		variant_graph::path_matrix new_paths_by_edge_and_chrom_copy(paths_by_edge_and_chrom_copy.number_of_rows(), path_matrix_cols);
 
 		// We try to start from an arbitrary edge in order to distribute the variants more evenly to each chromosome copy.
 		{
@@ -211,7 +254,7 @@ namespace vcf2multialign {
 				auto current_chr(new_paths_by_edge_and_chrom_copy.column(chr_idx));
 
 				variant_graphs::flow_network::node_type node_idx{}; // Corresponds to the original graph.
-				variant_graphs::flow_network::node_type const node_limit{graph.node_count()};
+				variant_graphs::flow_network::node_type const node_limit{graph.node_count() - 1};
 				while (node_idx < node_limit)
 				{
 					auto const out_edge_range(flow_network.out_edge_range(node_idx + 1)); // Take the source node into account.
@@ -219,26 +262,32 @@ namespace vcf2multialign {
 					auto const current_edge_limit(edge_idx + out_edge_count);
 					while (edge_idx < current_edge_limit)
 					{
-						auto const flow(flow_value(edge_idx % out_edge_count));
-						if (flow)
-						{
-							decrease_flow(edge_idx);
-							auto const edge_idx_(flow_network.variant_graph_edge_indices[edge_idx]);
-							libbio_assert_neq(edge_idx_, variant_graphs::flow_network::EDGE_MAX);
-							++edge_idx; // Not used before the next iteration, so we update here.
+						auto const edge_idx_(edge_idx % out_edge_count + out_edge_range.first);
+						++edge_idx; // Not used before the next iteration, so we update here.
 
-							if (variant_graphs::flow_network::REF_EDGE == edge_idx_)
-								++node_idx;
-							else
+						auto const flow(flow_value(edge_idx_));
+						if (0 < flow)
+						{
+							auto const properties(flow_network.edge_properties[edge_idx_]);
+							switch (properties)
 							{
-								current_chr[edge_idx_] |= 1;
-								node_idx = graph.alt_edge_targets[edge_idx_];
+								case flow_network_type::edge_property::reverse_ref_edge:
+								case flow_network_type::edge_property::reverse_alt_edge:
+								case flow_network_type::edge_property::supplementary_edge:
+								case flow_network_type::edge_property::reverse_supplementary_edge:
+									libbio_fail("There should be no need to handle any reverse or supplementary forward edges while finding paths");
+								case flow_network_type::edge_property::ref_edge:
+									++node_idx;
+									break;
+								default: // ALT edge
+									current_chr[properties] |= 1;
+									node_idx = graph.alt_edge_targets[properties];
+									break;
 							}
 
+							decrease_flow(edge_idx_);
 							goto continue_traversal;
 						}
-
-						++edge_idx;
 					}
 
 					// Not found.

@@ -74,7 +74,9 @@ namespace vcf2multialign::variant_graphs::inline bgl {
 		typedef flow_network::edge_type		key_type;
 		typedef flow_network::edge_type 	value_type;
 
-		value_type operator[](key_type const edge) const { return (0 == edge % 2 ? edge + 1 : edge - 1); }
+		flow_network const &flow_network;
+
+		value_type operator[](key_type const edge) const { return flow_network.reverse_edges[edge]; }
 	};
 
 
@@ -118,14 +120,14 @@ namespace vcf2multialign::variant_graphs::inline bgl {
 	source(
 		typename boost::graph_traits <flow_network>::edge_descriptor const edge,
 		flow_network const &flow_network_
-	) {  return (0 == edge % 2 ? flow_network_.edge_sources : flow_network_.edge_targets)[edge]; }
+	) {  return flow_network_.edge_sources[edge]; }
 
 
 	inline typename boost::graph_traits <flow_network>::vertex_descriptor
 	target(
 		typename boost::graph_traits <flow_network>::edge_descriptor const edge,
 		flow_network const &flow_network_
-	) {  return (0 == edge % 2 ? flow_network_.edge_targets : flow_network_.edge_sources)[edge]; }
+	) {  return flow_network_.edge_targets[edge]; }
 
 
 	// IncidenceGraph
@@ -149,7 +151,7 @@ namespace vcf2multialign::variant_graphs::inline bgl {
 		flow_network const &flow_network_
 	)
 	{
-		return (flow_network_.edge_count_csum[node + 1] - flow_network_.edge_count_csum[node]);
+		return (flow_network_.out_edge_count_csum[node + 1] - flow_network_.out_edge_count_csum[node]);
 	}
 
 
@@ -160,9 +162,9 @@ namespace vcf2multialign::variant_graphs::inline bgl {
 	}
 
 
-	inline edge_reverse_map get(boost::edge_reverse_t, flow_network const &)
+	inline edge_reverse_map get(boost::edge_reverse_t, flow_network const &flow_network_)
 	{
-		return {};
+		return {flow_network_};
 	}
 
 
