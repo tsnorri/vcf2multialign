@@ -12,11 +12,13 @@
 #include <boost/graph/properties.hpp>
 #include <boost/graph/push_relabel_max_flow.hpp>
 #include <boost/property_map/vector_property_map.hpp>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
 #include <libbio/assert.hh>
 #include <libbio/bits.hh>
+#include <libbio/file_handling.hh>
 #include <libbio/utility.hh>
 #include <numeric>
 #include <ostream>
@@ -224,7 +226,7 @@ namespace vcf2multialign {
 	// – The capacity of each REF edge is set to infinite and the weight to zero.
 	// – The capacity of each ALT edge is set to the sum of the GT values that correspond to the edge and the weight is set to -||REF| - |ALT||.
 	// – A minimum cost flow through the network is then calculated and edges are assigned to each chromosome copy based on positive flow.
-	void phase(variant_graph &graph, std::uint16_t const ploidy, std::ostream &flow_network_os)
+	void phase(variant_graph &graph, std::uint16_t const ploidy, lb::file_ostream &flow_network_os)
 	{
 		variant_graphs::flow_network flow_network(graph);
 		lb::log_time(std::cerr) << "Building a flow network to phase the variants…\n";
@@ -276,7 +278,7 @@ namespace vcf2multialign {
 			vertex_distances
 		);
 
-		if (flow_network_os)
+		if (flow_network_os.is_open())
 		{
 			auto const edge_label_writer([&](std::ostream &os, auto const edge){
 				os << "[label = \"E: " << edge << " W: " << edge_weights[edge] << " C: " << edge_capacities[edge] << "\"]";
