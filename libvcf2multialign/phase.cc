@@ -153,6 +153,40 @@ namespace {
 	{
 		return map[key];
 	}
+
+
+	// Fix an issue in boost::cycle_canceling.
+	// Using flow_network_type const & as the type of the first parameter seems to cause more problems.
+	template <
+		typename t_edge_residual_capacities,
+		typename t_edge_weights,
+		typename t_vertex_predecessors,
+		typename t_vertex_distances
+	>
+	void cycle_canceling_(
+		flow_network_type const &flow_network,
+		t_edge_residual_capacities &edge_residual_capacities,
+		t_edge_weights const &edge_weights,
+		t_vertex_predecessors const &vertex_predecessors,
+		t_vertex_distances const &vertex_distances
+
+	)
+	{
+		auto const &reverse_edges([&]{
+			using namespace boost;
+			auto const &retval(get(edge_reverse, flow_network));
+			return retval;
+		}());
+
+		boost::cycle_canceling(
+			flow_network,
+			edge_weights,
+			reverse_edges,
+			edge_residual_capacities,
+			vertex_predecessors,
+			vertex_distances
+		);
+	}
 }
 
 
@@ -232,12 +266,12 @@ namespace vcf2multialign {
 		}
 
 		lb::log_time(std::cerr) << "Calculating the minimum weight flow to phase the variants…\n";
-		boost::cycle_canceling(
+		cycle_canceling_(
 			flow_network,
-			boost::residual_capacity_map(edge_residual_capacities)
-			.weight_map(edge_weights)
-			.predecessor_map(vertex_predecessors)
-			.distance_inf(vertex_distances)
+			edge_residual_capacities,
+			edge_weights,
+			vertex_predecessors,
+			vertex_distances
 		);
 
 		lb::log_time(std::cerr) << "Determining the paths through the flow network…\n";
