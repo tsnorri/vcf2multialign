@@ -431,7 +431,12 @@ namespace {
 				std::cerr << "ERROR: Unable to phase since the graph does not have any samples.\n";
 				std::exit(EXIT_FAILURE);
 			}
-			v2m::phase(graph, graph.ploidy_csum[1]);
+
+			lb::file_ostream os;
+			if (args_info.output_phasing_graph_arg)
+				lb::open_file_for_writing(args_info.output_phasing_graph_arg, os, lb::writing_open_mode::CREATE);
+
+			v2m::phase(graph, graph.ploidy_csum[1], os);
 		}
 
 		if (args_info.output_graph_given)

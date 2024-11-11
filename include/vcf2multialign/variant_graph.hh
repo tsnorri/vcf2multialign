@@ -18,6 +18,7 @@
 #include <libbio/size_calculator.hh>
 #include <libbio/vcf/variant.hh>
 #include <limits>										// std::numeric_limits
+#include <ostream>
 #include <range/v3/view/zip.hpp>
 #include <span>
 #include <string>
@@ -195,7 +196,7 @@ namespace vcf2multialign {
 	}
 
 
-	void phase(variant_graph &graph, std::uint16_t const ploidy);
+	void phase(variant_graph &graph, std::uint16_t const ploidy, std::ostream &os);
 
 
 	template <typename t_archive>

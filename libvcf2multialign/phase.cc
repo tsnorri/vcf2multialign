@@ -7,6 +7,7 @@
 #include <boost/graph/boykov_kolmogorov_max_flow.hpp>
 #include <boost/graph/cycle_canceling.hpp>
 #include <boost/graph/edmonds_karp_max_flow.hpp>
+#include <boost/graph/graphviz.hpp>
 #include <boost/graph/named_function_params.hpp>
 #include <boost/graph/properties.hpp>
 #include <boost/graph/push_relabel_max_flow.hpp>
@@ -18,6 +19,7 @@
 #include <libbio/bits.hh>
 #include <libbio/utility.hh>
 #include <numeric>
+#include <ostream>
 #include <utility>
 #include <vcf2multialign/transpose_matrix.hh>
 #include <vcf2multialign/variant_graph.hh>
@@ -222,7 +224,7 @@ namespace vcf2multialign {
 	// – The capacity of each REF edge is set to infinite and the weight to zero.
 	// – The capacity of each ALT edge is set to the sum of the GT values that correspond to the edge and the weight is set to -||REF| - |ALT||.
 	// – A minimum cost flow through the network is then calculated and edges are assigned to each chromosome copy based on positive flow.
-	void phase(variant_graph &graph, std::uint16_t const ploidy)
+	void phase(variant_graph &graph, std::uint16_t const ploidy, std::ostream &flow_network_os)
 	{
 		variant_graphs::flow_network flow_network(graph);
 		lb::log_time(std::cerr) << "Building a flow network to phase the variants…\n";
@@ -273,6 +275,14 @@ namespace vcf2multialign {
 			vertex_predecessors,
 			vertex_distances
 		);
+
+		if (flow_network_os)
+		{
+			auto const edge_label_writer([&](std::ostream &os, auto const edge){
+				os << "[label = \"E: " << edge << " W: " << edge_weights[edge] << " C: " << edge_capacities[edge] << "\"]";
+			});
+			boost::write_graphviz(flow_network_os, flow_network, boost::default_writer(), edge_label_writer);
+		}
 
 		lb::log_time(std::cerr) << "Determining the paths through the flow network…\n";
 		constexpr std::size_t const path_matrix_row_col_divisor{64}; // Make sure we can transpose the matrix with the 8×8 operation.
