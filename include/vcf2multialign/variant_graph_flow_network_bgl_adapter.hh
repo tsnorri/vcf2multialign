@@ -83,9 +83,9 @@ namespace vcf2multialign::variant_graphs::inline bgl {
 		typedef flow_network::edge_type		key_type;
 		typedef flow_network::edge_type 	value_type;
 
-		flow_network const &flow_network;
+		flow_network const &flow_network_;
 
-		value_type operator[](key_type const edge) const { return flow_network.reverse_edges[edge]; }
+		value_type operator[](key_type const edge) const { return flow_network_.reverse_edges[edge]; }
 	};
 
 
