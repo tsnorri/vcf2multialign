@@ -10,6 +10,7 @@
 #include <boost/graph/named_function_params.hpp>
 #include <boost/graph/properties.hpp>
 #include <boost/graph/push_relabel_max_flow.hpp>
+#include <boost/property_map/property_map.hpp>
 #include <boost/property_map/vector_property_map.hpp>
 #include <cmath>
 #include <cstdint>
@@ -196,6 +197,61 @@ namespace boost {
 
 namespace vcf2multialign::variant_graphs {
 
+	void graph_phasing::find_paths(flow_network_type const &flow_network, variant_graph::path_matrix &new_paths_by_edge_and_chrom_copy, std::uint16_t const ploidy)
+	{
+		// We try to start from an arbitrary edge in order to distribute the variants more evenly to each chromosome copy.
+		std::uint64_t edge_idx{};
+		for (std::uint16_t chr_idx{}; chr_idx < ploidy; ++chr_idx)
+		{
+			auto current_chr(new_paths_by_edge_and_chrom_copy.column(chr_idx));
+
+			flow_network_type::node_type node_idx{}; // Corresponds to the original graph.
+			flow_network_type::node_type const node_limit{m_graph->node_count()};
+			while (node_idx < node_limit)
+			{
+				auto const out_edge_range(flow_network.out_edge_range(node_idx + 1)); // Take the source node into account.
+				auto const out_edge_count(out_edge_range.second - out_edge_range.first);
+				auto const current_edge_limit(edge_idx + out_edge_count);
+				while (edge_idx < current_edge_limit)
+				{
+					auto const edge_idx_(edge_idx % out_edge_count + out_edge_range.first);
+					++edge_idx; // Not used before the next iteration, so we update here.
+
+					auto const flow(edge_flow(edge_idx_));
+					if (0 < flow)
+					{
+						auto const properties(flow_network.edge_properties[edge_idx_]);
+						switch (properties)
+						{
+							case flow_network_type::edge_property::reverse_ref_edge:
+							case flow_network_type::edge_property::reverse_alt_edge:
+							case flow_network_type::edge_property::supplementary_edge:
+							case flow_network_type::edge_property::reverse_supplementary_edge:
+								libbio_fail("There should be no need to handle any reverse or supplementary forward edges while finding paths");
+							case flow_network_type::edge_property::ref_edge:
+								++node_idx;
+								break;
+							default: // ALT edge
+								current_chr[properties] |= 1;
+								node_idx = m_graph->alt_edge_targets[properties];
+								break;
+						}
+
+						decrease_flow(edge_idx_);
+						goto continue_traversal;
+					}
+				}
+
+				// Not found.
+				libbio_fail("Unable to find a node with remaining flow.");
+
+			continue_traversal:
+				;
+			}
+		}
+	}
+
+
 	// Apply a (very simple) algorithm to phase the variants in the given graph.
 	// The algorithm currently supports one sample (not checked) and works as follows:
 	// – The variant graph is first transformed into a flow network. A source and a sink node are added and the capacity of the single
@@ -211,22 +267,17 @@ namespace vcf2multialign::variant_graphs {
 
 		m_edge_capacities = edge_capacity_map(&flow_network, ploidy);
 		m_edge_weights = edge_weight_map(&flow_network);
+		m_edge_residual_capacities.clear();
+		m_edge_residual_capacities.resize(flow_network.edge_count(), 0);
+
 		boost::vector_property_map <variant_graphs::flow_network::node_type> vertex_predecessors(flow_network.node_count());
-		boost::vector_property_map <variant_graphs::flow_network::capacity_type> edge_residual_capacities(flow_network.edge_count());
 		boost::vector_property_map <boost::default_color_type> vertex_colors(flow_network.node_count());
 		boost::vector_property_map <std::int64_t> vertex_distances(flow_network.node_count());
-
-		// Return the flow for the given node.
-		auto const flow_value([this, &edge_residual_capacities](variant_graphs::flow_network::edge_type const edge_idx){
-			auto const capacity(m_edge_capacities[edge_idx]);
-			auto const residual(edge_residual_capacities[edge_idx]);
-			return capacity - residual;
-		});
-
-		// Decrease the flow through the given node by one unit.
-		auto const decrease_flow([&edge_residual_capacities](variant_graphs::flow_network::edge_type const edge_idx){
-			++edge_residual_capacities[edge_idx];
-		});
+		auto const &vertex_indices([&]{
+			auto const &retval(get(boost::vertex_index, flow_network));
+			return retval;
+		}());
+		auto edge_residual_capacities(boost::make_iterator_property_map(m_edge_residual_capacities.begin(), vertex_indices));
 
 		delegate.graph_phasing_will_calculate_maximum_flow(*this);
 		auto const calculated_flow(boost::boykov_kolmogorov_max_flow(
@@ -256,67 +307,16 @@ namespace vcf2multialign::variant_graphs {
 		);
 		delegate.graph_phasing_did_calculate_minimum_weigth_flow(*this, flow_network);
 
-		delegate.graph_phasing_will_determine_paths(*this);
-		constexpr std::size_t const path_matrix_row_col_divisor{64}; // Make sure we can transpose the matrix with the 8×8 operation.
-		std::size_t const path_matrix_cols(path_matrix_row_col_divisor * std::ceil(1.0 * ploidy / path_matrix_row_col_divisor));
-		auto const &paths_by_edge_and_chrom_copy(m_graph->paths_by_edge_and_chrom_copy); // Edges on rows, chromosome copies (samples multiplied by ploidy) in columns.
-		variant_graph::path_matrix new_paths_by_edge_and_chrom_copy(paths_by_edge_and_chrom_copy.number_of_rows(), path_matrix_cols);
-
-		// We try to start from an arbitrary edge in order to distribute the variants more evenly to each chromosome copy.
 		{
-			std::uint64_t edge_idx{};
-			for (std::uint16_t chr_idx{}; chr_idx < ploidy; ++chr_idx)
-			{
-				auto current_chr(new_paths_by_edge_and_chrom_copy.column(chr_idx));
-
-				variant_graphs::flow_network::node_type node_idx{}; // Corresponds to the original graph.
-				variant_graphs::flow_network::node_type const node_limit{m_graph->node_count()};
-				while (node_idx < node_limit)
-				{
-					auto const out_edge_range(flow_network.out_edge_range(node_idx + 1)); // Take the source node into account.
-					auto const out_edge_count(out_edge_range.second - out_edge_range.first);
-					auto const current_edge_limit(edge_idx + out_edge_count);
-					while (edge_idx < current_edge_limit)
-					{
-						auto const edge_idx_(edge_idx % out_edge_count + out_edge_range.first);
-						++edge_idx; // Not used before the next iteration, so we update here.
-
-						auto const flow(flow_value(edge_idx_));
-						if (0 < flow)
-						{
-							auto const properties(flow_network.edge_properties[edge_idx_]);
-							switch (properties)
-							{
-								case flow_network_type::edge_property::reverse_ref_edge:
-								case flow_network_type::edge_property::reverse_alt_edge:
-								case flow_network_type::edge_property::supplementary_edge:
-								case flow_network_type::edge_property::reverse_supplementary_edge:
-									libbio_fail("There should be no need to handle any reverse or supplementary forward edges while finding paths");
-								case flow_network_type::edge_property::ref_edge:
-									++node_idx;
-									break;
-								default: // ALT edge
-									current_chr[properties] |= 1;
-									node_idx = m_graph->alt_edge_targets[properties];
-									break;
-							}
-
-							decrease_flow(edge_idx_);
-							goto continue_traversal;
-						}
-					}
-
-					// Not found.
-					libbio_fail("Unable to find a node with remaining flow.");
-
-				continue_traversal:
-					;
-				}
-			}
+			delegate.graph_phasing_will_determine_paths(*this);
+			constexpr std::size_t const path_matrix_row_col_divisor{64}; // Make sure we can transpose the matrix with the 8×8 operation.
+			std::size_t const path_matrix_cols(path_matrix_row_col_divisor * std::ceil(1.0 * ploidy / path_matrix_row_col_divisor));
+			auto const &paths_by_edge_and_chrom_copy(m_graph->paths_by_edge_and_chrom_copy); // Edges on rows, chromosome copies (samples multiplied by ploidy) in columns.
+			variant_graph::path_matrix new_paths_by_edge_and_chrom_copy(paths_by_edge_and_chrom_copy.number_of_rows(), path_matrix_cols);
+			find_paths(flow_network, new_paths_by_edge_and_chrom_copy, ploidy);
+			m_graph->paths_by_edge_and_chrom_copy = std::move(new_paths_by_edge_and_chrom_copy);
+			m_graph->paths_by_chrom_copy_and_edge = transpose_matrix(m_graph->paths_by_edge_and_chrom_copy);
 		}
-
-		m_graph->paths_by_edge_and_chrom_copy = std::move(new_paths_by_edge_and_chrom_copy);
-		m_graph->paths_by_chrom_copy_and_edge = transpose_matrix(m_graph->paths_by_edge_and_chrom_copy);
 
 		return true;
 	}

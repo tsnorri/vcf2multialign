@@ -15,6 +15,8 @@
 
 namespace vcf2multialign::variant_graphs {
 
+	// Adapts the variant graph by adding a source node and a sink node.
+	// To make using the graph easier, REF edges are also added to the out-edge list.
 	struct flow_network
 	{
 		typedef variant_graph::node_type	node_type;
