@@ -54,7 +54,16 @@ namespace boost {
 		typedef edge_iterator										out_edge_iterator;
 
 		static vertex_descriptor null_vertex() { return graph_type::NODE_MAX; }
+
+		// These seem to be currently required by boost::filtered_graph.
+		typedef void	adjacency_iterator;
+		typedef void	in_edge_iterator;
 	};
+
+	// Currently a traits specialisation for the const version is required, too.
+	template <>
+	struct graph_traits <vcf2multialign::variant_graphs::bgl::flow_network const> :
+		public graph_traits <vcf2multialign::variant_graphs::bgl::flow_network> {};
 }
 
 
