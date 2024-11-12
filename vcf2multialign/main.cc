@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <boost/stacktrace.hpp>
+#include <boost/graph/graphviz.hpp>
 #include <cereal/archives/portable_binary.hpp>
 #include <cereal/types/vector.hpp>
 #include <cereal/types/string.hpp>
@@ -36,6 +37,8 @@
 #include <vcf2multialign/output.hh>
 #include <vcf2multialign/state.hh>
 #include <vcf2multialign/variant_graph.hh>
+#include <vcf2multialign/variant_graph_flow_network_bgl_adapter.hh>
+#include <vcf2multialign/variant_graph_phasing.hh>
 #include <vector>
 #include "cmdline.h"
 
@@ -367,6 +370,40 @@ namespace {
 	};
 
 
+	struct graph_phasing_delegate final : v2m::variant_graphs::graph_phasing_delegate
+	{
+		lb::file_ostream &os;
+
+		explicit graph_phasing_delegate(lb::file_ostream &os_): os(os_) {}
+
+		void graph_phasing_will_build_flow_network(v2m::variant_graphs::graph_phasing const &) override { lb::log_time(std::cerr) << "Building a flow network to phase the variants…\n"; }
+		void graph_phasing_will_calculate_maximum_flow(v2m::variant_graphs::graph_phasing const &) override { lb::log_time(std::cerr) << "Calculating the maximum flow to phase the variants…\n"; }
+		void graph_phasing_unable_to_match_ploidy(v2m::variant_graphs::graph_phasing const &, std::uint16_t const ploidy, std::uint16_t const calculated_flow) override;
+		void graph_phasing_will_calculate_minimum_weight_flow(v2m::variant_graphs::graph_phasing const &) override { lb::log_time(std::cerr) << "Calculating the minimum weight flow to phase the variants…\n"; }
+		void graph_phasing_did_calculate_minimum_weigth_flow(v2m::variant_graphs::graph_phasing const &, flow_network_type const &flow_network) override;
+		void graph_phasing_will_determine_paths(v2m::variant_graphs::graph_phasing const &) override { lb::log_time(std::cerr) << "Determining the paths through the flow network…\n"; }
+	};
+
+
+	void graph_phasing_delegate::graph_phasing_unable_to_match_ploidy(v2m::variant_graphs::graph_phasing const &, std::uint16_t const ploidy, std::uint16_t const calculated_flow)
+	{
+		std::cerr << "ERROR: Unable to find " << ploidy << " paths through the variant graph; found " << calculated_flow << ".\n";
+		std::exit(EXIT_FAILURE);
+	}
+
+
+	void graph_phasing_delegate::graph_phasing_did_calculate_minimum_weigth_flow(v2m::variant_graphs::graph_phasing const &phasing, flow_network_type const &flow_network)
+	{
+		if (os.is_open())
+		{
+			auto const edge_label_writer([&](std::ostream &os, auto const edge){
+				os << "[label = \"E: " << edge << " W: " << phasing.edge_weight(edge) << " C: " << phasing.edge_capacity(edge) << "\"]";
+			});
+			boost::write_graphviz(os, flow_network, boost::default_writer(), edge_label_writer);
+		}
+	}
+
+
 	void run(gengetopt_args_info const &args_info)
 	{
 		::signal(SIGPIPE, SIG_IGN);
@@ -436,7 +473,13 @@ namespace {
 			if (args_info.output_phasing_graph_arg)
 				lb::open_file_for_writing(args_info.output_phasing_graph_arg, os, lb::writing_open_mode::CREATE);
 
-			v2m::phase(graph, graph.ploidy_csum[1], os);
+			v2m::variant_graphs::graph_phasing phasing(graph);
+			graph_phasing_delegate delegate(os);
+			if (!phasing.phase(graph.ploidy_csum[1], delegate))
+			{
+				std::cerr << "ERROR: Unable to phase the variants.\n";
+				std::exit(EXIT_FAILURE);
+			}
 		}
 
 		if (args_info.output_graph_given)

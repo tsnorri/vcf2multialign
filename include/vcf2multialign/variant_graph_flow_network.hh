@@ -45,7 +45,7 @@ namespace vcf2multialign::variant_graphs {
 		variant_graph const		&graph;
 		node_vector				edge_sources;
 		node_vector				edge_targets;
-		edge_vector				edge_properties;
+		edge_vector				edge_properties;			// ALT edge number in the original graph or the edge type.
 		edge_vector				reverse_edges;				// Reverse edges
 		edge_vector				out_edge_count_csum;		// Cumulative sum of out-edge counts by 1-based node number.
 

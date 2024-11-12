@@ -7,7 +7,6 @@
 #include <boost/graph/boykov_kolmogorov_max_flow.hpp>
 #include <boost/graph/cycle_canceling.hpp>
 #include <boost/graph/edmonds_karp_max_flow.hpp>
-#include <boost/graph/graphviz.hpp>
 #include <boost/graph/named_function_params.hpp>
 #include <boost/graph/properties.hpp>
 #include <boost/graph/push_relabel_max_flow.hpp>
@@ -18,7 +17,6 @@
 #include <iostream>
 #include <libbio/assert.hh>
 #include <libbio/bits.hh>
-#include <libbio/file_handling.hh>
 #include <libbio/utility.hh>
 #include <numeric>
 #include <ostream>
@@ -27,43 +25,14 @@
 #include <vcf2multialign/variant_graph.hh>
 #include <vcf2multialign/variant_graph_flow_network.hh>
 #include <vcf2multialign/variant_graph_flow_network_bgl_adapter.hh>
-
-namespace lb	= libbio;
-
-
-namespace {
-
-	typedef vcf2multialign::variant_graphs::flow_network flow_network_type;
+#include <vcf2multialign/variant_graph_phasing.hh>
 
 
-	struct edge_capacity_map
-	{
-		typedef flow_network_type::edge_type		key_type;
-		typedef flow_network_type::capacity_type	value_type;
-
-		flow_network_type const &flow_network;
-		value_type max_capacity{};
-
-		value_type operator[](key_type const key) const;
-		void output(flow_network_type const &) const;
-	};
-
-
-	struct edge_weight_map
-	{
-		typedef flow_network_type::edge_type	key_type;
-		typedef flow_network_type::weight_type	value_type;
-
-		flow_network_type const &flow_network;
-
-		value_type operator[](key_type const key) const;
-		void output(flow_network_type const &) const;
-	};
-
+namespace vcf2multialign::variant_graphs::phasing {
 
 	auto edge_capacity_map::operator[](key_type const edge_idx) const -> value_type
 	{
-		auto const properties(flow_network.edge_properties[edge_idx]);
+		auto const properties(flow_network->edge_properties[edge_idx]);
 		switch (properties)
 		{
 			case flow_network_type::edge_property::ref_edge:
@@ -78,7 +47,7 @@ namespace {
 			default: // ALT edge index
 			{
 				libbio_assert(! (flow_network_type::edge_property_mask::special & properties));
-				auto const col(flow_network.graph.paths_by_edge_and_chrom_copy.column(properties));
+				auto const col(flow_network->graph.paths_by_edge_and_chrom_copy.column(properties));
 				auto const capacity(std::accumulate(col.word_begin(), col.word_end(), value_type(0), [](value_type acc, auto word) -> value_type {
 					return acc + libbio::bits::count_bits_set(word);
 				}));
@@ -90,7 +59,7 @@ namespace {
 
 	auto edge_weight_map::operator[](key_type const edge_idx) const -> value_type
 	{
-		auto const properties(flow_network.edge_properties[edge_idx]);
+		auto const properties(flow_network->edge_properties[edge_idx]);
 		switch (properties)
 		{
 			case flow_network_type::edge_property::ref_edge:
@@ -100,18 +69,18 @@ namespace {
 				return 0;
 
 			case flow_network_type::edge_property::reverse_alt_edge:
-				return -1 * operator[](flow_network.reverse_edges[edge_idx]);
+				return -1 * operator[](flow_network->reverse_edges[edge_idx]);
 
 			default: // ALT edge index
 			{
 				libbio_assert(! (flow_network_type::edge_property_mask::special & properties));
 
-				auto const src_idx(flow_network.edge_sources[edge_idx] - 1);
-				auto const dst_idx(flow_network.edge_targets[edge_idx] - 1);
+				auto const src_idx(flow_network->edge_sources[edge_idx] - 1);
+				auto const dst_idx(flow_network->edge_targets[edge_idx] - 1);
 
-				auto const &ref_positions(flow_network.graph.reference_positions);
+				auto const &ref_positions(flow_network->graph.reference_positions);
 				value_type const ref_len(ref_positions[dst_idx] - ref_positions[src_idx]);
-				value_type const alt_len(flow_network.graph.alt_edge_labels[properties].size());
+				value_type const alt_len(flow_network->graph.alt_edge_labels[properties].size());
 
 				// Other options for applying weights to the edges include:
 				// – Unit score for ALT edges, zero for REF edges
@@ -157,6 +126,14 @@ namespace {
 	{
 		return map[key];
 	}
+}
+
+
+namespace {
+
+	typedef vcf2multialign::variant_graphs::flow_network				flow_network_type;
+	typedef vcf2multialign::variant_graphs::phasing::edge_capacity_map	edge_capacity_map;
+	typedef vcf2multialign::variant_graphs::phasing::edge_weight_map	edge_weight_map;
 
 
 	// Fix an issue in boost::cycle_canceling.
@@ -217,7 +194,7 @@ namespace boost {
 }
 
 
-namespace vcf2multialign {
+namespace vcf2multialign::variant_graphs {
 
 	// Apply a (very simple) algorithm to phase the variants in the given graph.
 	// The algorithm currently supports one sample (not checked) and works as follows:
@@ -226,22 +203,22 @@ namespace vcf2multialign {
 	// – The capacity of each REF edge is set to infinite and the weight to zero.
 	// – The capacity of each ALT edge is set to the sum of the GT values that correspond to the edge and the weight is set to -||REF| - |ALT||.
 	// – A minimum cost flow through the network is then calculated and edges are assigned to each chromosome copy based on positive flow.
-	void phase(variant_graph &graph, std::uint16_t const ploidy, lb::file_ostream &flow_network_os)
+	bool graph_phasing::phase(std::uint16_t const ploidy, graph_phasing_delegate &delegate)
 	{
-		variant_graphs::flow_network flow_network(graph);
-		lb::log_time(std::cerr) << "Building a flow network to phase the variants…\n";
+		delegate.graph_phasing_will_build_flow_network(*this);
+		variant_graphs::flow_network flow_network(*m_graph);
 		flow_network.prepare();
 
-		edge_capacity_map const edge_capacities(flow_network, ploidy);
-		edge_weight_map const edge_weights(flow_network);
+		m_edge_capacities = edge_capacity_map(&flow_network, ploidy);
+		m_edge_weights = edge_weight_map(&flow_network);
 		boost::vector_property_map <variant_graphs::flow_network::node_type> vertex_predecessors(flow_network.node_count());
 		boost::vector_property_map <variant_graphs::flow_network::capacity_type> edge_residual_capacities(flow_network.edge_count());
 		boost::vector_property_map <boost::default_color_type> vertex_colors(flow_network.node_count());
 		boost::vector_property_map <std::int64_t> vertex_distances(flow_network.node_count());
 
 		// Return the flow for the given node.
-		auto const flow_value([&edge_capacities, &edge_residual_capacities](variant_graphs::flow_network::edge_type const edge_idx){
-			auto const capacity(edge_capacities[edge_idx]);
+		auto const flow_value([this, &edge_residual_capacities](variant_graphs::flow_network::edge_type const edge_idx){
+			auto const capacity(m_edge_capacities[edge_idx]);
 			auto const residual(edge_residual_capacities[edge_idx]);
 			return capacity - residual;
 		});
@@ -251,12 +228,12 @@ namespace vcf2multialign {
 			++edge_residual_capacities[edge_idx];
 		});
 
-		lb::log_time(std::cerr) << "Calculating the maximum flow to phase the variants…\n";
+		delegate.graph_phasing_will_calculate_maximum_flow(*this);
 		auto const calculated_flow(boost::boykov_kolmogorov_max_flow(
 			flow_network,
 			0,
 			flow_network.node_count() - 1,
-			boost::capacity_map(edge_capacities)
+			boost::capacity_map(m_edge_capacities)
 			.residual_capacity_map(edge_residual_capacities)
 			.color_map(vertex_colors)
 			.predecessor_map(vertex_predecessors)
@@ -265,31 +242,24 @@ namespace vcf2multialign {
 
 		if (calculated_flow != ploidy)
 		{
-			std::cerr << "ERROR: Unable to find " << ploidy << " paths through the variant graph; found " << calculated_flow << ".\n";
-			std::exit(EXIT_FAILURE);
+			delegate.graph_phasing_unable_to_match_ploidy(*this, ploidy, calculated_flow);
+			return false;
 		}
 
-		lb::log_time(std::cerr) << "Calculating the minimum weight flow to phase the variants…\n";
+		delegate.graph_phasing_will_calculate_minimum_weight_flow(*this);
 		cycle_canceling_(
 			flow_network,
 			edge_residual_capacities,
-			edge_weights,
+			m_edge_weights,
 			vertex_predecessors,
 			vertex_distances
 		);
+		delegate.graph_phasing_did_calculate_minimum_weigth_flow(*this, flow_network);
 
-		if (flow_network_os.is_open())
-		{
-			auto const edge_label_writer([&](std::ostream &os, auto const edge){
-				os << "[label = \"E: " << edge << " W: " << edge_weights[edge] << " C: " << edge_capacities[edge] << "\"]";
-			});
-			boost::write_graphviz(flow_network_os, flow_network, boost::default_writer(), edge_label_writer);
-		}
-
-		lb::log_time(std::cerr) << "Determining the paths through the flow network…\n";
+		delegate.graph_phasing_will_determine_paths(*this);
 		constexpr std::size_t const path_matrix_row_col_divisor{64}; // Make sure we can transpose the matrix with the 8×8 operation.
 		std::size_t const path_matrix_cols(path_matrix_row_col_divisor * std::ceil(1.0 * ploidy / path_matrix_row_col_divisor));
-		auto const &paths_by_edge_and_chrom_copy(graph.paths_by_edge_and_chrom_copy); // Edges on rows, chromosome copies (samples multiplied by ploidy) in columns.
+		auto const &paths_by_edge_and_chrom_copy(m_graph->paths_by_edge_and_chrom_copy); // Edges on rows, chromosome copies (samples multiplied by ploidy) in columns.
 		variant_graph::path_matrix new_paths_by_edge_and_chrom_copy(paths_by_edge_and_chrom_copy.number_of_rows(), path_matrix_cols);
 
 		// We try to start from an arbitrary edge in order to distribute the variants more evenly to each chromosome copy.
@@ -300,7 +270,7 @@ namespace vcf2multialign {
 				auto current_chr(new_paths_by_edge_and_chrom_copy.column(chr_idx));
 
 				variant_graphs::flow_network::node_type node_idx{}; // Corresponds to the original graph.
-				variant_graphs::flow_network::node_type const node_limit{graph.node_count() - 1};
+				variant_graphs::flow_network::node_type const node_limit{m_graph->node_count()};
 				while (node_idx < node_limit)
 				{
 					auto const out_edge_range(flow_network.out_edge_range(node_idx + 1)); // Take the source node into account.
@@ -327,7 +297,7 @@ namespace vcf2multialign {
 									break;
 								default: // ALT edge
 									current_chr[properties] |= 1;
-									node_idx = graph.alt_edge_targets[properties];
+									node_idx = m_graph->alt_edge_targets[properties];
 									break;
 							}
 
@@ -345,7 +315,9 @@ namespace vcf2multialign {
 			}
 		}
 
-		graph.paths_by_edge_and_chrom_copy = std::move(new_paths_by_edge_and_chrom_copy);
-		graph.paths_by_chrom_copy_and_edge = transpose_matrix(graph.paths_by_edge_and_chrom_copy);
+		m_graph->paths_by_edge_and_chrom_copy = std::move(new_paths_by_edge_and_chrom_copy);
+		m_graph->paths_by_chrom_copy_and_edge = transpose_matrix(m_graph->paths_by_edge_and_chrom_copy);
+
+		return true;
 	}
 }
