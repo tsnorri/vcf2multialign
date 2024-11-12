@@ -17,6 +17,7 @@ namespace vcf2multialign {
 	{
 		default_state = 0,
 		build_variant_graph,
+		phase_variant_graph,
 		output_haplotypes,
 		output_founder_sequences_greedy,
 		find_cut_positions,

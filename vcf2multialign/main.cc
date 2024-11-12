@@ -463,6 +463,8 @@ namespace {
 
 		if (args_info.phase_given)
 		{
+			ml::state_guard const guard(v2m::state::phase_variant_graph);
+
 			if (graph.ploidy_csum.size() < 2)
 			{
 				std::cerr << "ERROR: Unable to phase since the graph does not have any samples.\n";

@@ -14,6 +14,7 @@ namespace vcf2multialign {
 		{
 			case state::default_state: 						return "default_state";
 			case state::build_variant_graph: 				return "build_variant_graph";
+			case state::phase_variant_graph:				return "phase_variant_graph";
 			case state::output_haplotypes: 					return "output_haplotypes";
 			case state::output_founder_sequences_greedy:	return "output_founder_sequences_greedy";
 			case state::find_cut_positions: 				return "find_cut_positions";
