@@ -200,6 +200,7 @@ namespace vcf2multialign::variant_graphs {
 	void graph_phasing::find_paths(flow_network_type const &flow_network, variant_graph::path_matrix &new_paths_by_edge_and_chrom_copy, std::uint16_t const ploidy)
 	{
 		// We try to start from an arbitrary edge in order to distribute the variants more evenly to each chromosome copy.
+		auto const &graph(flow_network.graph);
 		std::uint64_t edge_idx{};
 		for (std::uint16_t chr_idx{}; chr_idx < ploidy; ++chr_idx)
 		{
@@ -232,9 +233,15 @@ namespace vcf2multialign::variant_graphs {
 								++node_idx;
 								break;
 							default: // ALT edge
-								current_chr[properties] |= 1;
-								node_idx = m_graph->alt_edge_targets[properties];
+							{
+								libbio_assert_lt(1 + node_idx, graph.alt_edge_count_csum.size());
+								auto const alt_edge_base(graph.alt_edge_count_csum[node_idx]);
+								libbio_assert_lte(alt_edge_base, properties);
+								libbio_assert_lt(properties, graph.alt_edge_count_csum[1 + node_idx]);
+								current_chr[properties - alt_edge_base] |= 1;
+								node_idx = graph.alt_edge_targets[properties];
 								break;
+							}
 						}
 
 						decrease_flow(edge_idx_);
