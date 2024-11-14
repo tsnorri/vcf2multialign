@@ -202,12 +202,13 @@ namespace vcf2multialign::variant_graphs {
 		// We try to start from an arbitrary edge in order to distribute the variants more evenly to each chromosome copy.
 		auto const &graph(flow_network.graph);
 		std::uint64_t edge_idx{};
+		libbio_assert(m_graph->node_count());
 		for (std::uint16_t chr_idx{}; chr_idx < ploidy; ++chr_idx)
 		{
 			auto current_chr(new_paths_by_edge_and_chrom_copy.column(chr_idx));
 
 			flow_network_type::node_type node_idx{}; // Corresponds to the original graph.
-			flow_network_type::node_type const node_limit{m_graph->node_count()};
+			flow_network_type::node_type const node_limit{m_graph->node_count() - 1}; // Do not process the out-edges of the last node (since they point to the sink).
 			while (node_idx < node_limit)
 			{
 				auto const out_edge_range(flow_network.out_edge_range(node_idx + 1)); // Take the source node into account.
