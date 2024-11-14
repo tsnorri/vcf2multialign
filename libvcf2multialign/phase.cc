@@ -197,7 +197,7 @@ namespace boost {
 
 namespace vcf2multialign::variant_graphs {
 
-	void graph_phasing::find_paths(flow_network_type const &flow_network, variant_graph::path_matrix &new_paths_by_edge_and_chrom_copy, std::uint16_t const ploidy)
+	void graph_phasing::find_paths(flow_network_type const &flow_network, variant_graph::path_matrix &new_paths_by_chrom_copy_and_edge, std::uint16_t const ploidy)
 	{
 		// We try to start from an arbitrary edge in order to distribute the variants more evenly to each chromosome copy.
 		auto const &graph(flow_network.graph);
@@ -205,7 +205,7 @@ namespace vcf2multialign::variant_graphs {
 		libbio_assert(m_graph->node_count());
 		for (std::uint16_t chr_idx{}; chr_idx < ploidy; ++chr_idx)
 		{
-			auto current_chr(new_paths_by_edge_and_chrom_copy.column(chr_idx));
+			auto current_chr(new_paths_by_chrom_copy_and_edge.column(chr_idx)); // Name refers to what columns have.
 
 			flow_network_type::node_type node_idx{}; // Corresponds to the original graph.
 			flow_network_type::node_type const node_limit{m_graph->node_count() - 1}; // Do not process the out-edges of the last node (since they point to the sink).
@@ -319,11 +319,11 @@ namespace vcf2multialign::variant_graphs {
 			delegate.graph_phasing_will_determine_paths(*this);
 			constexpr std::size_t const path_matrix_row_col_divisor{64}; // Make sure we can transpose the matrix with the 8×8 operation.
 			std::size_t const path_matrix_cols(path_matrix_row_col_divisor * std::ceil(1.0 * ploidy / path_matrix_row_col_divisor));
-			auto const &paths_by_edge_and_chrom_copy(m_graph->paths_by_edge_and_chrom_copy); // Edges on rows, chromosome copies (samples multiplied by ploidy) in columns.
-			variant_graph::path_matrix new_paths_by_edge_and_chrom_copy(paths_by_edge_and_chrom_copy.number_of_rows(), path_matrix_cols);
-			find_paths(flow_network, new_paths_by_edge_and_chrom_copy, ploidy);
-			m_graph->paths_by_edge_and_chrom_copy = std::move(new_paths_by_edge_and_chrom_copy);
-			m_graph->paths_by_chrom_copy_and_edge = transpose_matrix(m_graph->paths_by_edge_and_chrom_copy);
+			auto const &paths_by_chrom_copy_and_edge(m_graph->paths_by_chrom_copy_and_edge); // Edges on rows, chromosome copies (samples multiplied by ploidy) in columns.
+			variant_graph::path_matrix new_paths_by_chrom_copy_and_edge(paths_by_chrom_copy_and_edge.number_of_rows(), path_matrix_cols);
+			find_paths(flow_network, new_paths_by_chrom_copy_and_edge, ploidy);
+			m_graph->paths_by_chrom_copy_and_edge = std::move(new_paths_by_chrom_copy_and_edge);
+			m_graph->paths_by_edge_and_chrom_copy = transpose_matrix(m_graph->paths_by_chrom_copy_and_edge);
 		}
 
 		return true;
